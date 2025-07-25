@@ -75,42 +75,71 @@ helm upgrade --install smart-intersection ./smart-intersection/chart \
 
 ```
 
-## Access Application Services
+## Access Application Services using Node Port
 
-### Access the Application UI using Node Port
+### Access the Application UI
 
 - Get the Node Port Number using following command and use it to access the Application UI
 ```bash
 kubectl get service smart-intersection-web -n smart-intersection -o jsonpath='{.spec.ports[0].nodePort}'
 ```
-- Go to http://<HOST_IP>:<Node_PORT>
+- Go to https://<HOST_IP>:<Node_PORT>
 - - **Log in with credentials**:
     - **Username**: `admin`
     - **Password**: Stored in `supass`. (Check `./smart-intersection/src/secrets/supass`)
 
-### Access the Grafana UI using Node Port
+### Access the Grafana UI
 
 - Get the Node Port Number using following command and use it to access the Grafana UI
 ```bash
 kubectl get service smart-intersection-grafana -n smart-intersection -o jsonpath='{.spec.ports[0].nodePort}'
 ```
 - Go to http://<HOST_IP>:<Node_PORT>
+- - **Log in with credentials**:
+    - **Username**: `admin`
+    - **Password**: `admin`
 
-### Access the InfluxDB UI using Port Forwarding
+
+## Access Application Services using Port Forwarding (Optional)
+
+### Access the Application UI
+
+```bash
+WEB_POD=$(kubectl get pods -n smart-intersection -l app=smart-intersection-web -o jsonpath="{.items[0].metadata.name}")
+sudo -E kubectl -n smart-intersection port-forward $WEB_POD 443:443
+```
+- Go to https://<HOST_IP>
+- - **Log in with credentials**:
+    - **Username**: `admin`
+    - **Password**: Stored in `supass`. (Check `./smart-intersection/src/secrets/supass`)
+
+
+### Access the Grafana UI
+
+```bash
+GRAFANA_POD=$(kubectl get pods -n smart-intersection -l app=smart-intersection-grafana -o jsonpath="{.items[0].metadata.name}")
+kubectl -n smart-intersection port-forward $GRAFANA_POD 3000:3000
+```
+- Go to http://<HOST_IP>:<Node_PORT>
+- - **Log in with credentials**:
+    - **Username**: `admin`
+    - **Password**: `admin`
+
+### Access the InfluxDB UI
 
 ```bash
 INFLUX_POD=$(kubectl get pods -n smart-intersection -l app=smart-intersection-influxdb -o jsonpath="{.items[0].metadata.name}")
 kubectl -n smart-intersection port-forward $INFLUX_POD 8086:8086
 ```
 
-### Access the NodeRED UI using Port Forwarding
+### Access the NodeRED UI
 
 ```bash
 NODE_RED_POD=$(kubectl get pods -n smart-intersection -l app=smart-intersection-nodered -o jsonpath="{.items[0].metadata.name}")
 kubectl -n smart-intersection port-forward $NODE_RED_POD 1880:1880
 ```
 
-### Access the DL Streamer Pipeline Server using Port Forwarding
+### Access the DL Streamer Pipeline Server
 
 ```bash
 DLS_PS_POD=$(kubectl get pods -n smart-intersection -l app=smart-intersection-dlstreamer-pipeline-server -o jsonpath="{.items[0].metadata.name}")
