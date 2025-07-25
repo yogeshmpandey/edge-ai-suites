@@ -165,7 +165,6 @@ kubectl delete namespace smart-intersection
 
 ## What to Do Next
 
-- **[How to Use the Application](./how-to-use-application.md)**: Verify the application and access its features.
 - **[Troubleshooting Helm Deployments](./support.md#troubleshooting-helm-deployments)**: Consolidated troubleshooting steps for resolving issues during Helm deployments.
 - **[Get Started](./get-started.md)**: Ensure you have completed the initial setup steps before proceeding.
 
