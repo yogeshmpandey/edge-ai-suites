@@ -84,6 +84,9 @@ helm upgrade --install smart-intersection ./smart-intersection/chart \
 kubectl get service smart-intersection-web -n smart-intersection -o jsonpath='{.spec.ports[0].nodePort}'
 ```
 - Go to http://<HOST_IP>:<Node_PORT>
+- - **Log in with credentials**:
+    - **Username**: `admin`
+    - **Password**: Stored in `supass`. (Check `./smart-intersection/src/secrets/supass`)
 
 ### Access the Grafana UI using Node Port
 
