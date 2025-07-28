@@ -54,7 +54,7 @@ Applications can take advantage of S3 publish feature from DLStreamer Pipeline S
             }
         },
         "parameters": {
-            "detection-properties": {
+            "classification-properties": {
                 "model": "/home/pipeline-server/resources/models/pcb-anomaly-detection/deployment/Anomaly classification/model/model.xml",
                 "device": "CPU"
             }

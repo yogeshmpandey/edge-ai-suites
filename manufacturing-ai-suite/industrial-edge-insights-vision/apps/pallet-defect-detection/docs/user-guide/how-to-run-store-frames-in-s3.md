@@ -55,7 +55,7 @@ Applications can take advantage of S3 publish feature from DLStreamer Pipeline S
         },
         "parameters": {
             "detection-properties": {
-                "model": "/home/pipeline-server/resources/models/geti/pallet_defect_detection/deployment/Detection/model/model.xml",
+                "model": "/home/pipeline-server/resources/models/pallet-defect-detection/deployment/Detection/model/model.xml",
                 "device": "CPU"
             }
         }

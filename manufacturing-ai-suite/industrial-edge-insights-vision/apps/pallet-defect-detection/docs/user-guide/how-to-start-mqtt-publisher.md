@@ -6,7 +6,7 @@ Pre-requisites:
 Start the MQTT broker [eclipse mosquitto](https://mosquitto.org/) using configuration `configs/mosquitto.conf` in the application directory as below.
 
   ```sh
-  cd <WORKDIR>/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision/apps/weld-porosity
+  cd <WORKDIR>/edge-ai-suites/manufacturing-ai-suite/industrial-edge-insights-vision/apps/pallet-defect-detection
   docker run -d --name=mqtt_broker -p 1883:1883 -v $PWD/configs/mosquitto.conf:/mosquitto/config/mosquitto.conf eclipse-mosquitto
   ```
 
@@ -27,16 +27,16 @@ Assuming broker is running in the same host over port `1883`, replace the `<HOST
 WebRTC Stream will be accessible at `http://<HOST_IP>:8889/mqttstream`.
 
 ```sh
-curl http://<HOST_IP>:8080/pipelines/user_defined_pipelines/weld_porosity_classification_mqtt -X POST -H 'Content-Type: application/json' -d '{
+curl http://<HOST_IP>:8080/pipelines/user_defined_pipelines/pallet_defect_detection_mqtt -X POST -H 'Content-Type: application/json' -d '{
     "source": {
-        "uri": "file:///home/pipeline-server/resources/videos/welding.avi",
+        "uri": "file:///home/pipeline-server/resources/videos/warehouse.avi",
         "type": "uri"
     },
     "destination": {
         "metadata": {
             "type": "mqtt",
             "publish_frame":true,
-            "topic": "weld_porosity_classification"
+            "topic": "pallet_defect_detection"
         },
         "frame": {
             "type": "webrtc",
@@ -45,8 +45,8 @@ curl http://<HOST_IP>:8080/pipelines/user_defined_pipelines/weld_porosity_classi
         }
     },
     "parameters": {
-        "classification-properties": {
-            "model": "/home/pipeline-server/resources/models/weld-porosity/deployment/Classification/model/model.xml",
+        "detection-properties": {
+            "model": "/home/pipeline-server/resources/models/pallet-defect-detection/deployment/Detection/model/model.xml",
             "device": "CPU"
         }
     }
@@ -57,5 +57,5 @@ In the above curl command set `publish_frame` to false if you don't want frames 
 Output can be viewed on MQTT subscriber as shown below.
 
 ```sh
-docker run -it --entrypoint mosquitto_sub eclipse-mosquitto:latest --topic weld_porosity_classification -p 1883 -h <HOST_IP>
+docker run -it --entrypoint mosquitto_sub eclipse-mosquitto:latest --topic pallet_defect_detection -p 1883 -h <HOST_IP>
 ```

@@ -18,7 +18,7 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
     OPCUA_SERVER_PASSWORD= # example: secret
     ```
 
-3. Update the OPC UA `variable` to appropriate value for the pipeline `pcb_anomaly_detection_opcua` in `configs/config.json` for docker or `helm/config.json` for helm.
+3. Update the OPC UA `variable` to appropriate value for the pipeline `weld_porosity_classification_opcua` in `configs/config.json` for docker or `helm/config.json` for helm.
 
     ```shell
         "opcua_publisher": {
@@ -34,9 +34,9 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
    **Note: Update the port to `30107` for helm or `8080` if you are using docker environment**
 
    ```sh
-    curl http://<HOST_IP>:<port>/pipelines/user_defined_pipelines/pcb_anomaly_detection_opcua -X POST -H 'Content-Type: application/json' -d '{
+    curl http://<HOST_IP>:<port>/pipelines/user_defined_pipelines/weld_porosity_classification_opcua -X POST -H 'Content-Type: application/json' -d '{
         "source": {
-            "uri": "file:///home/pipeline-server/resources/videos/anomalib_pcb_test.avi",
+            "uri": "file:///home/pipeline-server/resources/videos/welding.avi",
             "type": "uri"
         },
         "destination": {
@@ -49,13 +49,13 @@ Follow this procedure to test the DL Streamer Pipeline Server OPC UA publishing 
             ],
             "frame": {
                 "type": "webrtc",
-                "peer-id": "anomaly_opcua",
+                "peer-id": "pddopcua",
                 "overlay": false
             }
         },
         "parameters": {
             "classification-properties": {
-                "model": "/home/pipeline-server/resources/models/pcb-anomaly-detection/deployment/Anomaly classification/model/model.xml",
+                "model": "/home/pipeline-server/resources/models/weld-porosity/deployment/Classification/model/model.xml",
                 "device": "CPU"
             }
         }
