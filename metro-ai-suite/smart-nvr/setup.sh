@@ -159,18 +159,8 @@ stop_services() {
     print_header "Stopping NVR Event Router Services"
     print_info "Stopping NVR Event Router services..."
     docker compose -f docker/compose.yaml down
-    
-    print_info "Removing project-specific Docker volumes..."
-    # Remove only the volumes defined in the compose file
-    PROJECT_VOLUMES="docker_mosquitto_data docker_mosquitto_log docker_redis_data"
-    for volume in $PROJECT_VOLUMES; do
-        if docker volume ls -q | grep -q "^${volume}$"; then
-            docker volume rm "$volume" 2>/dev/null || true
-            print_info "Removed volume: $volume"
-        fi
-    done
-    
-    print_success "All services stopped and volumes cleaned up."
+
+    print_success "All services stopped."
 }
 
 # Function to display help
