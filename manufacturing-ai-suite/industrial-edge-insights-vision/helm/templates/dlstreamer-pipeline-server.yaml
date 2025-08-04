@@ -44,7 +44,7 @@ spec:
       # hostNetwork: true
       containers:
       - name: {{ $.Values.config.dlstreamer_pipeline_server.name }}
-        image: {{ $.Values.DOCKER_REGISTRY }}intel/dlstreamer-pipeline-server:3.1.0-ubuntu22
+        image: {{ $.Values.DOCKER_REGISTRY }}{{ $.Values.images.dlstreamer_pipeline_server }}
         imagePullPolicy: {{ $.Values.imagePullPolicy }}
         {{- if $.Values.privileged_access_required }}
         securityContext:
