@@ -57,7 +57,6 @@ This page provides comprehensive support and troubleshooting information for the
    - Follow these steps to reset the application to the initial state
      ```bash
      ./setup.sh stop
-     docker volume ls | grep nvr-event-router | awk '{ print $2 }' | xargs docker volume rm
      ```
 <!--
 ## Support

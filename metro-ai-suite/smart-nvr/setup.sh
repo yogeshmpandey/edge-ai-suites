@@ -159,7 +159,18 @@ stop_services() {
     print_header "Stopping NVR Event Router Services"
     print_info "Stopping NVR Event Router services..."
     docker compose -f docker/compose.yaml down
-    print_success "All services stopped."
+    
+    print_info "Removing project-specific Docker volumes..."
+    # Remove only the volumes defined in the compose file
+    PROJECT_VOLUMES="docker_mosquitto_data docker_mosquitto_log docker_redis_data"
+    for volume in $PROJECT_VOLUMES; do
+        if docker volume ls -q | grep -q "^${volume}$"; then
+            docker volume rm "$volume" 2>/dev/null || true
+            print_info "Removed volume: $volume"
+        fi
+    done
+    
+    print_success "All services stopped and volumes cleaned up."
 }
 
 # Function to display help
@@ -174,9 +185,9 @@ show_help() {
     echo -e "  ${BLUE}help${NC}     - Display this help message"
     echo ""
     echo -e "${WHITE}Examples:${NC}"
-    echo -e "  ${CYAN}$0 start${NC}     # Start the services"
-    echo -e "  ${CYAN}$0 stop${NC}      # Stop the services"
-    echo -e "  ${CYAN}$0 restart${NC}   # Restart the services"
+    echo -e "  ${CYAN}source setup.sh start${NC}     # Start the services"
+    echo -e "  ${CYAN}source setup.sh stop${NC}      # Stop the services"
+    echo -e "  ${CYAN}source setup.sh restart${NC}   # Restart the services"
     echo ""
 }
 
