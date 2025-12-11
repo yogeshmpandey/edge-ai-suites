@@ -11,6 +11,7 @@
 ### 1) Prerequisites
 - Docker and Docker Compose
 - Host with enough CPU/GPU for the selected models
+- OpenVINO compatible VLM Model downloaded and present in `ov_models` directory. By default the config.json has InternVL2 supprot
 
 ### 2) Configure environment
 Update a `.env` in the repo root:
