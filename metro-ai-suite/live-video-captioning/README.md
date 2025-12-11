@@ -3,9 +3,13 @@
 ### TODOs
 
 -[] Add support for GPU pipeline in DLSPS
+
 -[] Add support for GPU Graphs using Qmassa
+
 -[] Add support for multiple parallel pipeline trigger.
+
 -[] Testing on different HWs.
+
 -[] Update the DLSPS config so that it can take all the needed values as params. 
 
 ### 1) Prerequisites
