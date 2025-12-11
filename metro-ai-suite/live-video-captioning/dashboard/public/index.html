@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Caption Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+    <header>
+        <h2>Live VLM Video Captioning</h2>
+    </header>
+    <main>
+        <section class="panels">
+            <article class="card">
+                <div class="status">
+                    <span class="dot" id="videoStatus"></span>
+                    <span id="statusText">Waiting for stream...</span>
+                </div>
+                <form id="pipelineForm" class="controls">
+                    <label class="field">
+                        <span class="label">RTSP URL</span>
+                        <input id="rtspInput" class="input" type="text" value="rtsp://10.223.24.242:8555/garage" />
+                    </label>
+                    <button id="startBtn" class="btn btn-primary" type="submit">Start</button>
+                    <button id="stopBtn" class="btn btn-danger" type="button" disabled>Stop</button>
+                </form>
+                <div class="status" style="margin-top:0;">
+                    <span class="dot active"></span>
+                    <span id="pipelineInfo">Pipeline idle</span>
+                </div>
+                <div class="card" style="margin-top:2px; background: var(--panel-strong);">
+                        <h3 style="margin-bottom:8px;">System Stats</h3>
+                        <div class="chart-grid">
+                            <div class="chart-card">
+                                <div class="chart-header"><span>CPU</span><span class="chart-value" id="cpuVal">—</span></div>
+                                <div class="chart-wrap"><canvas id="cpuChart"></canvas></div>
+                            </div>
+                            <div class="chart-card">
+                                <div class="chart-header"><span>RAM</span><span class="chart-value" id="ramVal">—</span></div>
+                                <div class="chart-sub" id="ramDetail">—</div>
+                                <div class="chart-wrap"><canvas id="ramChart"></canvas></div>
+                            </div>
+                            <div class="chart-card">
+                                <div class="chart-header"><span>GPU</span><span class="chart-value" id="gpuVal">—</span></div>
+                                <div class="chart-wrap"><canvas id="gpuChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+            </article>
+            <article class="card live-layout">
+                <section class="video-panel">
+                    <iframe id="webrtcFrame" title="WebRTC stream"></iframe>
+                </section>
+                <section class="caption-panel">
+                    <div class="empty-alert" id="hint"></div>
+                    <div class="chips" style="margin-top:4px;">
+                        <span class="chip"><strong>TTFT</strong><span id="ttftChip">—</span></span>
+                        <span class="chip"><strong>TPOT</strong><span id="tpotChip">—</span></span>
+                        <span class="chip"><strong>Throughput</strong><span id="throughputChip">—</span></span>
+                    </div>
+                    <div class="status" id="watcherStatus">Waiting for metadata...</div>
+                    <p class="caption-text" id="captionText">Waiting for metadata...</p>
+                    <div class="timestamp" id="timestamp">—</div>
+                </section>
+            </article>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/runtime-config.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>
