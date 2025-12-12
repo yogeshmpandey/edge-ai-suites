@@ -177,6 +177,11 @@ async def stop_run(run_id: str) -> dict[str, str]:
         raise HTTPException(status_code=404, detail={"message": "Run not found"})
     stop_url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines/{info.pipelineId}"
     _http_json("DELETE", stop_url)
+    RUNS.pop(run_id, None)
+    try:
+        Path(info.metadataFile).unlink(missing_ok=True)
+    except OSError:
+        pass
     return {"status": "stopped", "runId": run_id}
 
 

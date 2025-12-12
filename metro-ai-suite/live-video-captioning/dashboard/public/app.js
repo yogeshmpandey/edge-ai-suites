@@ -19,6 +19,11 @@
     const state = { selectedRunId: null, runs: new Map() };
     const statsCharts = {};
 
+    function refreshGlobalStopButton() {
+        if (!els.stopBtn) return;
+        els.stopBtn.disabled = state.runs.size === 0;
+    }
+
     function createStatChart(elId, label, color) {
         const ctx = document.getElementById(elId)?.getContext('2d');
         if (!ctx) return null;
@@ -118,6 +123,34 @@
         els.pipelineInfo.textContent = text;
     }
 
+    async function stopRun(runId) {
+        const current = state.runs.get(runId);
+        if (!current) return;
+
+        updatePipelineInfo(`Stopping: ${runId}...`);
+        try {
+            const resp = await fetch(`/api/runs/${runId}`, { method: 'DELETE' });
+            if (!resp.ok) {
+                const data = await resp.json().catch(async () => ({ message: await resp.text() }));
+                throw new Error(data?.message || data?.detail?.message || resp.statusText);
+            }
+
+            if (current.source) current.source.close();
+            if (current.wrap) current.wrap.remove();
+            state.runs.delete(runId);
+            if (state.selectedRunId === runId) state.selectedRunId = null;
+
+            if (state.runs.size === 0) {
+                setVideoStatus(false, 'Waiting for stream...');
+                updatePipelineInfo('Pipeline stopped');
+            } else {
+                updatePipelineInfo(`Stopped: ${runId}`);
+            }
+        } finally {
+            refreshGlobalStopButton();
+        }
+    }
+
     function createRunElement(run) {
         const wrap = document.createElement('div');
         wrap.className = 'card';
@@ -182,13 +215,10 @@
         stopBtn.addEventListener('click', async () => {
             stopBtn.disabled = true;
             try {
-                await fetch(`/api/runs/${run.runId}`, { method: 'DELETE' });
-            } finally {
-                const current = state.runs.get(run.runId);
-                if (current?.source) current.source.close();
-                state.runs.delete(run.runId);
-                wrap.remove();
-                updatePipelineInfo('Pipeline stopped');
+                await stopRun(run.runId);
+            } catch (err) {
+                updatePipelineInfo(`Stop failed: ${err.message}`);
+                stopBtn.disabled = false;
             }
         });
 
@@ -237,6 +267,10 @@
             if (els.hintEl) els.hintEl.textContent = 'Stream not found, retrying...';
         };
         state.runs.set(run.runId, { ...run, source });
+        // Keep references so the global Stop button can cleanly teardown UI.
+        state.runs.get(run.runId).wrap = ui.wrap;
+        state.runs.get(run.runId).stopBtn = ui.stopBtn;
+        refreshGlobalStopButton();
     }
 
     function initSystemStats() {
@@ -303,7 +337,8 @@
             els.runsContainer.prepend(ui.wrap);
             attachRunStreams(run, ui);
             updatePipelineInfo(`Running: ${run.runId} (Pipeline ${run.pipelineId})`);
-            els.stopBtn.disabled = true;
+            state.selectedRunId = run.runId;
+            refreshGlobalStopButton();
         } catch (err) {
             updatePipelineInfo(`Start failed: ${err.message}`);
         } finally {
@@ -312,13 +347,29 @@
     }
 
     async function stopPipeline() {
-        updatePipelineInfo('Use Stop on a run card');
+        const preferred = state.selectedRunId;
+        const runId = preferred && state.runs.has(preferred) ? preferred : Array.from(state.runs.keys()).pop();
+        if (!runId) {
+            updatePipelineInfo('No active runs');
+            refreshGlobalStopButton();
+            return;
+        }
+
+        els.stopBtn.disabled = true;
+        try {
+            await stopRun(runId);
+        } catch (err) {
+            updatePipelineInfo(`Stop failed: ${err.message}`);
+        } finally {
+            refreshGlobalStopButton();
+        }
     }
 
     function init() {
         initSystemStats();
         els.form.addEventListener('submit', startPipeline);
         els.stopBtn.addEventListener('click', stopPipeline);
+        refreshGlobalStopButton();
     }
 
     init();
