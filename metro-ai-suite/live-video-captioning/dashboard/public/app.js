@@ -346,30 +346,30 @@
         }
     }
 
-    async function stopPipeline() {
-        const preferred = state.selectedRunId;
-        const runId = preferred && state.runs.has(preferred) ? preferred : Array.from(state.runs.keys()).pop();
-        if (!runId) {
-            updatePipelineInfo('No active runs');
-            refreshGlobalStopButton();
-            return;
-        }
-
-        els.stopBtn.disabled = true;
-        try {
-            await stopRun(runId);
-        } catch (err) {
-            updatePipelineInfo(`Stop failed: ${err.message}`);
-        } finally {
-            refreshGlobalStopButton();
-        }
-    }
-
     function init() {
         initSystemStats();
         els.form.addEventListener('submit', startPipeline);
-        els.stopBtn.addEventListener('click', stopPipeline);
-        refreshGlobalStopButton();
+        if (els.stopBtn) {
+            // Global stop button removed from UI, but keep compatibility if re-added.
+            els.stopBtn.addEventListener('click', async () => {
+                const preferred = state.selectedRunId;
+                const runId = preferred && state.runs.has(preferred) ? preferred : Array.from(state.runs.keys()).pop();
+                if (!runId) {
+                    updatePipelineInfo('No active runs');
+                    refreshGlobalStopButton();
+                    return;
+                }
+                els.stopBtn.disabled = true;
+                try {
+                    await stopRun(runId);
+                } catch (err) {
+                    updatePipelineInfo(`Stop failed: ${err.message}`);
+                } finally {
+                    refreshGlobalStopButton();
+                }
+            });
+            refreshGlobalStopButton();
+        }
     }
 
     init();
