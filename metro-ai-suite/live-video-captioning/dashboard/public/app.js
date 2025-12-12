@@ -1,24 +1,22 @@
 (function () {
     const cfg = window.RUNTIME_CONFIG || {};
     const els = {
-        frame: document.getElementById('webrtcFrame'),
         statusDot: document.getElementById('videoStatus'),
         statusText: document.getElementById('statusText'),
-        captionText: document.getElementById('captionText'),
         watcherStatus: document.getElementById('watcherStatus'),
-        ttftChip: document.getElementById('ttftChip'),
-        tpotChip: document.getElementById('tpotChip'),
-        throughputChip: document.getElementById('throughputChip'),
-        timestampEl: document.getElementById('timestamp'),
         hintEl: document.getElementById('hint'),
         form: document.getElementById('pipelineForm'),
+        promptInput: document.getElementById('promptInput'),
+        modelNameInput: document.getElementById('modelNameInput'),
+        maxTokensInput: document.getElementById('maxTokensInput'),
         rtspInput: document.getElementById('rtspInput'),
         startBtn: document.getElementById('startBtn'),
         stopBtn: document.getElementById('stopBtn'),
         pipelineInfo: document.getElementById('pipelineInfo'),
+        runsContainer: document.getElementById('runsContainer'),
     };
 
-    const state = { pipelineId: null, peerId: cfg.peerId || 'stream' };
+    const state = { selectedRunId: null, runs: new Map() };
     const statsCharts = {};
 
     function createStatChart(elId, label, color) {
@@ -40,7 +38,9 @@
                         suggestedMin: 0,
                         suggestedMax: 100,
                         grid: { color: 'rgba(255,255,255,0.05)' },
-                        ticks: { color: 'rgba(255,255,255,0.55)' },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.55)',
+                        },
                     },
                 },
                 plugins: { legend: { display: false } },
@@ -88,27 +88,25 @@
         return raw;
     }
 
-    function renderMetrics(raw) {
+    function extractMetrics(raw) {
         try {
             const payload = JSON.parse(raw);
             const metrics = payload.metrics || {};
             const throughput = metrics.throughput_mean;
-            els.ttftChip.textContent = metrics.ttft_mean ? `${metrics.ttft_mean.toFixed(0)} ms` : '—';
-            els.tpotChip.textContent = metrics.tpot_mean ? `${metrics.tpot_mean.toFixed(2)} ms` : '—';
-            els.throughputChip.textContent = throughput ? `${throughput.toFixed(2)} tok/s` : '—';
-            if (payload.timestamp_seconds !== undefined) {
-                els.timestampEl.textContent = `Updated ${payload.timestamp_seconds.toFixed(2)}s into stream`;
-            } else if (payload.timestamp) {
-                const ts = new Date(payload.timestamp);
-                els.timestampEl.textContent = `Updated at ${ts.toLocaleTimeString()}`;
-            } else {
-                els.timestampEl.textContent = '—';
-            }
+            const timestampText =
+                payload.timestamp_seconds !== undefined
+                    ? `Updated ${payload.timestamp_seconds.toFixed(2)}s into stream`
+                    : payload.timestamp
+                    ? `Updated at ${new Date(payload.timestamp).toLocaleTimeString()}`
+                    : '—';
+            return {
+                ttft: metrics.ttft_mean ? `${metrics.ttft_mean.toFixed(0)} ms` : '—',
+                tpot: metrics.tpot_mean ? `${metrics.tpot_mean.toFixed(2)} ms` : '—',
+                throughput: throughput ? `${throughput.toFixed(2)} tok/s` : '—',
+                timestamp: timestampText,
+            };
         } catch (_err) {
-            els.ttftChip.textContent = '—';
-            els.tpotChip.textContent = '—';
-            els.throughputChip.textContent = '—';
-            els.timestampEl.textContent = '—';
+            return { ttft: '—', tpot: '—', throughput: '—', timestamp: '—' };
         }
     }
 
@@ -120,32 +118,125 @@
         els.pipelineInfo.textContent = text;
     }
 
-    function initFrame() {
-        const base = resolveSignalingBase(cfg.signalingUrl);
-        if (!base || !state.peerId) return;
-        els.frame.src = `${base}/${state.peerId}`;
-        setVideoStatus(false, `Connecting to ${state.peerId}...`);
+    function createRunElement(run) {
+        const wrap = document.createElement('div');
+        wrap.className = 'card';
+        wrap.style.marginTop = '10px';
+        wrap.style.background = 'var(--panel-strong)';
+
+        const header = document.createElement('div');
+        header.className = 'status';
+        header.style.margin = '0 0 10px 0';
+        header.style.justifyContent = 'space-between';
+        header.style.gap = '12px';
+
+        const headerLeft = document.createElement('div');
+        headerLeft.style.display = 'flex';
+        headerLeft.style.alignItems = 'center';
+        headerLeft.style.gap = '8px';
+        headerLeft.innerHTML = `
+            <span class="dot active"></span>
+            <span>Run <strong>${run.runId}</strong> — Stream <strong>${run.peerId}</strong></span>
+        `;
+
+        const grid = document.createElement('div');
+        grid.style.display = 'flex';
+        grid.style.flexDirection = 'column';
+        grid.style.gap = '12px';
+
+        const video = document.createElement('iframe');
+        video.className = 'run-video';
+        video.title = `WebRTC ${run.peerId}`;
+        video.style.border = '0';
+
+        const captionPanel = document.createElement('div');
+        captionPanel.className = 'caption-panel';
+        captionPanel.style.padding = '0';
+
+        const chips = document.createElement('div');
+        chips.className = 'chips';
+        chips.style.marginTop = '0';
+        chips.style.marginBottom = '0';
+        chips.innerHTML = `
+            <span class="chip"><strong>TTFT</strong><span data-ttft>—</span></span>
+            <span class="chip"><strong>TPOT</strong><span data-tpot>—</span></span>
+            <span class="chip"><strong>Throughput</strong><span data-throughput>—</span></span>
+        `;
+
+        const watcher = document.createElement('div');
+        watcher.className = 'status';
+        watcher.textContent = 'Waiting for metadata...';
+
+        const caption = document.createElement('p');
+        caption.className = 'caption-text';
+        caption.textContent = 'Waiting for metadata...';
+
+        const timestamp = document.createElement('div');
+        timestamp.className = 'timestamp';
+        timestamp.textContent = '—';
+
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'btn btn-danger';
+        stopBtn.type = 'button';
+        stopBtn.textContent = 'Stop';
+        stopBtn.addEventListener('click', async () => {
+            stopBtn.disabled = true;
+            try {
+                await fetch(`/api/runs/${run.runId}`, { method: 'DELETE' });
+            } finally {
+                const current = state.runs.get(run.runId);
+                if (current?.source) current.source.close();
+                state.runs.delete(run.runId);
+                wrap.remove();
+                updatePipelineInfo('Pipeline stopped');
+            }
+        });
+
+        header.appendChild(headerLeft);
+        header.appendChild(stopBtn);
+
+        captionPanel.appendChild(chips);
+        captionPanel.appendChild(watcher);
+        captionPanel.appendChild(caption);
+        captionPanel.appendChild(timestamp);
+
+        grid.appendChild(video);
+        grid.appendChild(captionPanel);
+
+        wrap.appendChild(header);
+        wrap.appendChild(grid);
+
+        return { wrap, video, caption, watcher, timestamp, chips, stopBtn };
     }
 
-    function initSSE() {
-        const source = new EventSource('/metadata-stream');
+    function attachRunStreams(run, ui) {
+        const base = resolveSignalingBase(cfg.signalingUrl);
+        if (base) {
+            ui.video.src = `${base}/${run.peerId}`;
+        }
+
+        const source = new EventSource(`/api/runs/${run.runId}/metadata-stream`);
         source.onmessage = (event) => {
             if (!event.data) {
-                updateWatcher('No data yet');
-                els.hintEl.textContent = 'Waiting for metadata...';
+                ui.watcher.textContent = 'No data yet';
                 return;
             }
             setVideoStatus(true, 'Streaming...');
             updateWatcher('Receiving data...');
-            els.captionText.textContent = renderCaption(event.data);
-            renderMetrics(event.data);
-            els.hintEl.textContent = '';
+            ui.caption.textContent = renderCaption(event.data);
+            const m = extractMetrics(event.data);
+            ui.chips.querySelector('[data-ttft]').textContent = m.ttft;
+            ui.chips.querySelector('[data-tpot]').textContent = m.tpot;
+            ui.chips.querySelector('[data-throughput]').textContent = m.throughput;
+            ui.timestamp.textContent = m.timestamp;
+            ui.watcher.textContent = 'Receiving data...';
+            if (els.hintEl) els.hintEl.textContent = '';
         };
         source.onerror = () => {
-            updateWatcher('Reconnecting...');
-            setVideoStatus(false, 'Retrying WebRTC...');
-            els.hintEl.textContent = 'Stream not found, retrying...';
+            ui.watcher.textContent = 'Reconnecting...';
+            if (els.hintEl) els.hintEl.textContent = 'Stream not found, retrying...';
         };
+        state.runs.set(run.runId, { ...run, source });
     }
 
     function initSystemStats() {
@@ -184,69 +275,47 @@
     async function startPipeline(evt) {
         evt.preventDefault();
         const rtspUrl = els.rtspInput.value.trim();
+        const prompt = (els.promptInput.value || '').trim() || 'Describe what you see in the image in one sentence.';
+        const modelName = (els.modelNameInput?.value || '').trim() || 'OpenGVLab/InternVL2-2B';
+        const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
+        const maxTokensParsed = Number.parseInt(maxTokensRaw, 10);
+        const maxTokens = Number.isFinite(maxTokensParsed) && maxTokensParsed > 0 ? maxTokensParsed : 70;
         if (!rtspUrl) return;
         els.startBtn.disabled = true;
         updatePipelineInfo('Starting pipeline...');
-        const apiBase = `${window.location.protocol}//${window.location.hostname}:8040`;
-        const payload = {
-            source: { uri: rtspUrl, type: 'uri' },
-            destination: {
-                metadata: { type: 'file', path: '/tmp/results.jsonl', format: 'json-lines' },
-                frame: { type: 'webrtc', 'peer-id': state.peerId, bitrate: 5000 }
-            }
-        };
         try {
-            const resp = await fetch(`${apiBase}/pipelines/user_defined_pipelines/genai_pipeline`, {
+            const resp = await fetch('/api/runs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ rtspUrl, prompt, modelName, maxNewTokens: maxTokens })
             });
-            const text = await resp.text();
-            if (!resp.ok) throw new Error(text || resp.statusText);
-            state.pipelineId = text.replace(/\"/g, '').trim();
-            updatePipelineInfo(`Running Pipeline ID: ${state.pipelineId}`);
-            els.stopBtn.disabled = false;
-            els.startBtn.disabled = true;
+            const data = await resp.json().catch(async () => ({ message: await resp.text() }));
+            if (!resp.ok) throw new Error(data?.message || data?.detail?.message || resp.statusText);
+
+            const run = {
+                runId: data.runId,
+                pipelineId: data.pipelineId,
+                peerId: data.peerId,
+                metadataFile: data.metadataFile,
+            };
+
+            const ui = createRunElement(run);
+            els.runsContainer.prepend(ui.wrap);
+            attachRunStreams(run, ui);
+            updatePipelineInfo(`Running: ${run.runId} (Pipeline ${run.pipelineId})`);
+            els.stopBtn.disabled = true;
         } catch (err) {
             updatePipelineInfo(`Start failed: ${err.message}`);
-            state.pipelineId = null;
-            els.stopBtn.disabled = true;
         } finally {
-            if (!state.pipelineId) {
-                els.startBtn.disabled = false;
-            }
+            els.startBtn.disabled = false;
         }
     }
 
     async function stopPipeline() {
-        if (!state.pipelineId) {
-            updatePipelineInfo('No pipeline to stop');
-            return;
-        }
-        els.stopBtn.disabled = true;
-        updatePipelineInfo(`Stopping: ${state.pipelineId}`);
-        const apiBase = `${window.location.protocol}//${window.location.hostname}:8040`;
-        try {
-            const resp = await fetch(`${apiBase}/pipelines/${state.pipelineId}`, { method: 'DELETE' });
-            if (!resp.ok) {
-                const text = await resp.text();
-                throw new Error(text || resp.statusText);
-            }
-            updatePipelineInfo('Pipeline stopped');
-            state.pipelineId = null;
-        } catch (err) {
-            updatePipelineInfo(`Stop failed: ${err.message}`);
-        } finally {
-            els.stopBtn.disabled = !state.pipelineId;
-            if (!state.pipelineId) {
-                els.startBtn.disabled = false;
-            }
-        }
+        updatePipelineInfo('Use Stop on a run card');
     }
 
     function init() {
-        initFrame();
-        initSSE();
         initSystemStats();
         els.form.addEventListener('submit', startPipeline);
         els.stopBtn.addEventListener('click', stopPipeline);

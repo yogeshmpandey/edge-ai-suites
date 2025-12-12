@@ -32,12 +32,14 @@ main { display: grid; gap: 20px; }
     box-shadow: var(--shadow);
 }
 .live-layout { display: flex; flex-direction: column; gap: 16px; }
+
+#runsContainer { display: flex; flex-direction: column; gap: 12px; }
 .caption-panel, .video-panel { display: flex; flex-direction: column; gap: 10px; }
-.video-panel { min-height: 360px; }
 .video-panel iframe { flex: 1; min-height: 0; }
 .card h2 { margin: 0 0 10px 0; letter-spacing: 0.01em; }
 .card strong { color: var(--text); }
-iframe { width: 100%; min-height: 420px; border: none; border-radius: 12px; background: #000; }
+iframe { width: 100%; border: none; border-radius: 12px; background: #000; }
+.run-video { aspect-ratio: 16 / 9; height: auto; }
 .status { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; margin-bottom: 10px; color: var(--muted); }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: background 0.3s ease; flex-shrink: 0; }
 .dot.active { background: var(--accent); }
@@ -46,8 +48,17 @@ iframe { width: 100%; min-height: 420px; border: none; border-radius: 12px; back
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); font-size: 0.88rem; color: var(--muted); }
 .timestamp { margin-top: 12px; font-size: 0.9rem; color: var(--muted); }
 .empty-alert { margin-top: 8px; font-size: 0.9rem; color: #ffb347; }
-.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
-.field { flex: 1 1 260px; display: flex; flex-direction: column; gap: 4px; }
+/* Pipeline start form: stack inputs vertically without flex-growing gaps */
+.controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+
+/* Prevent form fields from stretching vertically (avoids large blank gaps) */
+.field { display: flex; flex-direction: column; gap: 4px; }
+
+/* Keep Start/Stop buttons on one row */
+.button-row { display: flex; gap: 10px; margin: 0; }
+
+/* Textarea sizing: compact but readable */
+.input.textarea { min-height: 56px; resize: vertical; }
 .label { font-size: 0.9rem; color: var(--muted); }
 .input {
     padding: 10px 12px;
@@ -57,6 +68,25 @@ iframe { width: 100%; min-height: 420px; border: none; border-radius: 12px; back
     color: var(--text);
     width: 100%;
 }
+
+/* Make keyboard focus visible without changing theme colors */
+.input:focus {
+    outline: 2px solid rgba(106, 230, 255, 0.35);
+    outline-offset: 2px;
+}
+
+/* Number input usability: keep the spinner unobstructed and easier to click */
+.input[type="number"] {
+    padding-right: .6rem; /* room for the stepper controls */
+    font-variant-numeric: tabular-nums;
+}
+
+/* WebKit (Chrome/Edge/Safari): make the spin buttons fully visible */
+.input[type="number"]::-webkit-inner-spin-button,
+.input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
+    height: 1.8em;
+}
 .btn { padding: 10px 16px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
 .btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--accent); color: #041022; box-shadow: 0 8px 20px rgba(35, 28, 235, 0.25); }
@@ -64,13 +94,11 @@ iframe { width: 100%; min-height: 420px; border: none; border-radius: 12px; back
 .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 .stack { display: grid; gap: 12px; }
 .chart-grid { display: flex; flex-direction: column; gap: 12px; }
-.chart-card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 10px; border: 1px solid var(--border); }
+.chart-card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 8px; border: 1px solid var(--border); }
 .chart-header { display: flex; align-items: center; justify-content: space-between; font-size: 0.95rem; color: var(--muted); margin-bottom: 6px; }
 .chart-value { color: var(--text); font-weight: 700; }
-.chart-wrap { height: 140px; }
+.chart-wrap { height: 100px; }
 @media (max-width: 900px) {
     .panels { grid-template-columns: 1fr; }
     .live-layout { flex-direction: column; }
-    .video-panel { min-height: 320px; }
-    iframe { min-height: 320px; }
 }
