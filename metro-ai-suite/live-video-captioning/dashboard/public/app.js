@@ -7,7 +7,7 @@
         hintEl: document.getElementById('hint'),
         form: document.getElementById('pipelineForm'),
         promptInput: document.getElementById('promptInput'),
-        modelNameInput: document.getElementById('modelNameInput'),
+        modelNameSelect: document.getElementById('modelNameSelect'),
         maxTokensInput: document.getElementById('maxTokensInput'),
         rtspInput: document.getElementById('rtspInput'),
         startBtn: document.getElementById('startBtn'),
@@ -17,6 +17,7 @@
     };
 
     const state = { selectedRunId: null, runs: new Map() };
+    const DEFAULT_MODEL = 'OpenGVLab/InternVL2-2B';
     const statsCharts = {};
 
     function refreshGlobalStopButton() {
@@ -121,6 +122,33 @@
 
     function updatePipelineInfo(text) {
         els.pipelineInfo.textContent = text;
+    }
+
+    function setModelOptions(models) {
+        const select = els.modelNameSelect;
+        if (!select) return;
+        select.innerHTML = '';
+        const list = Array.isArray(models) && models.length ? models : [DEFAULT_MODEL];
+        for (const name of list) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        }
+        select.value = list[0];
+    }
+
+    async function loadModels() {
+        try {
+            const resp = await fetch('/api/models');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            setModelOptions(data?.models);
+            updatePipelineInfo('Models loaded');
+        } catch (_err) {
+            setModelOptions([DEFAULT_MODEL]);
+            updatePipelineInfo('Model list unavailable, using default');
+        }
     }
 
     async function stopRun(runId) {
@@ -310,7 +338,7 @@
         evt.preventDefault();
         const rtspUrl = els.rtspInput.value.trim();
         const prompt = (els.promptInput.value || '').trim() || 'Describe what you see in the image in one sentence.';
-        const modelName = (els.modelNameInput?.value || '').trim() || 'OpenGVLab/InternVL2-2B';
+        const modelName = (els.modelNameSelect?.value || '').trim() || DEFAULT_MODEL;
         const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
         const maxTokensParsed = Number.parseInt(maxTokensRaw, 10);
         const maxTokens = Number.isFinite(maxTokensParsed) && maxTokensParsed > 0 ? maxTokensParsed : 70;
@@ -347,6 +375,7 @@
     }
 
     function init() {
+        loadModels();
         initSystemStats();
         els.form.addEventListener('submit', startPipeline);
         if (els.stopBtn) {

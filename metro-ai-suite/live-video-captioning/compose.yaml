@@ -126,6 +126,7 @@ services:
       - SIGNALING_URL=http://${HOST_IP:-localhost}:${WHIP_SERVER_PORT:-8889}
     volumes:
       - "/tmp:/tmp:ro"
+      - "./ov_models:/app/ov_models:ro"
     ports:
       - "${DASHBOARD_PORT:-4173}:4173"
     depends_on:

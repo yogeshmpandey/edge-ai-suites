@@ -21,6 +21,7 @@ POLL_INTERVAL = float(os.environ.get("METADATA_POLL_SECONDS", "1"))
 
 PIPELINE_SERVER_URL = os.environ.get("PIPELINE_SERVER_URL", "http://video-ingestion:8080")
 PIPELINE_NAME = os.environ.get("PIPELINE_NAME", "genai_pipeline")
+MODELS_DIR = Path(os.environ.get("MODELS_DIR", str(Path(__file__).parent.parent / "ov_models")))
 
 BASE_DIR = Path(__file__).parent
 PUBLIC_DIR = BASE_DIR / "public"
@@ -42,7 +43,27 @@ class RunInfo(BaseModel):
     metadataFile: str
 
 
+class ModelList(BaseModel):
+    models: list[str]
+
+
 RUNS: dict[str, RunInfo] = {}
+
+
+def _discover_models(root: Path) -> list[str]:
+    if not root.exists():
+        return []
+    models: list[str] = []
+    for entry in sorted(root.iterdir()):
+        if entry.name.startswith("."):
+            continue
+        if entry.is_dir():
+            models.append(entry.name)
+        else:
+            # Allow flat exports placed directly under ov_models
+            if entry.suffix in {".xml", ".bin", ".json"}:
+                models.append(entry.name)
+    return models
 
 
 def _read_latest_line(path: Path) -> Optional[str]:
@@ -119,6 +140,12 @@ async def runtime_config() -> Response:
     }
     body = f"window.RUNTIME_CONFIG = {json.dumps(payload)};"
     return Response(content=body, media_type="application/javascript")
+
+
+@app.get("/api/models", response_model=ModelList)
+async def list_models() -> ModelList:
+    models = _discover_models(MODELS_DIR)
+    return ModelList(models=models)
 
 
 @app.get("/metadata-stream")
