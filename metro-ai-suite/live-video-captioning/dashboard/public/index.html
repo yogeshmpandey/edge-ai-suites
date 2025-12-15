@@ -7,47 +7,61 @@
     <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-    <header>
+    <header class="topbar">
         <h2>Live VLM Video Captioning</h2>
+        <button id="themeToggle" class="icon-button" type="button" aria-label="Switch theme">
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" fill="none" />
+                <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="2" />
+                <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2" />
+                <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2" />
+                <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" />
+                <line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" stroke-width="2" />
+                <line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" />
+                <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2" />
+                <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" />
+            </svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M21 12.8A9 9 0 0 1 11.2 3 7.5 7.5 0 1 0 21 12.8Z" stroke="currentColor" stroke-width="2" fill="none" />
+            </svg>
+        </button>
     </header>
     <main>
         <section class="panels">
             <article class="card">
-                <div class="status">
-                    <span class="dot" id="videoStatus"></span>
-                    <span id="statusText">Waiting for stream...</span>
-                </div>
                 <form id="pipelineForm" class="controls">
                     <label class="field">
                         <span class="label">RTSP URL</span>
                         <input id="rtspInput" class="input" type="text" value="rtsp://10.223.24.242:8555/garage" />
                     </label>
                     <label class="field">
-                        <span class="label">Pipeline</span>
-                        <select id="pipelineSelect" class="input"></select>
-                    </label>
-                    <label class="field">
                         <span class="label">Prompt</span>
                         <textarea id="promptInput" class="input textarea" rows="2">Describe what you see in the image in one sentence.</textarea>
                     </label>
+                    <div class="field-row">
+                        <label class="field">
+                            <span class="label">Model Name</span>
+                            <select id="modelNameSelect" class="input"></select>
+                        </label>
+                        <label class="field">
+                            <span class="label">Max New Tokens</span>
+                            <input id="maxTokensInput" class="input" type="number" min="1" max="4096" value="70" />
+                        </label>
+                    </div>
                     <label class="field">
-                        <span class="label">Model Name</span>
-                        <select id="modelNameSelect" class="input"></select>
+                        <span class="label">Pipeline</span>
+                        <select id="pipelineSelect" class="input"></select>
                     </label>
-                    <label class="field">
-                        <span class="label">Max New Tokens</span>
-                        <input id="maxTokensInput" class="input" type="number" min="1" max="4096" value="70" />
-                    </label>
-                    <div class="button-row">
+                    <div class="field-row" style="justify-content: space-between; align-items: center;">
+                        <div class="status" style="margin: 0; flex-shrink: 0;">
+                            <span class="dot active"></span>
+                            <span id="pipelineInfo">Pipeline idle</span>
+                        </div>
                         <button id="startBtn" class="btn btn-primary" type="submit">Start</button>
                     </div>
                 </form>
-                <div class="status" style="margin-top:0;">
-                    <span class="dot active"></span>
-                    <span id="pipelineInfo">Pipeline idle</span>
-                </div>
-                <div class="card" style="margin-top:2px; background: var(--panel-strong);">
-                        <h3 style="margin-bottom:8px;">System Stats</h3>
+                <div class="card system-stats-card" style="margin-top:2px; background: var(--panel-strong);">
+                        <h3 style="margin-bottom:8px; flex-shrink: 0;">System Stats</h3>
                         <div class="chart-grid">
                             <div class="chart-card">
                                 <div class="chart-header"><span>CPU</span><span class="chart-value" id="cpuVal">—</span></div>
@@ -66,17 +80,17 @@
                     </div>
             </article>
             <article class="card live-layout">
-                <div class="status" style="margin-bottom:10px;">
+                <div class="status">
                     <span class="dot active"></span>
-                    <span id="watcherStatus">Runs</span>
+                    <span id="watcherStatus">Active Pipelines</span>
                 </div>
                 <div id="runsContainer"></div>
-                <div class="empty-alert" id="hint"></div>
+                <div class="empty-alert" id="hint">Start a pipeline to see video streams here</div>
             </article>
         </section>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/runtime-config.js"></script>
-    <script src="/app.js?v=2"></script>
+    <script src="/app.js?v=4"></script>
 </body>
 </html>

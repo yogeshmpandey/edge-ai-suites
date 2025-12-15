@@ -134,7 +134,7 @@ def _http_json(method: str, url: str, payload: Optional[dict[str, Any]] = None) 
         headers["Content-Type"] = "application/json"
     req = urllib_request.Request(url=url, data=data, headers=headers, method=method)
     try:
-        with urllib_request.urlopen(req, timeout=30) as resp:
+        with urllib_request.urlopen(req, timeout=120) as resp:
             return resp.read().decode("utf-8")
     except HTTPError as err:
         details = None

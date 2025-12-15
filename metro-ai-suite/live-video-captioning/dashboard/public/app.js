@@ -2,7 +2,6 @@
     const cfg = window.RUNTIME_CONFIG || {};
     const els = {
         statusDot: document.getElementById('videoStatus'),
-        statusText: document.getElementById('statusText'),
         watcherStatus: document.getElementById('watcherStatus'),
         hintEl: document.getElementById('hint'),
         form: document.getElementById('pipelineForm'),
@@ -15,12 +14,39 @@
         stopBtn: document.getElementById('stopBtn'),
         pipelineInfo: document.getElementById('pipelineInfo'),
         runsContainer: document.getElementById('runsContainer'),
+        themeToggle: document.getElementById('themeToggle'),
     };
 
     const state = { selectedRunId: null, runs: new Map() };
-    const DEFAULT_MODEL = 'OpenGVLab/InternVL2-2B';
-    const DEFAULT_PIPELINE = 'genai_pipeline';
+    const DEFAULT_MODEL = 'InternVL2-1B';
+    const DEFAULT_PIPELINE = 'GenAI Pipeline on CPU';
+    const THEME_KEY = 'lvc-theme';
     const statsCharts = {};
+
+    function detectInitialTheme() {
+        try {
+            const saved = localStorage.getItem(THEME_KEY);
+            if (saved === 'light' || saved === 'dark') return saved;
+        } catch (_err) {}
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+        return 'dark';
+    }
+
+    function applyTheme(theme) {
+        const next = theme === 'light' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        if (els.themeToggle) {
+            els.themeToggle.setAttribute('aria-label', next === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+        }
+        try {
+            localStorage.setItem(THEME_KEY, next);
+        } catch (_err) {}
+    }
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+        applyTheme(current === 'light' ? 'dark' : 'light');
+    }
 
     function refreshGlobalStopButton() {
         if (!els.stopBtn) return;
@@ -83,11 +109,6 @@
         return base;
     }
 
-    function setVideoStatus(active, text) {
-        els.statusText.textContent = text;
-        els.statusDot.classList.toggle('active', !!active);
-    }
-
     function renderCaption(raw) {
         try {
             const payload = JSON.parse(raw);
@@ -118,10 +139,6 @@
         }
     }
 
-    function updateWatcher(text) {
-        if (els.watcherStatus) els.watcherStatus.textContent = text;
-    }
-
     function updatePipelineInfo(text) {
         els.pipelineInfo.textContent = text;
     }
@@ -137,7 +154,8 @@
             opt.textContent = name;
             select.appendChild(opt);
         }
-        select.value = list[0];
+        const preferred = list.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : list[0];
+        select.value = preferred;
     }
 
        function setPipelineOptions(pipelines) {
@@ -178,6 +196,19 @@
            }
        }
 
+    function tearDownRun(runId, current, message) {
+        if (current?.source) current.source.close();
+        if (current?.wrap) current.wrap.remove();
+        state.runs.delete(runId);
+        if (state.selectedRunId === runId) state.selectedRunId = null;
+        if (message) updatePipelineInfo(message);
+        // Show hint again when all runs are stopped
+        if (state.runs.size === 0 && els.hintEl) {
+            els.hintEl.style.display = 'block';
+            els.hintEl.textContent = 'Start a pipeline to see video streams here';
+        }
+    }
+
     async function stopRun(runId) {
         const current = state.runs.get(runId);
         if (!current) return;
@@ -186,20 +217,22 @@
         try {
             const resp = await fetch(`/api/runs/${runId}`, { method: 'DELETE' });
             if (!resp.ok) {
+                if (resp.status === 404) {
+                    // Backend no longer tracks the run; clean up UI card anyway.
+                    tearDownRun(runId, current, 'Run missing on server, removing');
+                    return;
+                }
                 const data = await resp.json().catch(async () => ({ message: await resp.text() }));
                 throw new Error(data?.message || data?.detail?.message || resp.statusText);
             }
 
-            if (current.source) current.source.close();
-            if (current.wrap) current.wrap.remove();
-            state.runs.delete(runId);
-            if (state.selectedRunId === runId) state.selectedRunId = null;
-
-            if (state.runs.size === 0) {
-                setVideoStatus(false, 'Waiting for stream...');
-                updatePipelineInfo('Pipeline stopped');
+            tearDownRun(runId, current, state.runs.size <= 1 ? 'Pipeline stopped' : `Stopped: ${runId}`);
+        } catch (err) {
+            const msg = (err?.message || '').toLowerCase();
+            if (msg.includes('404') || msg.includes('not found')) {
+                tearDownRun(runId, current, 'Run missing on server, removing');
             } else {
-                updatePipelineInfo(`Stopped: ${runId}`);
+                throw err;
             }
         } finally {
             refreshGlobalStopButton();
@@ -209,7 +242,6 @@
     function createRunElement(run) {
         const wrap = document.createElement('div');
         wrap.className = 'card';
-        wrap.style.marginTop = '10px';
         wrap.style.background = 'var(--panel-strong)';
 
         const header = document.createElement('div');
@@ -217,55 +249,81 @@
         header.style.margin = '0 0 10px 0';
         header.style.justifyContent = 'space-between';
         header.style.gap = '12px';
+        header.style.flexWrap = 'wrap';
 
         const headerLeft = document.createElement('div');
         headerLeft.style.display = 'flex';
         headerLeft.style.alignItems = 'center';
         headerLeft.style.gap = '8px';
+        headerLeft.style.fontSize = '0.85rem';
         headerLeft.innerHTML = `
             <span class="dot active"></span>
-            <span>Run <strong>${run.runId}</strong> — Stream <strong>${run.peerId}</strong></span>
+            <span>Running Pipeline -  <strong>${run.runId}</strong></span>
         `;
 
         const grid = document.createElement('div');
         grid.style.display = 'flex';
         grid.style.flexDirection = 'column';
-        grid.style.gap = '12px';
+        grid.style.gap = '6px';
+        grid.style.flex = '1';
+        grid.style.minHeight = '0';
+        grid.style.overflow = 'hidden';
 
         const video = document.createElement('iframe');
         video.className = 'run-video';
         video.title = `WebRTC ${run.peerId}`;
         video.style.border = '0';
+        video.style.flex = '1';
+        video.style.minHeight = '0';
 
         const captionPanel = document.createElement('div');
         captionPanel.className = 'caption-panel';
         captionPanel.style.padding = '0';
+        captionPanel.style.flexShrink = '0';
+        captionPanel.style.maxHeight = '100px';
+        captionPanel.style.overflow = 'hidden';
 
         const chips = document.createElement('div');
         chips.className = 'chips';
         chips.style.marginTop = '0';
         chips.style.marginBottom = '0';
+        chips.style.fontSize = '0.8rem';
         chips.innerHTML = `
             <span class="chip"><strong>TTFT</strong><span data-ttft>—</span></span>
             <span class="chip"><strong>TPOT</strong><span data-tpot>—</span></span>
             <span class="chip"><strong>Throughput</strong><span data-throughput>—</span></span>
         `;
 
+        const timestamp = document.createElement('div');
+        timestamp.className = 'timestamp';
+        timestamp.style.fontSize = '0.75rem';
+        timestamp.style.marginLeft = 'auto';
+        timestamp.style.whiteSpace = 'nowrap';
+        timestamp.textContent = '—';
+
+        // Chips row container with chips on left and timestamp on right
+        const chipsRow = document.createElement('div');
+        chipsRow.style.display = 'flex';
+        chipsRow.style.alignItems = 'center';
+        chipsRow.style.justifyContent = 'space-between';
+        chipsRow.style.gap = '8px';
+        chipsRow.appendChild(chips);
+        chipsRow.appendChild(timestamp);
+
         const watcher = document.createElement('div');
         watcher.className = 'status';
-        watcher.textContent = 'Waiting for metadata...';
+        watcher.style.fontSize = '0.8rem';
+        watcher.style.marginBottom = '2px';
 
         const caption = document.createElement('p');
         caption.className = 'caption-text';
         caption.textContent = 'Waiting for metadata...';
 
-        const timestamp = document.createElement('div');
-        timestamp.className = 'timestamp';
-        timestamp.textContent = '—';
-
         const stopBtn = document.createElement('button');
         stopBtn.className = 'btn btn-danger';
         stopBtn.type = 'button';
+        stopBtn.style.fontSize = '0.85rem';
+        stopBtn.style.padding = '6px 12px';
         stopBtn.textContent = 'Stop';
         stopBtn.addEventListener('click', async () => {
             stopBtn.disabled = true;
@@ -280,10 +338,9 @@
         header.appendChild(headerLeft);
         header.appendChild(stopBtn);
 
-        captionPanel.appendChild(chips);
+        captionPanel.appendChild(chipsRow);
         captionPanel.appendChild(watcher);
         captionPanel.appendChild(caption);
-        captionPanel.appendChild(timestamp);
 
         grid.appendChild(video);
         grid.appendChild(captionPanel);
@@ -303,22 +360,17 @@
         const source = new EventSource(`/api/runs/${run.runId}/metadata-stream`);
         source.onmessage = (event) => {
             if (!event.data) {
-                ui.watcher.textContent = 'No data yet';
                 return;
             }
-            setVideoStatus(true, 'Streaming...');
-            updateWatcher('Receiving data...');
             ui.caption.textContent = renderCaption(event.data);
             const m = extractMetrics(event.data);
             ui.chips.querySelector('[data-ttft]').textContent = m.ttft;
             ui.chips.querySelector('[data-tpot]').textContent = m.tpot;
             ui.chips.querySelector('[data-throughput]').textContent = m.throughput;
             ui.timestamp.textContent = m.timestamp;
-            ui.watcher.textContent = 'Receiving data...';
             if (els.hintEl) els.hintEl.textContent = '';
         };
         source.onerror = () => {
-            ui.watcher.textContent = 'Reconnecting...';
             if (els.hintEl) els.hintEl.textContent = 'Stream not found, retrying...';
         };
         state.runs.set(run.runId, { ...run, source });
@@ -389,8 +441,11 @@
                 metadataFile: data.metadataFile,
             };
 
+            // Hide the hint when first pipeline starts
+            if (els.hintEl) els.hintEl.style.display = 'none';
+
             const ui = createRunElement(run);
-            els.runsContainer.prepend(ui.wrap);
+            els.runsContainer.appendChild(ui.wrap);
             attachRunStreams(run, ui);
             updatePipelineInfo(`Running: ${run.runId} (Pipeline ${run.pipelineId})`);
             state.selectedRunId = run.runId;
@@ -403,6 +458,8 @@
     }
 
     function init() {
+        applyTheme(detectInitialTheme());
+        if (els.themeToggle) els.themeToggle.addEventListener('click', toggleTheme);
         loadModels();
            loadPipelines();
         initSystemStats();
