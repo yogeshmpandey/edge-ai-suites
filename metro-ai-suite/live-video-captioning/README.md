@@ -58,7 +58,6 @@ docker compose down
 ```
 
 ### TODOs
-- [ ] Add support for GPU pipeline in DLSPS
 - [ ] Add support for GPU graphs using Qmassa
 - [ ] Test on additional hardware targets
 - [ ] Update the DLSPS config to take all required values as parameters

@@ -8,6 +8,7 @@
         form: document.getElementById('pipelineForm'),
         promptInput: document.getElementById('promptInput'),
         modelNameSelect: document.getElementById('modelNameSelect'),
+        pipelineSelect: document.getElementById('pipelineSelect'),
         maxTokensInput: document.getElementById('maxTokensInput'),
         rtspInput: document.getElementById('rtspInput'),
         startBtn: document.getElementById('startBtn'),
@@ -18,6 +19,7 @@
 
     const state = { selectedRunId: null, runs: new Map() };
     const DEFAULT_MODEL = 'OpenGVLab/InternVL2-2B';
+    const DEFAULT_PIPELINE = 'genai_pipeline';
     const statsCharts = {};
 
     function refreshGlobalStopButton() {
@@ -138,6 +140,20 @@
         select.value = list[0];
     }
 
+       function setPipelineOptions(pipelines) {
+           const select = els.pipelineSelect;
+           if (!select) return;
+           select.innerHTML = '';
+           const list = Array.isArray(pipelines) && pipelines.length ? pipelines : [DEFAULT_PIPELINE];
+           for (const name of list) {
+               const opt = document.createElement('option');
+               opt.value = name;
+               opt.textContent = name;
+               select.appendChild(opt);
+           }
+           select.value = list[0];
+       }
+
     async function loadModels() {
         try {
             const resp = await fetch('/api/models');
@@ -150,6 +166,17 @@
             updatePipelineInfo('Model list unavailable, using default');
         }
     }
+
+       async function loadPipelines() {
+           try {
+               const resp = await fetch('/api/pipelines');
+               if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+               const data = await resp.json();
+               setPipelineOptions(data?.pipelines);
+           } catch (_err) {
+               setPipelineOptions([DEFAULT_PIPELINE]);
+           }
+       }
 
     async function stopRun(runId) {
         const current = state.runs.get(runId);
@@ -339,6 +366,7 @@
         const rtspUrl = els.rtspInput.value.trim();
         const prompt = (els.promptInput.value || '').trim() || 'Describe what you see in the image in one sentence.';
         const modelName = (els.modelNameSelect?.value || '').trim() || DEFAULT_MODEL;
+        const pipelineName = (els.pipelineSelect?.value || '').trim() || DEFAULT_PIPELINE;
         const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
         const maxTokensParsed = Number.parseInt(maxTokensRaw, 10);
         const maxTokens = Number.isFinite(maxTokensParsed) && maxTokensParsed > 0 ? maxTokensParsed : 70;
@@ -349,7 +377,7 @@
             const resp = await fetch('/api/runs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rtspUrl, prompt, modelName, maxNewTokens: maxTokens })
+                   body: JSON.stringify({ rtspUrl, prompt, modelName, maxNewTokens: maxTokens, pipelineName })
             });
             const data = await resp.json().catch(async () => ({ message: await resp.text() }));
             if (!resp.ok) throw new Error(data?.message || data?.detail?.message || resp.statusText);
@@ -376,6 +404,7 @@
 
     function init() {
         loadModels();
+           loadPipelines();
         initSystemStats();
         els.form.addEventListener('submit', startPipeline);
         if (els.stopBtn) {

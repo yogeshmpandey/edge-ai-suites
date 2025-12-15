@@ -34,6 +34,7 @@ class StartRunRequest(BaseModel):
     prompt: str = Field(default="Describe what you see in the image in one sentence.")
     modelName: str = Field(default="OpenGVLab/InternVL2-2B")
     maxNewTokens: int = Field(default=70, ge=1, le=4096)
+    pipelineName: Optional[str] = Field(default=None)
 
 
 class RunInfo(BaseModel):
@@ -45,6 +46,10 @@ class RunInfo(BaseModel):
 
 class ModelList(BaseModel):
     models: list[str]
+
+
+class PipelineList(BaseModel):
+    pipelines: list[str]
 
 
 RUNS: dict[str, RunInfo] = {}
@@ -64,6 +69,35 @@ def _discover_models(root: Path) -> list[str]:
             if entry.suffix in {".xml", ".bin", ".json"}:
                 models.append(entry.name)
     return models
+
+
+def _discover_pipelines_remote() -> list[str]:
+    url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines"
+    try:
+        raw = _http_json("GET", url)
+        payload = json.loads(raw)
+        # Accept either list[str] or list[dict {name}] or {'pipelines': [...]}
+        if isinstance(payload, list):
+            names = []
+            for item in payload:
+                if isinstance(item, str):
+                    names.append(item)
+                elif isinstance(item, dict) and isinstance(item.get("version"), str):
+                    names.append(item["version"])
+            return names or [PIPELINE_NAME]
+        if isinstance(payload, dict):
+            items = payload.get("pipelines") or payload.get("items") or []
+            if isinstance(items, list):
+                names = []
+                for item in items:
+                    if isinstance(item, str):
+                        names.append(item)
+                    elif isinstance(item, dict) and isinstance(item.get("version"), str):
+                        names.append(item["version"])
+                return names or [PIPELINE_NAME]
+    except Exception:
+        return [PIPELINE_NAME]
+    return [PIPELINE_NAME]
 
 
 def _read_latest_line(path: Path) -> Optional[str]:
@@ -148,6 +182,12 @@ async def list_models() -> ModelList:
     return ModelList(models=models)
 
 
+@app.get("/api/pipelines", response_model=PipelineList)
+async def list_pipelines() -> PipelineList:
+    names = _discover_pipelines_remote()
+    return PipelineList(pipelines=names)
+
+
 @app.get("/metadata-stream")
 async def metadata_stream() -> StreamingResponse:
     # Backward-compatible single-file stream.
@@ -160,7 +200,9 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     peer_id = f"stream-{run_id[:10]}"
     metadata_file = f"/tmp/results-{run_id[:10]}.jsonl"
 
-    start_url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines/user_defined_pipelines/{PIPELINE_NAME}"
+    pipeline_name = (req.pipelineName or PIPELINE_NAME).strip() or PIPELINE_NAME
+
+    start_url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines/user_defined_pipelines/{pipeline_name}"
     payload = {
         "source": {"uri": req.rtspUrl, "type": "uri"},
         "destination": {

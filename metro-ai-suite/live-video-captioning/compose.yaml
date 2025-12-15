@@ -3,10 +3,10 @@ services:
   video-ingestion:
     image: intel/dlstreamer-pipeline-server:latest
     hostname: video-ingestion
-    read_only: true
+    read_only: false
     security_opt:
     - no-new-privileges
-    privileged: false
+    privileged: true
     tty: true
     entrypoint: ["./run.sh"]
     depends_on:
@@ -48,6 +48,8 @@ services:
       - "109"
       # render group ID for ubuntu 22.04 host OS
       - "110"
+      # render group ID for ubuntu 24.04 host OS
+      - "992"
     device_cgroup_rules:
     # Default run - device-cgroup-rule='c 189:* rmw'
     # Selective rules can be applied for deployment
@@ -59,7 +61,7 @@ services:
     # dri - GPU
     # USB camera devices
     # Selective mount can be done for deployment as mounting whole /dev is not recommended
-    - "/dev:/dev"
+    - "/dev/dri:/dev/dri"
     networks:
       - app_network
 
