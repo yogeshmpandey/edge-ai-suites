@@ -21,9 +21,9 @@ POLL_INTERVAL = float(os.environ.get("METADATA_POLL_SECONDS", "1"))
 
 PIPELINE_SERVER_URL = os.environ.get("PIPELINE_SERVER_URL", "http://video-ingestion:8080")
 PIPELINE_NAME = os.environ.get("PIPELINE_NAME", "genai_pipeline")
-MODELS_DIR = Path(os.environ.get("MODELS_DIR", str(Path(__file__).parent.parent / "ov_models")))
 
 BASE_DIR = Path(__file__).parent
+MODELS_DIR = Path(os.environ.get("MODELS_DIR", str(BASE_DIR / "ov_models")))
 PUBLIC_DIR = BASE_DIR / "public"
 
 app = FastAPI()
