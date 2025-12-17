@@ -2,7 +2,6 @@
     const cfg = window.RUNTIME_CONFIG || {};
     const els = {
         statusDot: document.getElementById('videoStatus'),
-        watcherStatus: document.getElementById('watcherStatus'),
         hintEl: document.getElementById('hint'),
         form: document.getElementById('pipelineForm'),
         promptInput: document.getElementById('promptInput'),
@@ -43,14 +42,34 @@
         } catch (_err) {}
     }
 
+    function updateChartColors() {
+        const colors = getChartColors();
+        Object.values(statsCharts).forEach(chart => {
+            if (chart && chart.options && chart.options.scales && chart.options.scales.y) {
+                chart.options.scales.y.grid.color = colors.gridColor;
+                chart.options.scales.y.ticks.color = colors.tickColor;
+                chart.update('none');
+            }
+        });
+    }
+
     function toggleTheme() {
         const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
         applyTheme(current === 'light' ? 'dark' : 'light');
+        updateChartColors();
     }
 
     function refreshGlobalStopButton() {
         if (!els.stopBtn) return;
         els.stopBtn.disabled = state.runs.size === 0;
+    }
+
+    function getChartColors() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        return {
+            gridColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)',
+            tickColor: isLight ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.55)',
+        };
     }
 
     function createStatChart(elId, label, color) {
@@ -59,6 +78,7 @@
         const gradient = ctx.createLinearGradient(0, 0, 0, 140);
         gradient.addColorStop(0, `${color}55`);
         gradient.addColorStop(1, `${color}0f`);
+        const colors = getChartColors();
         return new Chart(ctx, {
             type: 'line',
             data: { labels: [], datasets: [{ label, data: [], borderColor: color, backgroundColor: gradient, tension: 0.35, fill: true, pointRadius: 0, borderWidth: 2 }] },
@@ -71,9 +91,9 @@
                     y: {
                         suggestedMin: 0,
                         suggestedMax: 100,
-                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        grid: { color: colors.gridColor },
                         ticks: {
-                            color: 'rgba(255,255,255,0.55)',
+                            color: colors.tickColor,
                         },
                     },
                 },
@@ -260,9 +280,26 @@
         headerLeft.style.alignItems = 'center';
         headerLeft.style.gap = '8px';
         headerLeft.style.fontSize = '0.85rem';
+        headerLeft.style.flexWrap = 'wrap';
+        
+        // Determine device from pipeline name
+        const deviceType = (run.pipelineName || '').toLowerCase().includes('gpu') ? 'GPU' : 'CPU';
+        const deviceIcon = deviceType === 'GPU' 
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>'
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="3"/></svg>';
+        
         headerLeft.innerHTML = `
             <span class="dot active"></span>
-            <span>Running Pipeline -  <strong>${run.runId}</strong></span>
+            <span>Run <strong>${run.runId}</strong></span>
+            <span style="color: var(--muted); margin: 0 4px;">|</span>
+            <span class="chip" style="background: var(--accent); color: var(--bg);">
+                ${deviceIcon}
+                <strong>${deviceType}</strong>
+            </span>
+            <span class="chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                ${run.modelName || 'Unknown'}
+            </span>
         `;
 
         const grid = document.createElement('div');
@@ -445,7 +482,7 @@
         statsCharts.ram = createStatChart('ramChart', 'RAM %', '#8ca0c2');
         statsCharts.gpu = createStatChart('gpuChart', 'GPU %', '#ffb347');
 
-        const statsSource = new EventSource('/system-stats');
+        const statsSource = new EventSource('/api/system-stats');
         statsSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -615,6 +652,8 @@
                 pipelineId: data.pipelineId,
                 peerId: data.peerId,
                 metadataFile: data.metadataFile,
+                modelName: modelName,
+                pipelineName: pipelineName,
             };
 
             // Hide the hint when first pipeline starts
@@ -623,7 +662,7 @@
             const ui = createRunElement(run);
             els.runsContainer.appendChild(ui.wrap);
             attachRunStreams(run, ui);
-            updatePipelineInfo(`Latest Run ID: ${run.runId})`);
+            updatePipelineInfo(`Latest Run ID: (${run.runId})`);
             state.selectedRunId = run.runId;
             refreshGlobalStopButton();
         } catch (err) {

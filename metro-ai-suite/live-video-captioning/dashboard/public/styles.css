@@ -37,8 +37,9 @@ html, body {
     color: var(--text);
 }
 header, main { max-width: 100%; margin: 0 auto; }
-header { margin-bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; flex-shrink: 0; }
-h1 { margin: 0; font-size: clamp(1.2rem, 2vw, 1.8rem); letter-spacing: 0.01em; }
+header { margin-bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 20px; flex-shrink: 0; }
+h1, h2 { margin: 0; font-size: clamp(1.2rem, 2vw, 1.8rem); letter-spacing: 0.01em; display: flex; align-items: center; gap: 8px; }
+.cc-icon { color: var(--accent); flex-shrink: 0; }
 p { color: var(--muted); }
 main { display: flex; flex-direction: column; flex: 1; padding: 10px 20px; overflow: hidden; height: calc(100vh - 50px); }
 .panels { display: grid; gap: 16px; grid-template-columns: minmax(300px, 30%) minmax(0, 1fr); align-items: stretch; flex: 1; overflow: hidden; }

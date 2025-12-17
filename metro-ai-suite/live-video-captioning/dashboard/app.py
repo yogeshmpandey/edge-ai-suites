@@ -731,41 +731,6 @@ async def list_pipelines(request: web.Request) -> web.Response:
     return web.json_response({"pipelines": names})
 
 
-async def metadata_stream(request: web.Request) -> web.StreamResponse:
-    """
-    ---
-    summary: Stream metadata (SSE)
-    description: Server-Sent Events stream of video captioning metadata from the default metadata file.
-    tags:
-      - Streaming
-    responses:
-      "200":
-        description: SSE stream of metadata
-        content:
-          text/event-stream:
-            schema:
-              type: string
-    """
-    response = web.StreamResponse(
-        status=200,
-        reason="OK",
-        headers={
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        }
-    )
-    await response.prepare(request)
-    
-    try:
-        async for chunk in _metadata_generator(Path(METADATA_FILE)):
-            await response.write(chunk.encode("utf-8"))
-    except (asyncio.CancelledError, ClientConnectionResetError, ConnectionResetError):
-        # Client disconnected, gracefully stop streaming
-        pass
-    
-    return response
-
 
 async def start_run(request: web.Request) -> web.Response:
     """
@@ -1011,57 +976,6 @@ async def stop_run(request: web.Request) -> web.Response:
     except OSError:
         pass
     return web.json_response({"status": "stopped", "runId": run_id})
-
-
-async def run_metadata_stream(request: web.Request) -> web.StreamResponse:
-    """
-    ---
-    summary: Stream run metadata (SSE)
-    description: Server-Sent Events stream of metadata for a specific run.
-    tags:
-      - Runs
-      - Streaming
-    parameters:
-      - name: run_id
-        in: path
-        required: true
-        schema:
-          type: string
-        description: The run ID
-    responses:
-      "200":
-        description: SSE stream of run metadata
-        content:
-          text/event-stream:
-            schema:
-              type: string
-      "404":
-        description: Run not found
-    """
-    run_id = request.match_info["run_id"]
-    info = RUNS.get(run_id)
-    if not info:
-        return web.json_response({"message": "Run not found"}, status=404)
-    
-    response = web.StreamResponse(
-        status=200,
-        reason="OK",
-        headers={
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        }
-    )
-    await response.prepare(request)
-    
-    try:
-        async for chunk in _metadata_generator(Path(info.metadataFile)):
-            await response.write(chunk.encode("utf-8"))
-    except (asyncio.CancelledError, ClientConnectionResetError, ConnectionResetError):
-        # Client disconnected, gracefully stop streaming
-        pass
-    
-    return response
 
 
 async def all_runs_metadata_stream(request: web.Request) -> web.StreamResponse:
@@ -1330,20 +1244,30 @@ No rate limiting is applied.
         )
     })
     
-    # Register API routes with Swagger documentation
+    # Register API routes with Swagger documentation (organized by function)
+    # Use allow_head=False to prevent duplicate HEAD entries in Swagger docs
     swagger.add_routes([
-        web.get("/runtime-config.js", runtime_config),
-        web.get("/api/models", list_models),
-        web.get("/api/pipelines", list_pipelines),
-        web.get("/metadata-stream", metadata_stream),
+        # Configuration
+        web.get("/runtime-config.js", runtime_config, allow_head=False),
+        
+        # Models
+        web.get("/api/models", list_models, allow_head=False),
+        
+        # Pipelines
+        web.get("/api/pipelines", list_pipelines, allow_head=False),
+        
+        # Runs Management
         web.post("/api/runs", start_run),
-        web.get("/api/runs", list_runs),
-        web.get("/api/runs/{run_id}", get_run),
+        web.get("/api/runs", list_runs, allow_head=False),
+        web.get("/api/runs/{run_id}", get_run, allow_head=False),
         web.delete("/api/runs/{run_id}", stop_run),
-        web.get("/api/runs/{run_id}/metadata-stream", run_metadata_stream),
-        web.get("/api/runs/metadata-stream", all_runs_metadata_stream),
-        web.get("/system-stats", system_stats),
-        web.get("/api/gpu-stats", gpu_stats),
+        
+        # Streaming (Metadata and Stats)
+        web.get("/api/runs/metadata-stream", all_runs_metadata_stream, allow_head=False),
+        web.get("/api/system-stats", system_stats, allow_head=False),
+        
+        # Monitoring (JSON snapshot)
+        web.get("/api/gpu-stats", gpu_stats, allow_head=False),
     ])
     
     # Add root handler and static files (outside swagger for proper static file handling)
