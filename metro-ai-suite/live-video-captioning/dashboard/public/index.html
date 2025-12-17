@@ -74,6 +74,18 @@
                             </div>
                             <div class="chart-card">
                                 <div class="chart-header"><span>GPU</span><span class="chart-value" id="gpuVal">—</span></div>
+                                <!-- TODO FIX the Styling etc. 
+                                 <div class="gpu-info" id="gpuDetail" style="display: none;">
+                                    <div class="gpu-name" id="gpuName" style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 4px;"></div>
+                                    <div class="gpu-engines" id="gpuEngines" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 2px; word-wrap: break-word;"></div>
+                                    <div class="gpu-stats-row" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.65rem; color: var(--text-secondary);">
+                                        <span id="gpuVram"></span>
+                                        <span id="gpuFreq"></span>
+                                        <span id="gpuPower"></span>
+                                        <span id="gpuTemp"></span>
+                                    </div>
+                                </div> -->
+                                <div class="gpu-error" id="gpuError" style="font-size: 0.7rem; color: var(--text-muted); display: none;"></div>
                                 <div class="chart-wrap"><canvas id="gpuChart"></canvas></div>
                             </div>
                         </div>
@@ -91,6 +103,6 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/runtime-config.js"></script>
-    <script src="/app.js?v=4"></script>
+    <script src="/app.js?v=5"></script>
 </body>
 </html>

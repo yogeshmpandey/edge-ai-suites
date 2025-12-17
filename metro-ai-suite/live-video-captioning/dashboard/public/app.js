@@ -17,7 +17,7 @@
         themeToggle: document.getElementById('themeToggle'),
     };
 
-    const state = { selectedRunId: null, runs: new Map() };
+    const state = { selectedRunId: null, runs: new Map(), metadataSource: null, runUIs: new Map() };
     const DEFAULT_MODEL = 'InternVL2-1B';
     const DEFAULT_PIPELINE = 'GenAI Pipeline on CPU';
     const THEME_KEY = 'lvc-theme';
@@ -197,7 +197,8 @@
        }
 
     function tearDownRun(runId, current, message) {
-        if (current?.source) current.source.close();
+        // Remove UI reference from multiplexed stream handler
+        state.runUIs.delete(runId);
         if (current?.wrap) current.wrap.remove();
         state.runs.delete(runId);
         if (state.selectedRunId === runId) state.selectedRunId = null;
@@ -232,7 +233,10 @@
             if (msg.includes('404') || msg.includes('not found')) {
                 tearDownRun(runId, current, 'Run missing on server, removing');
             } else {
-                throw err;
+                // Re-enable the stop button so user can retry
+                if (current.stopBtn) current.stopBtn.disabled = false;
+                updatePipelineInfo(`Stop failed: ${err.message}`);
+                console.error('Stop run error:', err);
             }
         } finally {
             refreshGlobalStopButton();
@@ -325,13 +329,19 @@
         stopBtn.style.fontSize = '0.85rem';
         stopBtn.style.padding = '6px 12px';
         stopBtn.textContent = 'Stop';
-        stopBtn.addEventListener('click', async () => {
+        stopBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (stopBtn.disabled) return;
             stopBtn.disabled = true;
+            stopBtn.textContent = 'Stopping...';
             try {
                 await stopRun(run.runId);
             } catch (err) {
                 updatePipelineInfo(`Stop failed: ${err.message}`);
+                console.error('Stop button error:', err);
                 stopBtn.disabled = false;
+                stopBtn.textContent = 'Stop';
             }
         });
 
@@ -351,29 +361,66 @@
         return { wrap, video, caption, watcher, timestamp, chips, stopBtn };
     }
 
+    function initMultiplexedMetadataStream() {
+        // Single SSE connection for all run metadata to avoid browser connection limits
+        if (state.metadataSource) {
+            return; // Already initialized
+        }
+        
+        state.metadataSource = new EventSource('/api/runs/metadata-stream');
+        state.metadataSource.onmessage = (event) => {
+            if (!event.data) return;
+            
+            try {
+                const msg = JSON.parse(event.data);
+                const runId = msg.runId;
+                
+                if (!runId) return;
+                
+                // Handle run removal notification
+                if (msg.removed) {
+                    // Run was removed server-side, clean up if still present
+                    return;
+                }
+                
+                // Get the UI elements for this run
+                const ui = state.runUIs.get(runId);
+                if (!ui) return; // No UI for this run yet
+                
+                // Convert data back to string for existing render functions
+                const dataStr = typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data);
+                
+                ui.caption.textContent = renderCaption(dataStr);
+                const m = extractMetrics(dataStr);
+                ui.chips.querySelector('[data-ttft]').textContent = m.ttft;
+                ui.chips.querySelector('[data-tpot]').textContent = m.tpot;
+                ui.chips.querySelector('[data-throughput]').textContent = m.throughput;
+                ui.timestamp.textContent = m.timestamp;
+                if (els.hintEl) els.hintEl.textContent = '';
+            } catch (_err) {
+                // Ignore parse errors
+            }
+        };
+        state.metadataSource.onerror = () => {
+            // Connection lost, will auto-reconnect
+            console.warn('Metadata stream connection lost, reconnecting...');
+        };
+    }
+
     function attachRunStreams(run, ui) {
         const base = resolveSignalingBase(cfg.signalingUrl);
         if (base) {
             ui.video.src = `${base}/${run.peerId}`;
         }
 
-        const source = new EventSource(`/api/runs/${run.runId}/metadata-stream`);
-        source.onmessage = (event) => {
-            if (!event.data) {
-                return;
-            }
-            ui.caption.textContent = renderCaption(event.data);
-            const m = extractMetrics(event.data);
-            ui.chips.querySelector('[data-ttft]').textContent = m.ttft;
-            ui.chips.querySelector('[data-tpot]').textContent = m.tpot;
-            ui.chips.querySelector('[data-throughput]').textContent = m.throughput;
-            ui.timestamp.textContent = m.timestamp;
-            if (els.hintEl) els.hintEl.textContent = '';
-        };
-        source.onerror = () => {
-            if (els.hintEl) els.hintEl.textContent = 'Stream not found, retrying...';
-        };
-        state.runs.set(run.runId, { ...run, source });
+        // Store UI reference for the multiplexed metadata stream
+        state.runUIs.set(run.runId, ui);
+        
+        // Initialize the multiplexed stream if not already done
+        initMultiplexedMetadataStream();
+        
+        // Store run info without individual EventSource
+        state.runs.set(run.runId, { ...run, ui });
         // Keep references so the global Stop button can cleanly teardown UI.
         state.runs.get(run.runId).wrap = ui.wrap;
         state.runs.get(run.runId).stopBtn = ui.stopBtn;
@@ -385,9 +432,19 @@
         const ramVal = document.getElementById('ramVal');
         const ramDetail = document.getElementById('ramDetail');
         const gpuVal = document.getElementById('gpuVal');
+        const gpuDetail = document.getElementById('gpuDetail');
+        const gpuName = document.getElementById('gpuName');
+        const gpuEngines = document.getElementById('gpuEngines');
+        const gpuVram = document.getElementById('gpuVram');
+        const gpuFreq = document.getElementById('gpuFreq');
+        const gpuPower = document.getElementById('gpuPower');
+        const gpuTemp = document.getElementById('gpuTemp');
+        const gpuError = document.getElementById('gpuError');
+
         statsCharts.cpu = createStatChart('cpuChart', 'CPU %', '#1ad0ff');
         statsCharts.ram = createStatChart('ramChart', 'RAM %', '#8ca0c2');
         statsCharts.gpu = createStatChart('gpuChart', 'GPU %', '#ffb347');
+
         const statsSource = new EventSource('/system-stats');
         statsSource.onmessage = (event) => {
             try {
@@ -396,14 +453,127 @@
                 const memPct = data.mem_percent ?? 0;
                 const memUsed = data.mem_used_gb ?? 0;
                 const memTotal = data.mem_total_gb ?? 0;
-                const gpuPct = data.gpu_percent ?? 0;
+
+                // CPU & RAM stats
                 cpuVal.textContent = `${cpu.toFixed(1)}%`;
                 ramVal.textContent = `${memPct.toFixed(1)}%`;
                 ramDetail.textContent = `${memUsed.toFixed(1)} / ${memTotal.toFixed(1)} GB`;
-                gpuVal.textContent = data.gpu_percent == null ? 'n/a' : `${gpuPct.toFixed(1)}%`;
                 pushStatSample('cpu', cpu);
                 pushStatSample('ram', memPct);
-                if (data.gpu_percent != null) pushStatSample('gpu', gpuPct);
+
+                // GPU stats from qmassa
+                const gpuAvailable = data.gpu_available === true;
+                const gpuPct = data.gpu_percent;
+
+                if (gpuAvailable && gpuPct != null) {
+                    gpuVal.textContent = `${gpuPct.toFixed(1)}%`;
+                    pushStatSample('gpu', gpuPct);
+
+                    // GPU name and driver
+                    if (gpuName) {
+                        const name = data.gpu_name || 'Unknown GPU';
+                        const driver = data.gpu_driver ? ` (${data.gpu_driver})` : '';
+                        gpuName.textContent = `${name}${driver}`;
+                        gpuName.style.display = 'block';
+                    }
+
+                    // GPU Engine breakdown
+                    if (gpuEngines && data.gpu_engines) {
+                        const engines = data.gpu_engines;
+                        const engineNames = Object.keys(engines);
+                        if (engineNames.length > 0) {
+                            const engineList = engineNames
+                                .map(name => `${formatEngineName(name)}: ${engines[name].toFixed(1)}%`)
+                                .join(' | ');
+                            gpuEngines.textContent = engineList;
+                            gpuEngines.style.display = 'block';
+                        } else {
+                            gpuEngines.style.display = 'none';
+                        }
+                    }
+
+                    // VRAM / Memory
+                    if (gpuVram) {
+                        if (data.vram_total_gb != null && data.vram_total_gb > 0) {
+                            const vramUsed = data.vram_used_gb ?? 0;
+                            const vramTotal = data.vram_total_gb ?? 0;
+                            const vramPct = data.vram_percent ?? 0;
+                            gpuVram.textContent = `VRAM: ${vramUsed.toFixed(1)} / ${vramTotal.toFixed(1)} GB (${vramPct.toFixed(1)}%)`;
+                            gpuVram.style.display = 'block';
+                        } else if (data.gpu_smem_used_gb != null) {
+                            const smemUsed = data.gpu_smem_used_gb ?? 0;
+                            const smemTotal = data.gpu_smem_total_gb ?? 0;
+                            gpuVram.textContent = `Shared Mem: ${smemUsed.toFixed(1)} / ${smemTotal.toFixed(1)} GB`;
+                            gpuVram.style.display = 'block';
+                        } else {
+                            gpuVram.style.display = 'none';
+                        }
+                    }
+
+                    // Frequency
+                    if (gpuFreq) {
+                        if (data.gpu_freq_mhz != null) {
+                            const freqCurrent = data.gpu_freq_mhz ?? 0;
+                            const freqMax = data.gpu_freq_max_mhz;
+                            if (freqMax) {
+                                gpuFreq.textContent = `Freq: ${freqCurrent} / ${freqMax} MHz`;
+                            } else {
+                                gpuFreq.textContent = `Freq: ${freqCurrent} MHz`;
+                            }
+                            gpuFreq.style.display = 'block';
+                        } else {
+                            gpuFreq.style.display = 'none';
+                        }
+                    }
+
+                    // Power
+                    if (gpuPower) {
+                        if (data.gpu_power_w != null) {
+                            const powerGpu = data.gpu_power_w ?? 0;
+                            const powerPkg = data.gpu_power_package_w;
+                            if (powerPkg) {
+                                gpuPower.textContent = `Power: ${powerGpu.toFixed(1)}W (Pkg: ${powerPkg.toFixed(1)}W)`;
+                            } else {
+                                gpuPower.textContent = `Power: ${powerGpu.toFixed(1)}W`;
+                            }
+                            gpuPower.style.display = 'block';
+                        } else {
+                            gpuPower.style.display = 'none';
+                        }
+                    }
+
+                    // Temperature
+                    if (gpuTemp) {
+                        if (data.gpu_temp_c != null) {
+                            gpuTemp.textContent = `Temp: ${data.gpu_temp_c.toFixed(1)}°C`;
+                            gpuTemp.style.display = 'block';
+                        } else {
+                            gpuTemp.style.display = 'none';
+                        }
+                    }
+
+                    // Hide error
+                    if (gpuError) gpuError.style.display = 'none';
+                    if (gpuDetail) gpuDetail.style.display = 'block';
+
+                } else {
+                    // GPU not available or error
+                    gpuVal.textContent = 'n/a';
+                    if (gpuName) gpuName.style.display = 'none';
+                    if (gpuEngines) gpuEngines.style.display = 'none';
+                    if (gpuVram) gpuVram.style.display = 'none';
+                    if (gpuFreq) gpuFreq.style.display = 'none';
+                    if (gpuPower) gpuPower.style.display = 'none';
+                    if (gpuTemp) gpuTemp.style.display = 'none';
+                    if (gpuDetail) gpuDetail.style.display = 'none';
+
+                    // Show error message if present
+                    if (gpuError) {
+                        const errMsg = data.gpu_error || 'GPU monitoring unavailable';
+                        gpuError.textContent = errMsg;
+                        gpuError.style.display = 'block';
+                    }
+                }
             } catch (_err) {
                 cpuVal.textContent = '—';
                 ramVal.textContent = '—';
@@ -411,6 +581,12 @@
                 gpuVal.textContent = '—';
             }
         };
+    }
+
+    function formatEngineName(name) {
+        // Format engine names for display (e.g., "rcs0" -> "RCS0", "video" -> "Video")
+        if (!name) return 'Unknown';
+        return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 
     async function startPipeline(evt) {
@@ -447,7 +623,7 @@
             const ui = createRunElement(run);
             els.runsContainer.appendChild(ui.wrap);
             attachRunStreams(run, ui);
-            updatePipelineInfo(`Running: ${run.runId} (Pipeline ${run.pipelineId})`);
+            updatePipelineInfo(`Latest Run ID: ${run.runId})`);
             state.selectedRunId = run.runId;
             refreshGlobalStopButton();
         } catch (err) {

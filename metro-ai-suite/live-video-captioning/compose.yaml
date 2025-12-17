@@ -126,6 +126,10 @@ services:
       - METADATA_POLL_SECONDS=${METADATA_POLL_SECONDS:-1}
       - WEBRTC_PEER_ID=${WEBRTC_PEER_ID:-stream}
       - SIGNALING_URL=http://${HOST_IP:-localhost}:${WHIP_SERVER_PORT:-8889}
+      # GPU metrics - reads from host qmassa output at /tmp/qmassa-stats.json
+      - QMASSA_ENABLED=${QMASSA_ENABLED:-true}
+      - QMASSA_JSON_FILE=/tmp/qmassa-stats.json
+      - QMASSA_POLL_INTERVAL_MS=${QMASSA_POLL_INTERVAL_MS:-1000}
     volumes:
       - "/tmp:/tmp:ro"
       - "./ov_models:/app/ov_models:ro"

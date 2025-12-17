@@ -21,6 +21,14 @@ MTX_WEBRTCICESERVERS2_0_USERNAME=<UserName>
 MTX_WEBRTCICESERVERS2_0_PASSWORD=<Password>
 ```
 
+### DLStreamer Queue Configuration
+
+source → decode → tee
+                   ├─→ queue(leaky) → convert(BGRA) → rate(1fps) → gvagenai → queue(leaky) → metaconvert → metapublish → fakesink
+                   └─→ queue(leaky) → convert(NV12) → rate(30fps) → appsink(drop=true)
+
+                   
+
 2) (Optional) Download/convert OpenVINO models into `ov_models`
 
 Use the helper script to create `.venv`, install export dependencies (from OpenVINO GenAI 2025.4), and export one of the supported VLMs (Phi-4-multimodal, MiniCPM-V-2_6, Gemma-3-4b-it, InternVL2-2B) or any other Hugging Face repo id (warned):
@@ -57,5 +65,59 @@ Exposed host ports: 8040 (REST pipelines), 8889 (WHIP/WebRTC signaling), 4173 (d
 docker compose down
 ```
 
-### TODOs
-- [ ] Add support for GPU graphs using Qmassa
+### GPU Monitoring with Qmassa
+
+The dashboard displays real-time GPU metrics (utilization, memory, frequency, power) using [qmassa](https://github.com/ulissesf/qmassa). Since GPU workloads run inside Docker containers, qmassa must run on the **host** with elevated privileges to see all GPU clients.
+
+#### Install qmassa on host
+
+```bash
+# Install Rust (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Install qmassa
+cargo install --locked qmassa
+```
+
+#### Run qmassa on host
+
+On a new terminal, start qmassa in headless mode with sudo to capture GPU metrics from all processes:
+
+```bash
+sudo $(which qmassa) -x -t /tmp/qmassa-stats.json -m 1000
+```
+
+Options:
+- `-x` : Headless mode (no TUI)
+- `-t /tmp/qmassa-stats.json` : Write stats to JSON file
+- `-m 1000` : Update interval in milliseconds (1 second)
+
+The dashboard container reads from `/tmp/qmassa-stats.json` (mounted read-only) and displays:
+- **GPU Usage %** : Per-engine utilization (render, video, compute, etc.)
+- **VRAM** : Device memory usage (discrete GPUs)
+- **Frequency** : Current and max GPU frequency (MHz)
+- **Power** : GPU and package power consumption (Watts)
+
+#### Run qmassa in background
+
+To run qmassa as a background service:
+
+```bash
+# Start in background (remove stale files first to avoid permission issues)
+sudo rm -f /tmp/qmassa.log /tmp/qmassa.pid
+sudo bash -c "nohup $(which qmassa) -x -t /tmp/qmassa-stats.json -m 1000 > /tmp/qmassa.log 2>&1 & echo \$! > /tmp/qmassa.pid"
+
+# Check if running
+pgrep -a qmassa
+
+# Stop qmassa
+sudo pkill qmassa
+```
+
+#### Disable GPU monitoring
+
+To disable GPU monitoring, set in `.env`:
+```
+QMASSA_ENABLED=false
+```.
