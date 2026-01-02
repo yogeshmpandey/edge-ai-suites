@@ -122,6 +122,7 @@ services:
       - https_proxy=$https_proxy
       - HTTPS_PROXY=$https_proxy
       - DASHBOARD_PORT=4173
+      - MODELS_DIR=/app/ov_models
       - METADATA_FILE=/tmp/results.jsonl
       - METADATA_POLL_SECONDS=${METADATA_POLL_SECONDS:-1}
       - WEBRTC_PEER_ID=${WEBRTC_PEER_ID:-stream}

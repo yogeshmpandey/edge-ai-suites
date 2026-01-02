@@ -5,9 +5,8 @@ ENV PYTHONUNBUFFERED=1
 
 RUN pip install --no-cache-dir uv==0.4.23
 COPY pyproject.toml ./
-COPY app.py ./
+COPY src/ ./src/
 RUN uv pip install --no-cache --system .
-COPY . .
 EXPOSE 4173
 
-CMD ["python", "app.py"]
+CMD ["python", "-m", "src.app"]

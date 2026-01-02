@@ -1,3 +1,8 @@
 ov_models
 .env
 .venv/
+.github
+.specify
+.tools
+.vscode
+../../specs

@@ -254,7 +254,10 @@
                 tearDownRun(runId, current, 'Run missing on server, removing');
             } else {
                 // Re-enable the stop button so user can retry
-                if (current.stopBtn) current.stopBtn.disabled = false;
+                if (current.stopBtn) {
+                    current.stopBtn.disabled = false;
+                    current.stopBtn.textContent = 'Stop';
+                }
                 updatePipelineInfo(`Stop failed: ${err.message}`);
                 console.error('Stop run error:', err);
             }
@@ -372,14 +375,8 @@
             if (stopBtn.disabled) return;
             stopBtn.disabled = true;
             stopBtn.textContent = 'Stopping...';
-            try {
-                await stopRun(run.runId);
-            } catch (err) {
-                updatePipelineInfo(`Stop failed: ${err.message}`);
-                console.error('Stop button error:', err);
-                stopBtn.disabled = false;
-                stopBtn.textContent = 'Stop';
-            }
+            await stopRun(run.runId);
+            // Note: stopRun handles all error cases internally and resets button state on failure
         });
 
         header.appendChild(headerLeft);

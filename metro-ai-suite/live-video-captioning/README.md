@@ -10,6 +10,7 @@ GenAI-powered captioning for live video streams. Deploy the stack locally to ing
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [GPU Monitoring](#gpu-monitoring-with-qmassa)
+- [Development](#development)
 
 ---
 
@@ -162,7 +163,7 @@ cargo install --locked qmassa
 Start qmassa in a dedicated terminal:
 
 ```bash
-sudo $(which qmassa) -x -t /tmp/qmassa-stats.json -m 1000
+sudo $HOME/.cargo/bin/qmassa -x -t /tmp/qmassa-stats.json -m 1000
 ```
 
 #### Option B: Background (Recommended for Production)
@@ -172,7 +173,8 @@ Run qmassa as a background service:
 ```bash
 # Clean up stale files and start in background
 sudo rm -f /tmp/qmassa.log /tmp/qmassa.pid
-sudo bash -c 'nohup $(which qmassa) -x -t /tmp/qmassa-stats.json -m 1000 > /tmp/qmassa.log 2>&1 & echo $! > /tmp/qmassa.pid'
+# If qmassa was installed with cargo, it likely lives in ~/.cargo/bin which is not in root's PATH.
+sudo nohup $HOME/.cargo/bin/qmassa -x -t /tmp/qmassa-stats.json -m 1000 > /tmp/qmassa.log 2>&1 & echo $! > /tmp/qmassa.pid
 ```
 
 **Manage the background process:**
@@ -203,3 +205,41 @@ To disable GPU monitoring entirely, add this to your `.env` file:
 ```bash
 QMASSA_ENABLED=false
 ```
+
+---
+
+## Development
+
+### Dashboard Backend Structure
+
+The dashboard backend is organized into modular components for maintainability:
+
+```
+dashboard/
+├── src/              # Main Python package
+│   ├── app.py              # Application factory and entry point
+│   ├── config.py           # Environment configuration
+│   ├── models/             # Data models (RunInfo, GPUMetrics)
+│   ├── services/           # Business logic (pipeline, GPU collector)
+│   ├── routes/             # HTTP route handlers
+│   ├── utils/              # Shared utilities (HTTP client)
+│   └── public/             # Static frontend assets
+├── Dockerfile
+└── pyproject.toml
+```
+
+### Running the Dashboard Locally
+
+```bash
+# Build and run in container
+cd dashboard
+docker build -t lvc-dashboard .
+docker run -p 4173:4173 lvc-dashboard
+
+# Or run with docker compose
+docker compose up lvc-dashboard
+```
+
+### API Documentation
+
+Swagger UI is available at **http://localhost:4173/api/docs** when the dashboard is running.
