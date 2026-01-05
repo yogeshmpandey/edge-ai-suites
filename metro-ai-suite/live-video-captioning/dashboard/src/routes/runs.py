@@ -132,6 +132,8 @@ async def start_run(request: web.Request) -> web.Response:
         pipelineId=pipeline_id,
         peerId=peer_id,
         metadataFile=metadata_file,
+        modelName=model_name,
+        pipelineName=pipeline_name,
     )
     runs: dict[str, RunInfo] = request.app["runs"]
     runs[info.runId] = info

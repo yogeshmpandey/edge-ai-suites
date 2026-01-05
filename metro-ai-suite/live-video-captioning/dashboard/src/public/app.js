@@ -20,6 +20,7 @@
     const DEFAULT_MODEL = 'InternVL2-1B';
     const DEFAULT_PIPELINE = 'GenAI Pipeline on CPU';
     const THEME_KEY = 'lvc-theme';
+    const SETTINGS_KEY = 'lvc-settings';
     const statsCharts = {};
 
     function detectInitialTheme() {
@@ -57,6 +58,76 @@
         const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
         applyTheme(current === 'light' ? 'dark' : 'light');
         updateChartColors();
+    }
+
+    function saveSettings() {
+        try {
+            const settings = {
+                rtspUrl: els.rtspInput?.value || '',
+                prompt: els.promptInput?.value || '',
+                modelName: els.modelNameSelect?.value || '',
+                pipelineName: els.pipelineSelect?.value || '',
+                maxTokens: els.maxTokensInput?.value || '70',
+            };
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        } catch (_err) {
+            // localStorage not available
+        }
+    }
+
+    function loadSettings() {
+        try {
+            const saved = localStorage.getItem(SETTINGS_KEY);
+            if (!saved) return null;
+            return JSON.parse(saved);
+        } catch (_err) {
+            return null;
+        }
+    }
+
+    function restoreSettings() {
+        const settings = loadSettings();
+        if (!settings) return;
+        
+        if (settings.rtspUrl && els.rtspInput) {
+            els.rtspInput.value = settings.rtspUrl;
+        }
+        if (settings.prompt && els.promptInput) {
+            els.promptInput.value = settings.prompt;
+        }
+        if (settings.maxTokens && els.maxTokensInput) {
+            els.maxTokensInput.value = settings.maxTokens;
+        }
+        // Model and pipeline will be restored after options are loaded
+    }
+
+    function restoreSelectValues() {
+        const settings = loadSettings();
+        if (!settings) return;
+        
+        if (settings.modelName && els.modelNameSelect) {
+            const options = Array.from(els.modelNameSelect.options).map(o => o.value);
+            if (options.includes(settings.modelName)) {
+                els.modelNameSelect.value = settings.modelName;
+            }
+        }
+        if (settings.pipelineName && els.pipelineSelect) {
+            const options = Array.from(els.pipelineSelect.options).map(o => o.value);
+            if (options.includes(settings.pipelineName)) {
+                els.pipelineSelect.value = settings.pipelineName;
+            }
+        }
+    }
+
+    function setupSettingsPersistence() {
+        // Save settings on input changes
+        const inputs = [els.rtspInput, els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect];
+        inputs.forEach(el => {
+            if (el) {
+                el.addEventListener('change', saveSettings);
+                el.addEventListener('input', saveSettings);
+            }
+        });
     }
 
     function refreshGlobalStopButton() {
@@ -198,9 +269,11 @@
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             setModelOptions(data?.models);
+            restoreSelectValues();
             updatePipelineInfo('Models loaded');
         } catch (_err) {
             setModelOptions([DEFAULT_MODEL]);
+            restoreSelectValues();
             updatePipelineInfo('Model list unavailable, using default');
         }
     }
@@ -211,8 +284,10 @@
                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                const data = await resp.json();
                setPipelineOptions(data?.pipelines);
+               restoreSelectValues();
            } catch (_err) {
                setPipelineOptions([DEFAULT_PIPELINE]);
+               restoreSelectValues();
            }
        }
 
@@ -461,6 +536,43 @@
         refreshGlobalStopButton();
     }
 
+    async function restoreActiveRuns() {
+        // Fetch active runs from backend and restore UI cards
+        try {
+            const resp = await fetch('/api/runs');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const runs = await resp.json();
+            
+            if (runs.length === 0) {
+                return;
+            }
+            
+            // Hide hint if there are active runs
+            if (els.hintEl) els.hintEl.style.display = 'none';
+            
+            for (const runData of runs) {
+                const run = {
+                    runId: runData.runId,
+                    pipelineId: runData.pipelineId,
+                    peerId: runData.peerId,
+                    metadataFile: runData.metadataFile,
+                    modelName: runData.modelName || 'Unknown',
+                    pipelineName: runData.pipelineName || '',
+                };
+                
+                const ui = createRunElement(run);
+                els.runsContainer.appendChild(ui.wrap);
+                attachRunStreams(run, ui);
+                state.selectedRunId = run.runId;
+            }
+            
+            updatePipelineInfo(`Restored ${runs.length} active run(s)`);
+            refreshGlobalStopButton();
+        } catch (err) {
+            console.warn('Failed to restore active runs:', err);
+        }
+    }
+
     function initSystemStats() {
         const cpuVal = document.getElementById('cpuVal');
         const ramVal = document.getElementById('ramVal');
@@ -672,9 +784,18 @@
     function init() {
         applyTheme(detectInitialTheme());
         if (els.themeToggle) els.themeToggle.addEventListener('click', toggleTheme);
+        
+        // Restore settings from localStorage before loading options
+        restoreSettings();
+        setupSettingsPersistence();
+        
         loadModels();
-           loadPipelines();
+        loadPipelines();
         initSystemStats();
+        
+        // Restore active runs from backend
+        restoreActiveRuns();
+        
         els.form.addEventListener('submit', startPipeline);
         if (els.stopBtn) {
             // Global stop button removed from UI, but keep compatibility if re-added.

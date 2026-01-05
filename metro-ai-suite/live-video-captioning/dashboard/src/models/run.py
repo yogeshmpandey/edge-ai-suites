@@ -63,11 +63,15 @@ class RunInfo:
         pipelineId: Pipeline server's identifier for the pipeline instance.
         peerId: WebRTC peer ID for video streaming.
         metadataFile: Path to the metadata output file.
+        modelName: Name of the model used for captioning.
+        pipelineName: Name of the pipeline configuration used.
     """
     runId: str
     pipelineId: str
     peerId: str
     metadataFile: str
+    modelName: str = ""
+    pipelineName: str = ""
 
     def to_dict(self) -> dict[str, str]:
         """Convert to dictionary for JSON serialization."""
@@ -76,4 +80,6 @@ class RunInfo:
             "pipelineId": self.pipelineId,
             "peerId": self.peerId,
             "metadataFile": self.metadataFile,
+            "modelName": self.modelName,
+            "pipelineName": self.pipelineName,
         }
