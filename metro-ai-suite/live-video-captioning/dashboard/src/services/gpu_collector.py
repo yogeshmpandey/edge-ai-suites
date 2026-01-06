@@ -70,7 +70,9 @@ class QmassaCollector:
         """Periodically read and parse the qmassa JSON file."""
         while True:
             try:
-                if not self._json_file.exists():
+                # Check file existence in thread to avoid blocking event loop
+                exists = await asyncio.to_thread(self._json_file.exists)
+                if not exists:
                     if not self._wait_logged:
                         self._latest_metrics = GPUMetrics(
                             error="Run on host: sudo qmassa -x -t /tmp/qmassa-stats.json"

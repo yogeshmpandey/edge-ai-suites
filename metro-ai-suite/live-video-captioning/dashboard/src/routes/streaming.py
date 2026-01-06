@@ -90,6 +90,7 @@ async def all_runs_metadata_stream(request: web.Request) -> web.StreamResponse:
                     logger.debug(f"Error reading metadata for run {run_id}: {e}")
             
             await asyncio.sleep(POLL_INTERVAL)
+
     except (asyncio.CancelledError, ClientConnectionResetError, ConnectionResetError):
         # Client disconnected, gracefully stop streaming
         logger.debug("Metadata stream client disconnected")
@@ -146,7 +147,7 @@ async def _collect_system_stats(request: web.Request) -> dict[str, Any]:
         Dictionary with system stats.
     """
     # Get CPU stats in thread to avoid blocking
-    cpu = await asyncio.to_thread(psutil.cpu_percent, interval=0.5)
+    cpu = psutil.cpu_percent()
     mem = psutil.virtual_memory()
 
     # Get GPU stats from collector

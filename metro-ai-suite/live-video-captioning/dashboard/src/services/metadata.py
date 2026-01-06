@@ -34,7 +34,7 @@ def _sync_read_latest_line(path: Path) -> Optional[str]:
                 return None
             
             # Read last 8KB (enough for most metadata lines)
-            read_size = min(8192, size)
+            read_size = min(1024, size)
             f.seek(-read_size, 2)
             chunk = f.read().decode('utf-8', errors='replace')
             lines = [line.strip() for line in chunk.strip().split('\n') if line.strip()]

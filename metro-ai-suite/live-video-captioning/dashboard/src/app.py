@@ -37,7 +37,6 @@ from src.routes.models import models_routes
 from src.routes.pipelines import pipelines_routes
 from src.routes.runs import runs_routes
 from src.routes.streaming import streaming_routes
-from src.routes.monitoring import monitoring_routes
 
 # Configure logging
 logging.basicConfig(
@@ -167,7 +166,6 @@ No rate limiting is applied.
     swagger.add_routes(pipelines_routes)
     swagger.add_routes(runs_routes)
     swagger.add_routes(streaming_routes)
-    swagger.add_routes(monitoring_routes)
     
     # Add root handler and static files (outside swagger for proper static file handling)
     app.router.add_get("/", index_handler)
