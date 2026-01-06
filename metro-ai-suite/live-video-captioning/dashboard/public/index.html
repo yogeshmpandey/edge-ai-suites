@@ -8,7 +8,13 @@
 </head>
 <body>
     <header class="topbar">
-        <h2>Live VLM Video Captioning</h2>
+        <h2>
+            <svg class="cc-icon" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false">
+                <rect x="2" y="4" width="20" height="16" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                <text x="6" y="15.5" font-size="8" font-weight="bold" fill="currentColor">CC</text>
+            </svg>
+            Live VLM Video Captioning
+        </h2>
         <button id="themeToggle" class="icon-button" type="button" aria-label="Switch theme">
             <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" fill="none" />
@@ -31,11 +37,11 @@
             <article class="card">
                 <form id="pipelineForm" class="controls">
                     <label class="field">
-                        <span class="label">RTSP URL</span>
-                        <input id="rtspInput" class="input" type="text" value="rtsp://10.223.24.242:8555/garage" />
+                        <span class="label">Enter RTSP URL</span>
+                        <input id="rtspInput" class="input" type="text" value="rtsp://10.223.24.242:8555/garage_restream" />
                     </label>
                     <label class="field">
-                        <span class="label">Prompt</span>
+                        <span class="label">Enter Prompt</span>
                         <textarea id="promptInput" class="input textarea" rows="2">Describe what you see in the image in one sentence.</textarea>
                     </label>
                     <div class="field-row">
@@ -49,7 +55,7 @@
                         </label>
                     </div>
                     <label class="field">
-                        <span class="label">Pipeline</span>
+                        <span class="label">Pipeline Name</span>
                         <select id="pipelineSelect" class="input"></select>
                     </label>
                     <div class="field-row" style="justify-content: space-between; align-items: center;">
@@ -61,7 +67,6 @@
                     </div>
                 </form>
                 <div class="card system-stats-card" style="margin-top:2px; background: var(--panel-strong);">
-                        <h3 style="margin-bottom:8px; flex-shrink: 0;">System Stats</h3>
                         <div class="chart-grid">
                             <div class="chart-card">
                                 <div class="chart-header"><span>CPU</span><span class="chart-value" id="cpuVal">—</span></div>
@@ -74,16 +79,24 @@
                             </div>
                             <div class="chart-card">
                                 <div class="chart-header"><span>GPU</span><span class="chart-value" id="gpuVal">—</span></div>
+                                <!-- TODO FIX the Styling etc. 
+                                 <div class="gpu-info" id="gpuDetail" style="display: none;">
+                                    <div class="gpu-name" id="gpuName" style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 4px;"></div>
+                                    <div class="gpu-engines" id="gpuEngines" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 2px; word-wrap: break-word;"></div>
+                                    <div class="gpu-stats-row" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.65rem; color: var(--text-secondary);">
+                                        <span id="gpuVram"></span>
+                                        <span id="gpuFreq"></span>
+                                        <span id="gpuPower"></span>
+                                        <span id="gpuTemp"></span>
+                                    </div>
+                                </div> -->
+                                <div class="gpu-error" id="gpuError" style="font-size: 0.7rem; color: var(--text-muted); display: none;"></div>
                                 <div class="chart-wrap"><canvas id="gpuChart"></canvas></div>
                             </div>
                         </div>
                     </div>
             </article>
             <article class="card live-layout">
-                <div class="status">
-                    <span class="dot active"></span>
-                    <span id="watcherStatus">Active Pipelines</span>
-                </div>
                 <div id="runsContainer"></div>
                 <div class="empty-alert" id="hint">Start a pipeline to see video streams here</div>
             </article>
@@ -91,6 +104,6 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/runtime-config.js"></script>
-    <script src="/app.js?v=4"></script>
+    <script src="/app.js?v=5"></script>
 </body>
 </html>

@@ -2,7 +2,6 @@
     const cfg = window.RUNTIME_CONFIG || {};
     const els = {
         statusDot: document.getElementById('videoStatus'),
-        watcherStatus: document.getElementById('watcherStatus'),
         hintEl: document.getElementById('hint'),
         form: document.getElementById('pipelineForm'),
         promptInput: document.getElementById('promptInput'),
@@ -17,10 +16,11 @@
         themeToggle: document.getElementById('themeToggle'),
     };
 
-    const state = { selectedRunId: null, runs: new Map() };
+    const state = { selectedRunId: null, runs: new Map(), metadataSource: null, runUIs: new Map() };
     const DEFAULT_MODEL = 'InternVL2-1B';
     const DEFAULT_PIPELINE = 'GenAI Pipeline on CPU';
     const THEME_KEY = 'lvc-theme';
+    const SETTINGS_KEY = 'lvc-settings';
     const statsCharts = {};
 
     function detectInitialTheme() {
@@ -43,14 +43,104 @@
         } catch (_err) {}
     }
 
+    function updateChartColors() {
+        const colors = getChartColors();
+        Object.values(statsCharts).forEach(chart => {
+            if (chart && chart.options && chart.options.scales && chart.options.scales.y) {
+                chart.options.scales.y.grid.color = colors.gridColor;
+                chart.options.scales.y.ticks.color = colors.tickColor;
+                chart.update('none');
+            }
+        });
+    }
+
     function toggleTheme() {
         const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
         applyTheme(current === 'light' ? 'dark' : 'light');
+        updateChartColors();
+    }
+
+    function saveSettings() {
+        try {
+            const settings = {
+                rtspUrl: els.rtspInput?.value || '',
+                prompt: els.promptInput?.value || '',
+                modelName: els.modelNameSelect?.value || '',
+                pipelineName: els.pipelineSelect?.value || '',
+                maxTokens: els.maxTokensInput?.value || '70',
+            };
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        } catch (_err) {
+            // localStorage not available
+        }
+    }
+
+    function loadSettings() {
+        try {
+            const saved = localStorage.getItem(SETTINGS_KEY);
+            if (!saved) return null;
+            return JSON.parse(saved);
+        } catch (_err) {
+            return null;
+        }
+    }
+
+    function restoreSettings() {
+        const settings = loadSettings();
+        if (!settings) return;
+        
+        if (settings.rtspUrl && els.rtspInput) {
+            els.rtspInput.value = settings.rtspUrl;
+        }
+        if (settings.prompt && els.promptInput) {
+            els.promptInput.value = settings.prompt;
+        }
+        if (settings.maxTokens && els.maxTokensInput) {
+            els.maxTokensInput.value = settings.maxTokens;
+        }
+        // Model and pipeline will be restored after options are loaded
+    }
+
+    function restoreSelectValues() {
+        const settings = loadSettings();
+        if (!settings) return;
+        
+        if (settings.modelName && els.modelNameSelect) {
+            const options = Array.from(els.modelNameSelect.options).map(o => o.value);
+            if (options.includes(settings.modelName)) {
+                els.modelNameSelect.value = settings.modelName;
+            }
+        }
+        if (settings.pipelineName && els.pipelineSelect) {
+            const options = Array.from(els.pipelineSelect.options).map(o => o.value);
+            if (options.includes(settings.pipelineName)) {
+                els.pipelineSelect.value = settings.pipelineName;
+            }
+        }
+    }
+
+    function setupSettingsPersistence() {
+        // Save settings on input changes
+        const inputs = [els.rtspInput, els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect];
+        inputs.forEach(el => {
+            if (el) {
+                el.addEventListener('change', saveSettings);
+                el.addEventListener('input', saveSettings);
+            }
+        });
     }
 
     function refreshGlobalStopButton() {
         if (!els.stopBtn) return;
         els.stopBtn.disabled = state.runs.size === 0;
+    }
+
+    function getChartColors() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        return {
+            gridColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)',
+            tickColor: isLight ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.55)',
+        };
     }
 
     function createStatChart(elId, label, color) {
@@ -59,6 +149,7 @@
         const gradient = ctx.createLinearGradient(0, 0, 0, 140);
         gradient.addColorStop(0, `${color}55`);
         gradient.addColorStop(1, `${color}0f`);
+        const colors = getChartColors();
         return new Chart(ctx, {
             type: 'line',
             data: { labels: [], datasets: [{ label, data: [], borderColor: color, backgroundColor: gradient, tension: 0.35, fill: true, pointRadius: 0, borderWidth: 2 }] },
@@ -71,9 +162,9 @@
                     y: {
                         suggestedMin: 0,
                         suggestedMax: 100,
-                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        grid: { color: colors.gridColor },
                         ticks: {
-                            color: 'rgba(255,255,255,0.55)',
+                            color: colors.tickColor,
                         },
                     },
                 },
@@ -178,9 +269,11 @@
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             setModelOptions(data?.models);
+            restoreSelectValues();
             updatePipelineInfo('Models loaded');
         } catch (_err) {
             setModelOptions([DEFAULT_MODEL]);
+            restoreSelectValues();
             updatePipelineInfo('Model list unavailable, using default');
         }
     }
@@ -191,13 +284,17 @@
                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                const data = await resp.json();
                setPipelineOptions(data?.pipelines);
+               restoreSelectValues();
            } catch (_err) {
                setPipelineOptions([DEFAULT_PIPELINE]);
+               restoreSelectValues();
            }
        }
 
     function tearDownRun(runId, current, message) {
-        if (current?.source) current.source.close();
+        console.log(`Tearing down run ${runId}`);
+        // Remove UI reference from multiplexed stream handler
+        state.runUIs.delete(runId);
         if (current?.wrap) current.wrap.remove();
         state.runs.delete(runId);
         if (state.selectedRunId === runId) state.selectedRunId = null;
@@ -232,7 +329,13 @@
             if (msg.includes('404') || msg.includes('not found')) {
                 tearDownRun(runId, current, 'Run missing on server, removing');
             } else {
-                throw err;
+                // Re-enable the stop button so user can retry
+                if (current.stopBtn) {
+                    current.stopBtn.disabled = false;
+                    current.stopBtn.textContent = 'Stop';
+                }
+                updatePipelineInfo(`Stop failed: ${err.message}`);
+                console.error('Stop run error:', err);
             }
         } finally {
             refreshGlobalStopButton();
@@ -256,9 +359,26 @@
         headerLeft.style.alignItems = 'center';
         headerLeft.style.gap = '8px';
         headerLeft.style.fontSize = '0.85rem';
+        headerLeft.style.flexWrap = 'wrap';
+        
+        // Determine device from pipeline name
+        const deviceType = (run.pipelineName || '').toLowerCase().includes('gpu') ? 'GPU' : 'CPU';
+        const deviceIcon = deviceType === 'GPU' 
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>'
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="3"/></svg>';
+        
         headerLeft.innerHTML = `
             <span class="dot active"></span>
-            <span>Running Pipeline -  <strong>${run.runId}</strong></span>
+            <span>Run <strong>${run.runId}</strong></span>
+            <span style="color: var(--muted); margin: 0 4px;">|</span>
+            <span class="chip" style="background: var(--accent); color: var(--bg);">
+                ${deviceIcon}
+                <strong>${deviceType}</strong>
+            </span>
+            <span class="chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                ${run.modelName || 'Unknown'}
+            </span>
         `;
 
         const grid = document.createElement('div');
@@ -325,14 +445,14 @@
         stopBtn.style.fontSize = '0.85rem';
         stopBtn.style.padding = '6px 12px';
         stopBtn.textContent = 'Stop';
-        stopBtn.addEventListener('click', async () => {
+        stopBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (stopBtn.disabled) return;
             stopBtn.disabled = true;
-            try {
-                await stopRun(run.runId);
-            } catch (err) {
-                updatePipelineInfo(`Stop failed: ${err.message}`);
-                stopBtn.disabled = false;
-            }
+            stopBtn.textContent = 'Stopping...';
+            await stopRun(run.runId);
+            // Note: stopRun handles all error cases internally and resets button state on failure
         });
 
         header.appendChild(headerLeft);
@@ -351,33 +471,144 @@
         return { wrap, video, caption, watcher, timestamp, chips, stopBtn };
     }
 
+    function initMultiplexedMetadataStream() {
+        // Single SSE connection for all run metadata to avoid browser connection limits
+        if (state.metadataSource) {
+            return; // Already initialized
+        }
+        
+        console.log('Initializing multiplexed metadata stream...');
+        state.metadataSource = new EventSource('/api/runs/metadata-stream');
+        
+        state.metadataSource.onopen = () => {
+            console.log('Multiplexed metadata stream connected');
+        };
+        
+        state.metadataSource.onmessage = (event) => {
+            if (!event.data) return;
+            
+            try {
+                const msg = JSON.parse(event.data);
+                const runId = msg.runId;
+                
+                if (!runId) {
+                    console.warn('Received metadata without runId:', msg);
+                    return;
+                }
+                
+                // Handle run removal notification
+                if (msg.removed) {
+                    console.log(`Run ${runId} removed from server`);
+                    return;
+                }
+                
+                // Get the UI elements for this run
+                const ui = state.runUIs.get(runId);
+                if (!ui) {
+                    console.log(`No UI found for run ${runId}, ignoring metadata`);
+                    return; // No UI for this run yet
+                }
+                
+                // msg.data is already parsed; extract caption and metrics directly
+                const data = msg.data;
+                const captionText = typeof data === 'object' && data.result ? data.result : (typeof data === 'string' ? data : JSON.stringify(data));
+                ui.caption.textContent = captionText;
+                
+                // Extract metrics from the data object
+                const metrics = (typeof data === 'object' && data.metrics) ? data.metrics : {};
+                const throughput = metrics.throughput_mean;
+                const timestampText =
+                    data.timestamp_seconds !== undefined
+                        ? `Updated ${data.timestamp_seconds.toFixed(2)}s into stream`
+                        : data.timestamp
+                        ? `Updated at ${new Date(data.timestamp).toLocaleTimeString()}`
+                        : '—';
+                ui.chips.querySelector('[data-ttft]').textContent = metrics.ttft_mean ? `${metrics.ttft_mean.toFixed(0)} ms` : '—';
+                ui.chips.querySelector('[data-tpot]').textContent = metrics.tpot_mean ? `${metrics.tpot_mean.toFixed(2)} ms` : '—';
+                ui.chips.querySelector('[data-throughput]').textContent = throughput ? `${throughput.toFixed(2)} tok/s` : '—';
+                ui.timestamp.textContent = timestampText;
+                if (els.hintEl) els.hintEl.textContent = '';
+                
+                console.log(`Updated metadata for run ${runId}`);
+            } catch (err) {
+                console.error('Error parsing metadata:', err, 'Event data:', event.data);
+            }
+        };
+        
+        state.metadataSource.onerror = (event) => {
+            console.error('Metadata stream error:', event);
+            // EventSource will automatically try to reconnect
+            // Reset the connection after a delay if it keeps failing
+            setTimeout(() => {
+                if (state.metadataSource && state.metadataSource.readyState === EventSource.CLOSED) {
+                    console.log('Reconnecting metadata stream...');
+                    state.metadataSource = null;
+                    initMultiplexedMetadataStream();
+                }
+            }, 5000);
+        };
+        
+        state.metadataSource.onclose = () => {
+            console.log('Metadata stream closed');
+            state.metadataSource = null;
+        };
+    }
+
     function attachRunStreams(run, ui) {
         const base = resolveSignalingBase(cfg.signalingUrl);
         if (base) {
             ui.video.src = `${base}/${run.peerId}`;
         }
 
-        const source = new EventSource(`/api/runs/${run.runId}/metadata-stream`);
-        source.onmessage = (event) => {
-            if (!event.data) {
-                return;
-            }
-            ui.caption.textContent = renderCaption(event.data);
-            const m = extractMetrics(event.data);
-            ui.chips.querySelector('[data-ttft]').textContent = m.ttft;
-            ui.chips.querySelector('[data-tpot]').textContent = m.tpot;
-            ui.chips.querySelector('[data-throughput]').textContent = m.throughput;
-            ui.timestamp.textContent = m.timestamp;
-            if (els.hintEl) els.hintEl.textContent = '';
-        };
-        source.onerror = () => {
-            if (els.hintEl) els.hintEl.textContent = 'Stream not found, retrying...';
-        };
-        state.runs.set(run.runId, { ...run, source });
+        // Store UI reference for the multiplexed metadata stream
+        state.runUIs.set(run.runId, ui);
+        
+        // Initialize the multiplexed stream if not already done
+        initMultiplexedMetadataStream();
+        
+        // Store run info without individual EventSource
+        state.runs.set(run.runId, { ...run, ui });
         // Keep references so the global Stop button can cleanly teardown UI.
         state.runs.get(run.runId).wrap = ui.wrap;
         state.runs.get(run.runId).stopBtn = ui.stopBtn;
         refreshGlobalStopButton();
+    }
+
+    async function restoreActiveRuns() {
+        // Fetch active runs from backend and restore UI cards
+        try {
+            const resp = await fetch('/api/runs');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const runs = await resp.json();
+            
+            if (runs.length === 0) {
+                return;
+            }
+            
+            // Hide hint if there are active runs
+            if (els.hintEl) els.hintEl.style.display = 'none';
+            
+            for (const runData of runs) {
+                const run = {
+                    runId: runData.runId,
+                    pipelineId: runData.pipelineId,
+                    peerId: runData.peerId,
+                    metadataFile: runData.metadataFile,
+                    modelName: runData.modelName || 'Unknown',
+                    pipelineName: runData.pipelineName || '',
+                };
+                
+                const ui = createRunElement(run);
+                els.runsContainer.appendChild(ui.wrap);
+                attachRunStreams(run, ui);
+                state.selectedRunId = run.runId;
+            }
+            
+            updatePipelineInfo(`Restored ${runs.length} active run(s)`);
+            refreshGlobalStopButton();
+        } catch (err) {
+            console.warn('Failed to restore active runs:', err);
+        }
     }
 
     function initSystemStats() {
@@ -385,9 +616,19 @@
         const ramVal = document.getElementById('ramVal');
         const ramDetail = document.getElementById('ramDetail');
         const gpuVal = document.getElementById('gpuVal');
+        const gpuDetail = document.getElementById('gpuDetail');
+        const gpuName = document.getElementById('gpuName');
+        const gpuEngines = document.getElementById('gpuEngines');
+        const gpuVram = document.getElementById('gpuVram');
+        const gpuFreq = document.getElementById('gpuFreq');
+        const gpuPower = document.getElementById('gpuPower');
+        const gpuTemp = document.getElementById('gpuTemp');
+        const gpuError = document.getElementById('gpuError');
+
         statsCharts.cpu = createStatChart('cpuChart', 'CPU %', '#1ad0ff');
         statsCharts.ram = createStatChart('ramChart', 'RAM %', '#8ca0c2');
         statsCharts.gpu = createStatChart('gpuChart', 'GPU %', '#ffb347');
+
         const statsSource = new EventSource('/system-stats');
         statsSource.onmessage = (event) => {
             try {
@@ -396,14 +637,127 @@
                 const memPct = data.mem_percent ?? 0;
                 const memUsed = data.mem_used_gb ?? 0;
                 const memTotal = data.mem_total_gb ?? 0;
-                const gpuPct = data.gpu_percent ?? 0;
+
+                // CPU & RAM stats
                 cpuVal.textContent = `${cpu.toFixed(1)}%`;
                 ramVal.textContent = `${memPct.toFixed(1)}%`;
                 ramDetail.textContent = `${memUsed.toFixed(1)} / ${memTotal.toFixed(1)} GB`;
-                gpuVal.textContent = data.gpu_percent == null ? 'n/a' : `${gpuPct.toFixed(1)}%`;
                 pushStatSample('cpu', cpu);
                 pushStatSample('ram', memPct);
-                if (data.gpu_percent != null) pushStatSample('gpu', gpuPct);
+
+                // GPU stats from qmassa
+                const gpuAvailable = data.gpu_available === true;
+                const gpuPct = data.gpu_percent;
+
+                if (gpuAvailable && gpuPct != null) {
+                    gpuVal.textContent = `${gpuPct.toFixed(1)}%`;
+                    pushStatSample('gpu', gpuPct);
+
+                    // GPU name and driver
+                    if (gpuName) {
+                        const name = data.gpu_name || 'Unknown GPU';
+                        const driver = data.gpu_driver ? ` (${data.gpu_driver})` : '';
+                        gpuName.textContent = `${name}${driver}`;
+                        gpuName.style.display = 'block';
+                    }
+
+                    // GPU Engine breakdown
+                    if (gpuEngines && data.gpu_engines) {
+                        const engines = data.gpu_engines;
+                        const engineNames = Object.keys(engines);
+                        if (engineNames.length > 0) {
+                            const engineList = engineNames
+                                .map(name => `${formatEngineName(name)}: ${engines[name].toFixed(1)}%`)
+                                .join(' | ');
+                            gpuEngines.textContent = engineList;
+                            gpuEngines.style.display = 'block';
+                        } else {
+                            gpuEngines.style.display = 'none';
+                        }
+                    }
+
+                    // VRAM / Memory
+                    if (gpuVram) {
+                        if (data.vram_total_gb != null && data.vram_total_gb > 0) {
+                            const vramUsed = data.vram_used_gb ?? 0;
+                            const vramTotal = data.vram_total_gb ?? 0;
+                            const vramPct = data.vram_percent ?? 0;
+                            gpuVram.textContent = `VRAM: ${vramUsed.toFixed(1)} / ${vramTotal.toFixed(1)} GB (${vramPct.toFixed(1)}%)`;
+                            gpuVram.style.display = 'block';
+                        } else if (data.gpu_smem_used_gb != null) {
+                            const smemUsed = data.gpu_smem_used_gb ?? 0;
+                            const smemTotal = data.gpu_smem_total_gb ?? 0;
+                            gpuVram.textContent = `Shared Mem: ${smemUsed.toFixed(1)} / ${smemTotal.toFixed(1)} GB`;
+                            gpuVram.style.display = 'block';
+                        } else {
+                            gpuVram.style.display = 'none';
+                        }
+                    }
+
+                    // Frequency
+                    if (gpuFreq) {
+                        if (data.gpu_freq_mhz != null) {
+                            const freqCurrent = data.gpu_freq_mhz ?? 0;
+                            const freqMax = data.gpu_freq_max_mhz;
+                            if (freqMax) {
+                                gpuFreq.textContent = `Freq: ${freqCurrent} / ${freqMax} MHz`;
+                            } else {
+                                gpuFreq.textContent = `Freq: ${freqCurrent} MHz`;
+                            }
+                            gpuFreq.style.display = 'block';
+                        } else {
+                            gpuFreq.style.display = 'none';
+                        }
+                    }
+
+                    // Power
+                    if (gpuPower) {
+                        if (data.gpu_power_w != null) {
+                            const powerGpu = data.gpu_power_w ?? 0;
+                            const powerPkg = data.gpu_power_package_w;
+                            if (powerPkg) {
+                                gpuPower.textContent = `Power: ${powerGpu.toFixed(1)}W (Pkg: ${powerPkg.toFixed(1)}W)`;
+                            } else {
+                                gpuPower.textContent = `Power: ${powerGpu.toFixed(1)}W`;
+                            }
+                            gpuPower.style.display = 'block';
+                        } else {
+                            gpuPower.style.display = 'none';
+                        }
+                    }
+
+                    // Temperature
+                    if (gpuTemp) {
+                        if (data.gpu_temp_c != null) {
+                            gpuTemp.textContent = `Temp: ${data.gpu_temp_c.toFixed(1)}°C`;
+                            gpuTemp.style.display = 'block';
+                        } else {
+                            gpuTemp.style.display = 'none';
+                        }
+                    }
+
+                    // Hide error
+                    if (gpuError) gpuError.style.display = 'none';
+                    if (gpuDetail) gpuDetail.style.display = 'block';
+
+                } else {
+                    // GPU not available or error
+                    gpuVal.textContent = 'n/a';
+                    if (gpuName) gpuName.style.display = 'none';
+                    if (gpuEngines) gpuEngines.style.display = 'none';
+                    if (gpuVram) gpuVram.style.display = 'none';
+                    if (gpuFreq) gpuFreq.style.display = 'none';
+                    if (gpuPower) gpuPower.style.display = 'none';
+                    if (gpuTemp) gpuTemp.style.display = 'none';
+                    if (gpuDetail) gpuDetail.style.display = 'none';
+
+                    // Show error message if present
+                    if (gpuError) {
+                        const errMsg = data.gpu_error || 'GPU monitoring unavailable';
+                        gpuError.textContent = errMsg;
+                        gpuError.style.display = 'block';
+                    }
+                }
             } catch (_err) {
                 cpuVal.textContent = '—';
                 ramVal.textContent = '—';
@@ -411,6 +765,12 @@
                 gpuVal.textContent = '—';
             }
         };
+    }
+
+    function formatEngineName(name) {
+        // Format engine names for display (e.g., "rcs0" -> "RCS0", "video" -> "Video")
+        if (!name) return 'Unknown';
+        return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 
     async function startPipeline(evt) {
@@ -439,6 +799,8 @@
                 pipelineId: data.pipelineId,
                 peerId: data.peerId,
                 metadataFile: data.metadataFile,
+                modelName: modelName,
+                pipelineName: pipelineName,
             };
 
             // Hide the hint when first pipeline starts
@@ -447,7 +809,7 @@
             const ui = createRunElement(run);
             els.runsContainer.appendChild(ui.wrap);
             attachRunStreams(run, ui);
-            updatePipelineInfo(`Running: ${run.runId} (Pipeline ${run.pipelineId})`);
+            updatePipelineInfo(`Latest Run ID: (${run.runId})`);
             state.selectedRunId = run.runId;
             refreshGlobalStopButton();
         } catch (err) {
@@ -460,9 +822,18 @@
     function init() {
         applyTheme(detectInitialTheme());
         if (els.themeToggle) els.themeToggle.addEventListener('click', toggleTheme);
+        
+        // Restore settings from localStorage before loading options
+        restoreSettings();
+        setupSettingsPersistence();
+        
         loadModels();
-           loadPipelines();
+        loadPipelines();
         initSystemStats();
+        
+        // Restore active runs from backend
+        restoreActiveRuns();
+        
         els.form.addEventListener('submit', startPipeline);
         if (els.stopBtn) {
             // Global stop button removed from UI, but keep compatibility if re-added.
@@ -485,6 +856,15 @@
             });
             refreshGlobalStopButton();
         }
+        
+        // Cleanup SSE connections when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (state.metadataSource) {
+                console.log('Closing metadata stream on page unload');
+                state.metadataSource.close();
+                state.metadataSource = null;
+            }
+        });
     }
 
     init();

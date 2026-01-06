@@ -42,6 +42,8 @@ class RunInfo(BaseModel):
     pipelineId: str
     peerId: str
     metadataFile: str
+    modelName: Optional[str] = None
+    pipelineName: Optional[str] = None
 
 
 class ModelList(BaseModel):
@@ -149,19 +151,24 @@ def _http_json(method: str, url: str, payload: Optional[dict[str, Any]] = None) 
 
 async def _system_stats_generator() -> AsyncGenerator[str, None]:
     while True:
-        cpu = await asyncio.to_thread(psutil.cpu_percent, interval=0.5)
-        mem = psutil.virtual_memory()
-        # GPU stats placeholder for Intel iGPU; set to None/0 if unavailable.
-        stats = {
-            "cpu_percent": cpu,
-            "mem_total_gb": round(mem.total / (1024**3), 2),
-            "mem_used_gb": round(mem.used / (1024**3), 2),
-            "mem_percent": mem.percent,
-            "gpu_percent": None,
-            "vram_total_gb": None,
-            "vram_used_gb": None,
-        }
-        yield f"data: {json.dumps(stats)}\n\n"
+        try:
+            cpu = await asyncio.to_thread(psutil.cpu_percent, interval=0.5)
+            mem = psutil.virtual_memory()
+            # GPU stats placeholder for Intel iGPU; set to None/0 if unavailable.
+            stats = {
+                "cpu_percent": cpu,
+                "mem_total_gb": round(mem.total / (1024**3), 2),
+                "mem_used_gb": round(mem.used / (1024**3), 2),
+                "mem_percent": mem.percent,
+                "gpu_percent": None,
+                "vram_total_gb": None,
+                "vram_used_gb": None,
+            }
+            yield f"data: {json.dumps(stats)}\n\n"
+        except Exception as e:
+            # Send error as comment to keep connection alive
+            yield f": error in system stats - {e}\n\n"
+        
         await asyncio.sleep(POLL_INTERVAL)
 
 
@@ -221,7 +228,15 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     if not pipeline_id:
         raise HTTPException(status_code=502, detail={"message": "Pipeline server returned empty pipeline id", "body": raw})
 
-    info = RunInfo(runId=run_id[:10], pipelineId=pipeline_id, peerId=peer_id, metadataFile=metadata_file)
+    model_name = (req.modelName or "").strip() or "InternVL2-2B"
+    info = RunInfo(
+        runId=run_id[:10],
+        pipelineId=pipeline_id,
+        peerId=peer_id,
+        metadataFile=metadata_file,
+        modelName=model_name,
+        pipelineName=pipeline_name,
+    )
     RUNS[info.runId] = info
     return info
 
@@ -229,6 +244,81 @@ async def start_run(req: StartRunRequest) -> RunInfo:
 @app.get("/api/runs")
 async def list_runs() -> list[RunInfo]:
     return list(RUNS.values())
+
+
+async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
+    """Generator that reads metadata from all active runs and multiplexes into a single SSE stream."""
+    last_payloads: dict[str, str] = {}
+    last_modified_times: dict[str, float] = {}
+    
+    while True:
+        try:
+            # Get current list of runs (defensive copy)
+            current_runs = dict(RUNS)
+            
+            for run_id, info in current_runs.items():
+                path = Path(info.metadataFile)
+                
+                # Check if file exists and get its modification time
+                if not path.exists():
+                    continue
+                    
+                try:
+                    current_mtime = path.stat().st_mtime
+                    last_mtime = last_modified_times.get(run_id, 0)
+                    
+                    # Only read file if it was modified since last check
+                    if current_mtime > last_mtime:
+                        latest = _read_latest_line(path)
+                        if latest and latest != last_payloads.get(run_id):
+                            last_payloads[run_id] = latest
+                            last_modified_times[run_id] = current_mtime
+                            
+                            # Wrap the data with runId for client-side demultiplexing
+                            try:
+                                data_obj = json.loads(latest)
+                                envelope = {"runId": run_id, "data": data_obj}
+                            except json.JSONDecodeError:
+                                envelope = {"runId": run_id, "data": latest}
+                            
+                            yield f"data: {json.dumps(envelope)}\n\n"
+                except OSError:
+                    # File might have been deleted or is inaccessible
+                    continue
+            
+            # Send heartbeat to keep connection alive
+            yield f": heartbeat\n\n"
+            
+            # Clean up stale entries
+            current_run_ids = set(current_runs.keys())
+            stale_ids = [rid for rid in last_payloads if rid not in current_run_ids]
+            for rid in stale_ids:
+                last_payloads.pop(rid, None)
+                last_modified_times.pop(rid, None)
+                
+        except Exception as e:
+            # Log error but don't break the generator
+            print(f"Error in multiplexed metadata generator: {e}")
+            yield f": error - {e}\n\n"
+        
+        await asyncio.sleep(POLL_INTERVAL)
+
+
+@app.get("/api/runs/metadata-stream")
+async def multiplexed_metadata_stream() -> StreamingResponse:
+    """Multiplexed SSE stream that provides metadata for all active runs."""
+    print("Multiplexed metadata stream requested")
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Cache-Control"
+    }
+    return StreamingResponse(
+        _multiplexed_metadata_generator(), 
+        media_type="text/event-stream",
+        headers=headers
+    )
 
 
 @app.get("/api/runs/{run_id}")
@@ -254,17 +344,19 @@ async def stop_run(run_id: str) -> dict[str, str]:
     return {"status": "stopped", "runId": run_id}
 
 
-@app.get("/api/runs/{run_id}/metadata-stream")
-async def run_metadata_stream(run_id: str) -> StreamingResponse:
-    info = RUNS.get(run_id)
-    if not info:
-        raise HTTPException(status_code=404, detail={"message": "Run not found"})
-    return StreamingResponse(_metadata_generator(Path(info.metadataFile)), media_type="text/event-stream")
-
-
 @app.get("/system-stats")
 async def system_stats() -> StreamingResponse:
-    return StreamingResponse(_system_stats_generator(), media_type="text/event-stream")
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Cache-Control"
+    }
+    return StreamingResponse(
+        _system_stats_generator(), 
+        media_type="text/event-stream",
+        headers=headers
+    )
 
 
 @app.get("/")
