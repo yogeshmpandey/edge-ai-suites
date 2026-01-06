@@ -19,7 +19,9 @@ PEER_ID = os.environ.get("WEBRTC_PEER_ID", "genai_pipeline")
 SIGNALING_URL = os.environ.get("SIGNALING_URL", "http://localhost:8889")
 POLL_INTERVAL = float(os.environ.get("METADATA_POLL_SECONDS", "1"))
 
-PIPELINE_SERVER_URL = os.environ.get("PIPELINE_SERVER_URL", "http://video-ingestion:8080")
+PIPELINE_SERVER_URL = os.environ.get(
+    "PIPELINE_SERVER_URL", "http://video-ingestion:8080"
+)
 PIPELINE_NAME = os.environ.get("PIPELINE_NAME", "genai_pipeline")
 
 BASE_DIR = Path(__file__).parent
@@ -94,7 +96,9 @@ def _discover_pipelines_remote() -> list[str]:
                 for item in items:
                     if isinstance(item, str):
                         names.append(item)
-                    elif isinstance(item, dict) and isinstance(item.get("version"), str):
+                    elif isinstance(item, dict) and isinstance(
+                        item.get("version"), str
+                    ):
                         names.append(item["version"])
                 return names or [PIPELINE_NAME]
     except Exception:
@@ -113,16 +117,6 @@ def _read_latest_line(path: Path) -> Optional[str]:
     if not lines:
         return None
     return lines[-1]
-
-
-async def _metadata_generator(path: Path) -> AsyncGenerator[str, None]:
-    last_payload = None
-    while True:
-        latest = _read_latest_line(path)
-        if latest and latest != last_payload:
-            last_payload = latest
-            yield f"data: {latest}\n\n"
-        await asyncio.sleep(POLL_INTERVAL)
 
 
 def _http_json(method: str, url: str, payload: Optional[dict[str, Any]] = None) -> str:
@@ -144,9 +138,19 @@ def _http_json(method: str, url: str, payload: Optional[dict[str, Any]] = None) 
             details = err.read().decode("utf-8")
         except Exception:
             details = None
-        raise HTTPException(status_code=502, detail={"message": "Pipeline server error", "status": err.code, "body": details})
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "Pipeline server error",
+                "status": err.code,
+                "body": details,
+            },
+        )
     except URLError as err:
-        raise HTTPException(status_code=502, detail={"message": "Pipeline server unreachable", "error": str(err)})
+        raise HTTPException(
+            status_code=502,
+            detail={"message": "Pipeline server unreachable", "error": str(err)},
+        )
 
 
 async def _system_stats_generator() -> AsyncGenerator[str, None]:
@@ -168,7 +172,7 @@ async def _system_stats_generator() -> AsyncGenerator[str, None]:
         except Exception as e:
             # Send error as comment to keep connection alive
             yield f": error in system stats - {e}\n\n"
-        
+
         await asyncio.sleep(POLL_INTERVAL)
 
 
@@ -195,12 +199,6 @@ async def list_pipelines() -> PipelineList:
     return PipelineList(pipelines=names)
 
 
-@app.get("/metadata-stream")
-async def metadata_stream() -> StreamingResponse:
-    # Backward-compatible single-file stream.
-    return StreamingResponse(_metadata_generator(Path(METADATA_FILE)), media_type="text/event-stream")
-
-
 @app.post("/api/runs")
 async def start_run(req: StartRunRequest) -> RunInfo:
     run_id = uuid.uuid4().hex
@@ -217,8 +215,10 @@ async def start_run(req: StartRunRequest) -> RunInfo:
             "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": 5000},
         },
         "parameters": {
-            "captioner-prompt": (req.prompt or "").strip() or "Describe what you see in the image in one sentence.",
-            "captioner_model_name": (req.modelName or "").strip() or "OpenGVLab/InternVL2-2B",
+            "captioner-prompt": (req.prompt or "").strip()
+            or "Describe what you see in the image in one sentence.",
+            "captioner_model_name": (req.modelName or "").strip()
+            or "OpenGVLab/InternVL2-2B",
             "captioner_max_new_tokens": req.maxNewTokens,
         },
     }
@@ -226,7 +226,13 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     raw = _http_json("POST", start_url, payload=payload)
     pipeline_id = raw.replace('"', "").strip()
     if not pipeline_id:
-        raise HTTPException(status_code=502, detail={"message": "Pipeline server returned empty pipeline id", "body": raw})
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "Pipeline server returned empty pipeline id",
+                "body": raw,
+            },
+        )
 
     model_name = (req.modelName or "").strip() or "InternVL2-2B"
     info = RunInfo(
@@ -250,57 +256,57 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
     """Generator that reads metadata from all active runs and multiplexes into a single SSE stream."""
     last_payloads: dict[str, str] = {}
     last_modified_times: dict[str, float] = {}
-    
+
     while True:
         try:
             # Get current list of runs (defensive copy)
             current_runs = dict(RUNS)
-            
+
             for run_id, info in current_runs.items():
                 path = Path(info.metadataFile)
-                
+
                 # Check if file exists and get its modification time
                 if not path.exists():
                     continue
-                    
+
                 try:
                     current_mtime = path.stat().st_mtime
                     last_mtime = last_modified_times.get(run_id, 0)
-                    
+
                     # Only read file if it was modified since last check
                     if current_mtime > last_mtime:
                         latest = _read_latest_line(path)
                         if latest and latest != last_payloads.get(run_id):
                             last_payloads[run_id] = latest
                             last_modified_times[run_id] = current_mtime
-                            
+
                             # Wrap the data with runId for client-side demultiplexing
                             try:
                                 data_obj = json.loads(latest)
                                 envelope = {"runId": run_id, "data": data_obj}
                             except json.JSONDecodeError:
                                 envelope = {"runId": run_id, "data": latest}
-                            
+
                             yield f"data: {json.dumps(envelope)}\n\n"
                 except OSError:
                     # File might have been deleted or is inaccessible
                     continue
-            
+
             # Send heartbeat to keep connection alive
             yield f": heartbeat\n\n"
-            
+
             # Clean up stale entries
             current_run_ids = set(current_runs.keys())
             stale_ids = [rid for rid in last_payloads if rid not in current_run_ids]
             for rid in stale_ids:
                 last_payloads.pop(rid, None)
                 last_modified_times.pop(rid, None)
-                
+
         except Exception as e:
             # Log error but don't break the generator
             print(f"Error in multiplexed metadata generator: {e}")
             yield f": error - {e}\n\n"
-        
+
         await asyncio.sleep(POLL_INTERVAL)
 
 
@@ -312,12 +318,12 @@ async def multiplexed_metadata_stream() -> StreamingResponse:
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Cache-Control"
+        "Access-Control-Allow-Headers": "Cache-Control",
     }
     return StreamingResponse(
-        _multiplexed_metadata_generator(), 
+        _multiplexed_metadata_generator(),
         media_type="text/event-stream",
-        headers=headers
+        headers=headers,
     )
 
 
@@ -350,12 +356,10 @@ async def system_stats() -> StreamingResponse:
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Cache-Control"
+        "Access-Control-Allow-Headers": "Cache-Control",
     }
     return StreamingResponse(
-        _system_stats_generator(), 
-        media_type="text/event-stream",
-        headers=headers
+        _system_stats_generator(), media_type="text/event-stream", headers=headers
     )
 
 

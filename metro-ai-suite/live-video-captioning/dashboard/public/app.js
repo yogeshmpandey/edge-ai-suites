@@ -326,7 +326,7 @@
             tearDownRun(runId, current, state.runs.size <= 1 ? 'Pipeline stopped' : `Stopped: ${runId}`);
         } catch (err) {
             const msg = (err?.message || '').toLowerCase();
-            if (msg.includes('404') || msg.includes('not found')) {
+            if (msg.includes('404') || msg.includes('not found') || msg.includes('502')) {
                 tearDownRun(runId, current, 'Run missing on server, removing');
             } else {
                 // Re-enable the stop button so user can retry
