@@ -5,13 +5,15 @@ import uuid
 from pathlib import Path
 from typing import Any, AsyncGenerator, Optional
 
-import psutil
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
+
+# Import metrics router
+from metrics import router as metrics_router
 
 APP_PORT = int(os.environ.get("DASHBOARD_PORT", "4173"))
 METADATA_FILE = os.environ.get("METADATA_FILE", "/tmp/results.jsonl")
@@ -29,6 +31,9 @@ MODELS_DIR = Path(os.environ.get("MODELS_DIR", str(BASE_DIR / "ov_models")))
 PUBLIC_DIR = BASE_DIR / "public"
 
 app = FastAPI()
+
+# Include metrics WebSocket routes
+app.include_router(metrics_router)
 
 
 class StartRunRequest(BaseModel):
@@ -151,29 +156,6 @@ def _http_json(method: str, url: str, payload: Optional[dict[str, Any]] = None) 
             status_code=502,
             detail={"message": "Pipeline server unreachable", "error": str(err)},
         )
-
-
-async def _system_stats_generator() -> AsyncGenerator[str, None]:
-    while True:
-        try:
-            cpu = await asyncio.to_thread(psutil.cpu_percent, interval=0.5)
-            mem = psutil.virtual_memory()
-            # GPU stats placeholder for Intel iGPU; set to None/0 if unavailable.
-            stats = {
-                "cpu_percent": cpu,
-                "mem_total_gb": round(mem.total / (1024**3), 2),
-                "mem_used_gb": round(mem.used / (1024**3), 2),
-                "mem_percent": mem.percent,
-                "gpu_percent": None,
-                "vram_total_gb": None,
-                "vram_used_gb": None,
-            }
-            yield f"data: {json.dumps(stats)}\n\n"
-        except Exception as e:
-            # Send error as comment to keep connection alive
-            yield f": error in system stats - {e}\n\n"
-
-        await asyncio.sleep(POLL_INTERVAL)
 
 
 @app.get("/runtime-config.js")
@@ -348,19 +330,6 @@ async def stop_run(run_id: str) -> dict[str, str]:
     except OSError:
         pass
     return {"status": "stopped", "runId": run_id}
-
-
-@app.get("/system-stats")
-async def system_stats() -> StreamingResponse:
-    headers = {
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Cache-Control",
-    }
-    return StreamingResponse(
-        _system_stats_generator(), media_type="text/event-stream", headers=headers
-    )
 
 
 @app.get("/")
