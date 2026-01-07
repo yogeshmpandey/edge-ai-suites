@@ -10,7 +10,6 @@
         maxTokensInput: document.getElementById('maxTokensInput'),
         rtspInput: document.getElementById('rtspInput'),
         startBtn: document.getElementById('startBtn'),
-        stopBtn: document.getElementById('stopBtn'),
         pipelineInfo: document.getElementById('pipelineInfo'),
         runsContainer: document.getElementById('runsContainer'),
         themeToggle: document.getElementById('themeToggle'),
@@ -130,11 +129,6 @@
         });
     }
 
-    function refreshGlobalStopButton() {
-        if (!els.stopBtn) return;
-        els.stopBtn.disabled = state.runs.size === 0;
-    }
-
     function getChartColors() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
         return {
@@ -198,36 +192,6 @@
             base = base.replace('localhost', window.location.hostname);
         }
         return base;
-    }
-
-    function renderCaption(raw) {
-        try {
-            const payload = JSON.parse(raw);
-            if (payload.result) return payload.result;
-        } catch (_err) {}
-        return raw;
-    }
-
-    function extractMetrics(raw) {
-        try {
-            const payload = JSON.parse(raw);
-            const metrics = payload.metrics || {};
-            const throughput = metrics.throughput_mean;
-            const timestampText =
-                payload.timestamp_seconds !== undefined
-                    ? `Updated ${payload.timestamp_seconds.toFixed(2)}s into stream`
-                    : payload.timestamp
-                    ? `Updated at ${new Date(payload.timestamp).toLocaleTimeString()}`
-                    : '—';
-            return {
-                ttft: metrics.ttft_mean ? `${metrics.ttft_mean.toFixed(0)} ms` : '—',
-                tpot: metrics.tpot_mean ? `${metrics.tpot_mean.toFixed(2)} ms` : '—',
-                throughput: throughput ? `${throughput.toFixed(2)} tok/s` : '—',
-                timestamp: timestampText,
-            };
-        } catch (_err) {
-            return { ttft: '—', tpot: '—', throughput: '—', timestamp: '—' };
-        }
     }
 
     function updatePipelineInfo(text) {
@@ -314,7 +278,7 @@
         try {
             const resp = await fetch(`/api/runs/${runId}`, { method: 'DELETE' });
             if (!resp.ok) {
-                if (resp.status === 404) {
+                if ((resp.status === 404) || (resp.status === 502)) {
                     // Backend no longer tracks the run; clean up UI card anyway.
                     tearDownRun(runId, current, 'Run missing on server, removing');
                     return;
@@ -337,8 +301,6 @@
                 updatePipelineInfo(`Stop failed: ${err.message}`);
                 console.error('Stop run error:', err);
             }
-        } finally {
-            refreshGlobalStopButton();
         }
     }
 
@@ -568,10 +530,9 @@
         
         // Store run info without individual EventSource
         state.runs.set(run.runId, { ...run, ui });
-        // Keep references so the global Stop button can cleanly teardown UI.
+        // Keep references for UI teardown
         state.runs.get(run.runId).wrap = ui.wrap;
         state.runs.get(run.runId).stopBtn = ui.stopBtn;
-        refreshGlobalStopButton();
     }
 
     async function restoreActiveRuns() {
@@ -605,166 +566,247 @@
             }
             
             updatePipelineInfo(`Restored ${runs.length} active run(s)`);
-            refreshGlobalStopButton();
         } catch (err) {
             console.warn('Failed to restore active runs:', err);
         }
     }
 
-    function initSystemStats() {
+    function initCollectorMetrics() {
+        // Initialize charts
+        statsCharts.cpu = createStatChart('cpuChart', 'CPU %', '#1ad0ff');
+        statsCharts.ram = createStatChart('ramChart', 'RAM %', '#8ca0c2');
+        statsCharts.gpu = createStatChart('gpuChart', 'GPU %', '#ffb347');
+
+        // DOM elements for metrics display
         const cpuVal = document.getElementById('cpuVal');
         const ramVal = document.getElementById('ramVal');
-        const ramDetail = document.getElementById('ramDetail');
         const gpuVal = document.getElementById('gpuVal');
         const gpuDetail = document.getElementById('gpuDetail');
-        const gpuName = document.getElementById('gpuName');
         const gpuEngines = document.getElementById('gpuEngines');
-        const gpuVram = document.getElementById('gpuVram');
         const gpuFreq = document.getElementById('gpuFreq');
         const gpuPower = document.getElementById('gpuPower');
         const gpuTemp = document.getElementById('gpuTemp');
         const gpuError = document.getElementById('gpuError');
 
-        statsCharts.cpu = createStatChart('cpuChart', 'CPU %', '#1ad0ff');
-        statsCharts.ram = createStatChart('ramChart', 'RAM %', '#8ca0c2');
-        statsCharts.gpu = createStatChart('gpuChart', 'GPU %', '#ffb347');
+        // WebSocket connection to metrics collector
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/clients`;
+        
+        let metricsWS = null;
+        let reconnectTimeout = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 10;
+        const reconnectDelay = 3000;
 
-        const statsSource = new EventSource('/system-stats');
-        statsSource.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                const cpu = data.cpu_percent ?? 0;
-                const memPct = data.mem_percent ?? 0;
-                const memUsed = data.mem_used_gb ?? 0;
-                const memTotal = data.mem_total_gb ?? 0;
+        // Data structures for tracking GPU engine metrics
+        const gpuEngineData = {};
+        // Track GPU power values separately for combining
+        let gpuPowerValue = null;
+        let pkgPowerValue = null;
 
-                // CPU & RAM stats
-                cpuVal.textContent = `${cpu.toFixed(1)}%`;
-                ramVal.textContent = `${memPct.toFixed(1)}%`;
-                ramDetail.textContent = `${memUsed.toFixed(1)} / ${memTotal.toFixed(1)} GB`;
-                pushStatSample('cpu', cpu);
-                pushStatSample('ram', memPct);
-
-                // GPU stats from qmassa
-                const gpuAvailable = data.gpu_available === true;
-                const gpuPct = data.gpu_percent;
-
-                if (gpuAvailable && gpuPct != null) {
-                    gpuVal.textContent = `${gpuPct.toFixed(1)}%`;
-                    pushStatSample('gpu', gpuPct);
-
-                    // GPU name and driver
-                    if (gpuName) {
-                        const name = data.gpu_name || 'Unknown GPU';
-                        const driver = data.gpu_driver ? ` (${data.gpu_driver})` : '';
-                        gpuName.textContent = `${name}${driver}`;
-                        gpuName.style.display = 'block';
-                    }
-
-                    // GPU Engine breakdown
-                    if (gpuEngines && data.gpu_engines) {
-                        const engines = data.gpu_engines;
-                        const engineNames = Object.keys(engines);
-                        if (engineNames.length > 0) {
-                            const engineList = engineNames
-                                .map(name => `${formatEngineName(name)}: ${engines[name].toFixed(1)}%`)
-                                .join(' | ');
-                            gpuEngines.textContent = engineList;
-                            gpuEngines.style.display = 'block';
-                        } else {
-                            gpuEngines.style.display = 'none';
-                        }
-                    }
-
-                    // VRAM / Memory
-                    if (gpuVram) {
-                        if (data.vram_total_gb != null && data.vram_total_gb > 0) {
-                            const vramUsed = data.vram_used_gb ?? 0;
-                            const vramTotal = data.vram_total_gb ?? 0;
-                            const vramPct = data.vram_percent ?? 0;
-                            gpuVram.textContent = `VRAM: ${vramUsed.toFixed(1)} / ${vramTotal.toFixed(1)} GB (${vramPct.toFixed(1)}%)`;
-                            gpuVram.style.display = 'block';
-                        } else if (data.gpu_smem_used_gb != null) {
-                            const smemUsed = data.gpu_smem_used_gb ?? 0;
-                            const smemTotal = data.gpu_smem_total_gb ?? 0;
-                            gpuVram.textContent = `Shared Mem: ${smemUsed.toFixed(1)} / ${smemTotal.toFixed(1)} GB`;
-                            gpuVram.style.display = 'block';
-                        } else {
-                            gpuVram.style.display = 'none';
-                        }
-                    }
-
-                    // Frequency
-                    if (gpuFreq) {
-                        if (data.gpu_freq_mhz != null) {
-                            const freqCurrent = data.gpu_freq_mhz ?? 0;
-                            const freqMax = data.gpu_freq_max_mhz;
-                            if (freqMax) {
-                                gpuFreq.textContent = `Freq: ${freqCurrent} / ${freqMax} MHz`;
-                            } else {
-                                gpuFreq.textContent = `Freq: ${freqCurrent} MHz`;
-                            }
-                            gpuFreq.style.display = 'block';
-                        } else {
-                            gpuFreq.style.display = 'none';
-                        }
-                    }
-
-                    // Power
-                    if (gpuPower) {
-                        if (data.gpu_power_w != null) {
-                            const powerGpu = data.gpu_power_w ?? 0;
-                            const powerPkg = data.gpu_power_package_w;
-                            if (powerPkg) {
-                                gpuPower.textContent = `Power: ${powerGpu.toFixed(1)}W (Pkg: ${powerPkg.toFixed(1)}W)`;
-                            } else {
-                                gpuPower.textContent = `Power: ${powerGpu.toFixed(1)}W`;
-                            }
-                            gpuPower.style.display = 'block';
-                        } else {
-                            gpuPower.style.display = 'none';
-                        }
-                    }
-
-                    // Temperature
-                    if (gpuTemp) {
-                        if (data.gpu_temp_c != null) {
-                            gpuTemp.textContent = `Temp: ${data.gpu_temp_c.toFixed(1)}°C`;
-                            gpuTemp.style.display = 'block';
-                        } else {
-                            gpuTemp.style.display = 'none';
-                        }
-                    }
-
-                    // Hide error
-                    if (gpuError) gpuError.style.display = 'none';
-                    if (gpuDetail) gpuDetail.style.display = 'block';
-
-                } else {
-                    // GPU not available or error
-                    gpuVal.textContent = 'n/a';
-                    if (gpuName) gpuName.style.display = 'none';
-                    if (gpuEngines) gpuEngines.style.display = 'none';
-                    if (gpuVram) gpuVram.style.display = 'none';
-                    if (gpuFreq) gpuFreq.style.display = 'none';
-                    if (gpuPower) gpuPower.style.display = 'none';
-                    if (gpuTemp) gpuTemp.style.display = 'none';
-                    if (gpuDetail) gpuDetail.style.display = 'none';
-
-                    // Show error message if present
-                    if (gpuError) {
-                        const errMsg = data.gpu_error || 'GPU monitoring unavailable';
-                        gpuError.textContent = errMsg;
-                        gpuError.style.display = 'block';
-                    }
-                }
-            } catch (_err) {
-                cpuVal.textContent = '—';
-                ramVal.textContent = '—';
-                ramDetail.textContent = '—';
-                gpuVal.textContent = '—';
+        function connectMetricsWS() {
+            if (metricsWS && (metricsWS.readyState === WebSocket.CONNECTING || metricsWS.readyState === WebSocket.OPEN)) {
+                console.log('WebSocket already connected or connecting');
+                return;
             }
-        };
+
+            console.log('Connecting to metrics collector WebSocket:', wsUrl);
+            metricsWS = new WebSocket(wsUrl);
+
+            metricsWS.onopen = () => {
+                console.log('Metrics WebSocket connected');
+                reconnectAttempts = 0;
+                
+                // Update UI to show collector connected
+                const collectorStatus = document.getElementById('collectorStatus');
+                const collectorStatusDot = document.getElementById('collectorStatusDot');
+                if (collectorStatus) {
+                    collectorStatus.textContent = 'Connected';
+                    collectorStatus.className = 'status-connected';
+                }
+                if (collectorStatusDot) {
+                    collectorStatusDot.classList.add('active');
+                }
+            };
+
+            metricsWS.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (!data.metrics || !Array.isArray(data.metrics)) {
+                        return;
+                    }
+
+                    processCollectorMetrics(data.metrics);
+                } catch (err) {
+                    console.error('Error parsing metrics message:', err);
+                }
+            };
+
+            metricsWS.onerror = (error) => {
+                console.error('Metrics WebSocket error:', error);
+            };
+
+            metricsWS.onclose = () => {
+                console.log('Metrics WebSocket closed');
+                
+                // Update UI to show collector disconnected
+                const collectorStatus = document.getElementById('collectorStatus');
+                const collectorStatusDot = document.getElementById('collectorStatusDot');
+                if (collectorStatus) {
+                    collectorStatus.textContent = 'Disconnected';
+                    collectorStatus.className = 'status-disconnected';
+                }
+                if (collectorStatusDot) {
+                    collectorStatusDot.classList.remove('active');
+                }
+
+                // Attempt to reconnect
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
+                    reconnectTimeout = setTimeout(connectMetricsWS, reconnectDelay);
+                } else {
+                    console.error('Max reconnect attempts reached for metrics WebSocket');
+                }
+            };
+        }
+
+        function processCollectorMetrics(metrics) {
+            // Reset power values for this batch
+            gpuPowerValue = null;
+            pkgPowerValue = null;
+            
+            metrics.forEach(metric => {
+                const { name, fields, tags } = metric;
+                
+                switch (name) {
+                    case 'cpu':
+                        if (fields.usage_user !== undefined) {
+                            const cpuUsage = fields.usage_user;
+                            pushStatSample('cpu', cpuUsage);
+                            
+                            if (cpuVal) {
+                                cpuVal.textContent = `${cpuUsage.toFixed(1)}%`;
+                            }
+                        }
+                        break;
+                    
+                    case 'mem':
+                        if (fields.used_percent !== undefined) {
+                            const memUsage = fields.used_percent;
+                            pushStatSample('ram', memUsage);
+                            
+                            if (ramVal) {
+                                ramVal.textContent = `${memUsage.toFixed(1)}%`;
+                            }
+                        }
+                        break;
+                    
+                    case 'gpu_engine_usage':
+                        if (fields.usage !== undefined && tags.engine) {
+                            const engineName = tags.engine.toUpperCase();
+                            const usage = fields.usage;
+                            
+                            // Store engine data
+                            gpuEngineData[engineName] = usage;
+                        }
+                        break;
+                    
+                    case 'gpu_frequency':
+                        if (fields.value !== undefined && tags.type === 'cur_freq') {
+                            const freqMHz = fields.value;
+                            if (gpuFreq) {
+                                gpuFreq.textContent = `Freq: ${freqMHz} MHz`;
+                                gpuFreq.style.display = 'block';
+                            }
+                        }
+                        break;
+                    
+                    case 'gpu_power':
+                        if (fields.value !== undefined) {
+                            const powerType = tags.type;
+                            const powerW = fields.value;
+                            
+                            if (powerType === 'gpu_cur_power') {
+                                gpuPowerValue = powerW;
+                            } else if (powerType === 'pkg_cur_power') {
+                                pkgPowerValue = powerW;
+                            }
+                        }
+                        break;
+                    
+                    case 'temp':
+                        if (fields.temp !== undefined) {
+                            const tempC = fields.temp;
+                            const sensor = tags.sensor || 'unknown';
+                            
+                            // Display package temperature
+                            if (gpuTemp && sensor.includes('package')) {
+                                gpuTemp.textContent = `Temp: ${tempC}°C`;
+                                gpuTemp.style.display = 'block';
+                            }
+                        }
+                        break;
+                    
+                    case 'cpu_frequency_avg':
+                        // CPU frequency - could be displayed if needed
+                        break;
+                    
+                    case 'fps':
+                        // FPS metrics - could be displayed if needed
+                        break;
+                }
+            });
+            
+            // Update GPU power display after processing all metrics
+            if (gpuPower && gpuPowerValue !== null) {
+                let powerText = `Power: ${gpuPowerValue.toFixed(1)}W`;
+                if (pkgPowerValue !== null) {
+                    powerText += ` (Pkg: ${pkgPowerValue.toFixed(1)}W)`;
+                }
+                gpuPower.textContent = powerText;
+                gpuPower.style.display = 'block';
+            }
+            
+            // Update GPU engines display
+            const engineNames = Object.keys(gpuEngineData);
+            if (gpuEngines && engineNames.length > 0) {
+                const engineList = engineNames
+                    .map(name => `${formatEngineName(name)}: ${gpuEngineData[name].toFixed(1)}%`)
+                    .join(' | ');
+                gpuEngines.textContent = engineList;
+                gpuEngines.style.display = 'block';
+            }
+            
+            // Calculate overall GPU usage from engines
+            const engineMetrics = metrics.filter(m => m.name === 'gpu_engine_usage');
+            if (engineMetrics.length > 0) {
+                // Use max engine usage as GPU usage (typically RCS is the main compute engine)
+                const maxGpuUsage = Math.max(...engineMetrics.map(m => m.fields.usage || 0));
+                pushStatSample('gpu', maxGpuUsage);
+                
+                if (gpuVal) {
+                    gpuVal.textContent = `${maxGpuUsage.toFixed(1)}%`;
+                }
+                
+                // Mark GPU as available
+                if (gpuDetail) gpuDetail.style.display = 'block';
+                if (gpuError) gpuError.style.display = 'none';
+            }
+        }
+
+        // Start connection
+        connectMetricsWS();
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+            if (metricsWS) {
+                metricsWS.close();
+            }
+        });
     }
 
     function formatEngineName(name) {
@@ -811,7 +853,6 @@
             attachRunStreams(run, ui);
             updatePipelineInfo(`Latest Run ID: (${run.runId})`);
             state.selectedRunId = run.runId;
-            refreshGlobalStopButton();
         } catch (err) {
             updatePipelineInfo(`Start failed: ${err.message}`);
         } finally {
@@ -829,33 +870,12 @@
         
         loadModels();
         loadPipelines();
-        initSystemStats();
+        initCollectorMetrics(); // Initialize WebSocket metrics from collector
         
         // Restore active runs from backend
         restoreActiveRuns();
         
         els.form.addEventListener('submit', startPipeline);
-        if (els.stopBtn) {
-            // Global stop button removed from UI, but keep compatibility if re-added.
-            els.stopBtn.addEventListener('click', async () => {
-                const preferred = state.selectedRunId;
-                const runId = preferred && state.runs.has(preferred) ? preferred : Array.from(state.runs.keys()).pop();
-                if (!runId) {
-                    updatePipelineInfo('No active runs');
-                    refreshGlobalStopButton();
-                    return;
-                }
-                els.stopBtn.disabled = true;
-                try {
-                    await stopRun(runId);
-                } catch (err) {
-                    updatePipelineInfo(`Stop failed: ${err.message}`);
-                } finally {
-                    refreshGlobalStopButton();
-                }
-            });
-            refreshGlobalStopButton();
-        }
         
         // Cleanup SSE connections when page unloads
         window.addEventListener('beforeunload', () => {

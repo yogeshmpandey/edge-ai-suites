@@ -15,8 +15,8 @@ services:
       - "${EVAM_HOST_PORT:-8040}:${EVAM_PORT:-8080}"
       - "8556:8554"
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -69,8 +69,8 @@ services:
     image: bluenviron/mediamtx:1.11.3
     container_name: mediamtx
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -99,8 +99,8 @@ services:
     image: coturn/coturn:latest
     container_name: coturn
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -115,8 +115,8 @@ services:
     build: ./dashboard
     container_name: lvc-dashboard
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -134,6 +134,32 @@ services:
     depends_on:
       - video-ingestion
       - mediamtx
+    networks:
+      - app_network
+
+  collector:
+    image: docker.io/intel/vippet-collector:2025.2.0
+    container_name: collector
+    ports:
+      - "9273:9273"
+    privileged: true
+    devices:
+      - "/sys:/sys"
+      - "/dev:/dev"
+      - "/run:/run"
+      - "/proc:/proc"
+    pid: host # qmassa needs it
+    volumes:
+      - "./shared/collector-signals:/app/.collector-signals"
+      - "./collector/telegraf.conf:/etc/telegraf/telegraf.conf:ro"
+    restart: on-failure:5
+    environment:
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+      - no_proxy=localhost,127.0.0.1,lvc-dashboard,collector,${no_proxy}
+      - WEBSOCKET_URL=ws://lvc-dashboard:4173/ws/collector
+    depends_on:
+      - lvc-dashboard
     networks:
       - app_network
 
