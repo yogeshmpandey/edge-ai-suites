@@ -1,7 +1,7 @@
 [project]
-name = "webrtc-dashboard"
+name = "live-video-captioning"
 version = "0.1.0"
-description = "WebRTC dashboard with FastAPI server"
+description = "Live Video Captioning with FastAPI backend and WebRTC frontend"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi==0.115.5",
@@ -13,5 +13,6 @@ dependencies = [
 requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-py-modules = ["app", "metrics"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]

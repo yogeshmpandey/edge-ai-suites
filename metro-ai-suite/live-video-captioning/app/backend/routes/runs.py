@@ -1,197 +1,25 @@
 import asyncio
 import json
-import os
 import re
 import time
 import uuid
 from pathlib import Path
-from typing import Any, AsyncGenerator, Optional
+from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-from urllib import request as urllib_request
-from urllib.error import HTTPError, URLError
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
-# Import metrics router
-from metrics import router as metrics_router
+from ..config import PIPELINE_NAME, PIPELINE_SERVER_URL, POLL_INTERVAL
+from ..models import RunInfo, StartRunRequest
+from ..services import http_json, read_latest_line
+from ..state import RUNS
 
-APP_PORT = int(os.environ.get("DASHBOARD_PORT", "4173"))
-METADATA_FILE = os.environ.get("METADATA_FILE", "/tmp/results.jsonl")
-PEER_ID = os.environ.get("WEBRTC_PEER_ID", "genai_pipeline")
-SIGNALING_URL = os.environ.get("SIGNALING_URL", "http://localhost:8889")
-POLL_INTERVAL = float(os.environ.get("METADATA_POLL_SECONDS", "1"))
-AGENT_MODE = os.environ.get("AGENT_MODE", "false").lower() in ("true", "1", "yes")
-
-PIPELINE_SERVER_URL = os.environ.get(
-    "PIPELINE_SERVER_URL", "http://video-ingestion:8080"
-)
-PIPELINE_NAME = os.environ.get("PIPELINE_NAME", "genai_pipeline")
-
-BASE_DIR = Path(__file__).parent
-MODELS_DIR = Path(os.environ.get("MODELS_DIR", str(BASE_DIR / "ov_models")))
-PUBLIC_DIR = BASE_DIR / "public"
-
-app = FastAPI()
-
-# Include metrics WebSocket routes
-app.include_router(metrics_router)
+router = APIRouter(prefix="/api", tags=["runs"])
 
 
-class StartRunRequest(BaseModel):
-    rtspUrl: str = Field(..., min_length=1)
-    prompt: str = Field(default="Describe what you see in the image in one sentence.")
-    modelName: str = Field(default="OpenGVLab/InternVL2-2B")
-    maxNewTokens: int = Field(default=70, ge=1, le=4096)
-    pipelineName: Optional[str] = Field(default=None)
-    runName: Optional[str] = Field(default=None)
-
-
-class RunInfo(BaseModel):
-    runId: str
-    pipelineId: str
-    peerId: str
-    metadataFile: str
-    modelName: Optional[str] = None
-    pipelineName: Optional[str] = None
-    runName: Optional[str] = None
-    prompt: Optional[str] = None
-    maxTokens: Optional[int] = None
-    rtspUrl: Optional[str] = None
-
-
-class ModelList(BaseModel):
-    models: list[str]
-
-
-class PipelineList(BaseModel):
-    pipelines: list[str]
-
-
-RUNS: dict[str, RunInfo] = {}
-
-
-def _discover_models(root: Path) -> list[str]:
-    if not root.exists():
-        return []
-    models: list[str] = []
-    for entry in sorted(root.iterdir()):
-        if entry.name.startswith("."):
-            continue
-        if entry.is_dir():
-            models.append(entry.name)
-        else:
-            # Allow flat exports placed directly under ov_models
-            if entry.suffix in {".xml", ".bin", ".json"}:
-                models.append(entry.name)
-    return models
-
-
-def _discover_pipelines_remote() -> list[str]:
-    url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines"
-    try:
-        raw = _http_json("GET", url)
-        payload = json.loads(raw)
-        # Accept either list[str] or list[dict {name}] or {'pipelines': [...]}
-        if isinstance(payload, list):
-            names = []
-            for item in payload:
-                if isinstance(item, str):
-                    names.append(item)
-                elif isinstance(item, dict) and isinstance(item.get("version"), str):
-                    names.append(item["version"])
-            return names or [PIPELINE_NAME]
-        if isinstance(payload, dict):
-            items = payload.get("pipelines") or payload.get("items") or []
-            if isinstance(items, list):
-                names = []
-                for item in items:
-                    if isinstance(item, str):
-                        names.append(item)
-                    elif isinstance(item, dict) and isinstance(
-                        item.get("version"), str
-                    ):
-                        names.append(item["version"])
-                return names or [PIPELINE_NAME]
-    except Exception:
-        return [PIPELINE_NAME]
-    return [PIPELINE_NAME]
-
-
-def _read_latest_line(path: Path) -> Optional[str]:
-    if not path.exists():
-        return None
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            lines = [line.strip() for line in handle if line.strip()]
-    except OSError:
-        return None
-    if not lines:
-        return None
-    return lines[-1]
-
-
-def _http_json(method: str, url: str, payload: Optional[dict[str, Any]] = None) -> str:
-    headers = {
-        "Accept": "application/json",
-    }
-    data = None
-    if payload is not None:
-        body = json.dumps(payload).encode("utf-8")
-        data = body
-        headers["Content-Type"] = "application/json"
-    req = urllib_request.Request(url=url, data=data, headers=headers, method=method)
-    try:
-        with urllib_request.urlopen(req, timeout=120) as resp:
-            return resp.read().decode("utf-8")
-    except HTTPError as err:
-        details = None
-        try:
-            details = err.read().decode("utf-8")
-        except Exception:
-            details = None
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "message": "Pipeline server error",
-                "status": err.code,
-                "body": details,
-            },
-        )
-    except URLError as err:
-        raise HTTPException(
-            status_code=502,
-            detail={"message": "Pipeline server unreachable", "error": str(err)},
-        )
-
-
-@app.get("/runtime-config.js")
-async def runtime_config() -> Response:
-    payload = {
-        "signalingUrl": SIGNALING_URL,
-        "defaultPeerId": PEER_ID,
-        "defaultMetadataFile": METADATA_FILE,
-        "agentMode": AGENT_MODE,
-    }
-    body = f"window.RUNTIME_CONFIG = {json.dumps(payload)};"
-    return Response(content=body, media_type="application/javascript")
-
-
-@app.get("/api/models", response_model=ModelList)
-async def list_models() -> ModelList:
-    models = _discover_models(MODELS_DIR)
-    return ModelList(models=models)
-
-
-@app.get("/api/pipelines", response_model=PipelineList)
-async def list_pipelines() -> PipelineList:
-    names = _discover_pipelines_remote()
-    return PipelineList(pipelines=names)
-
-
-@app.post("/api/runs")
+@router.post("/runs")
 async def start_run(req: StartRunRequest) -> RunInfo:
+    """Start a new video captioning run."""
     # Process optional runName - use it for run_id if provided
     run_name = None
     if req.runName and req.runName.strip():
@@ -234,7 +62,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         },
     }
 
-    raw = _http_json("POST", start_url, payload=payload)
+    raw = http_json("POST", start_url, payload=payload)
     pipeline_id = raw.replace('"', "").strip()
     if not pipeline_id:
         raise HTTPException(
@@ -264,8 +92,9 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     return info
 
 
-@app.get("/api/runs")
+@router.get("/runs")
 async def list_runs() -> list[RunInfo]:
+    """List all active runs."""
     return list(RUNS.values())
 
 
@@ -292,7 +121,7 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
 
                     # Only read file if it was modified since last check
                     if current_mtime > last_mtime:
-                        latest = _read_latest_line(path)
+                        latest = read_latest_line(path)
                         if latest and latest != last_payloads.get(run_id):
                             last_payloads[run_id] = latest
                             last_modified_times[run_id] = current_mtime
@@ -329,7 +158,7 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
         await asyncio.sleep(POLL_INTERVAL)
 
 
-@app.get("/api/runs/metadata-stream")
+@router.get("/runs/metadata-stream")
 async def multiplexed_metadata_stream() -> StreamingResponse:
     """Multiplexed SSE stream that provides metadata for all active runs."""
     print("Multiplexed metadata stream requested")
@@ -346,16 +175,18 @@ async def multiplexed_metadata_stream() -> StreamingResponse:
     )
 
 
-@app.get("/api/runs/{run_id}")
+@router.get("/runs/{run_id}")
 async def get_run(run_id: str) -> RunInfo:
+    """Get details of a specific run."""
     info = RUNS.get(run_id)
     if not info:
         raise HTTPException(status_code=404, detail={"message": "Run not found"})
     return info
 
 
-@app.delete("/api/runs/{run_id}")
+@router.delete("/runs/{run_id}")
 async def stop_run(run_id: str) -> dict[str, str]:
+    """Stop a running pipeline."""
     info = RUNS.get(run_id)
     if not info:
         raise HTTPException(status_code=404, detail={"message": "Run not found"})
@@ -364,7 +195,7 @@ async def stop_run(run_id: str) -> dict[str, str]:
     # Try to stop pipeline on backend, but always remove from internal list
     # A failure (502) usually means the pipeline is already stopped
     try:
-        _http_json("DELETE", stop_url)
+        http_json("DELETE", stop_url)
     except HTTPException:
         # Pipeline may already be stopped or unreachable - continue cleanup
         pass
@@ -375,17 +206,3 @@ async def stop_run(run_id: str) -> dict[str, str]:
     except OSError:
         pass
     return {"status": "stopped", "runId": run_id}
-
-
-@app.get("/")
-async def root() -> FileResponse:
-    return FileResponse(PUBLIC_DIR / "index.html")
-
-
-app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("app:app", host="0.0.0.0", port=APP_PORT, reload=True)

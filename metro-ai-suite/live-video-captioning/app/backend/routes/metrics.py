@@ -30,8 +30,8 @@ from typing import Optional, Set
 from fastapi import WebSocket, WebSocketDisconnect, status
 from fastapi.routing import APIRouter
 
-router = APIRouter()
-logger = logging.getLogger("dashboard.metrics")
+router = APIRouter(tags=["metrics"])
+logger = logging.getLogger("app.metrics")
 
 # Configure logging to show in container logs
 logging.basicConfig(level=logging.INFO)

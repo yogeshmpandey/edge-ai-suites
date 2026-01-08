@@ -112,7 +112,7 @@ services:
       - app_network
 
   lvc-dashboard:
-    build: ./dashboard
+    build: ./app
     container_name: lvc-dashboard
     environment:
       - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
