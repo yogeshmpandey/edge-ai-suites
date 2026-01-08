@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import re
+import time
 import uuid
 from pathlib import Path
 from typing import Any, AsyncGenerator, Optional
@@ -55,6 +56,9 @@ class RunInfo(BaseModel):
     modelName: Optional[str] = None
     pipelineName: Optional[str] = None
     runName: Optional[str] = None
+    prompt: Optional[str] = None
+    maxTokens: Optional[int] = None
+    rtspUrl: Optional[str] = None
 
 
 class ModelList(BaseModel):
@@ -252,6 +256,9 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         modelName=model_name,
         pipelineName=pipeline_name,
         runName=run_name,
+        prompt=(req.prompt or "").strip() or "Describe what you see in the image in one sentence.",
+        maxTokens=req.maxNewTokens,
+        rtspUrl=req.rtspUrl,
     )
     RUNS[info.runId] = info
     return info
@@ -291,11 +298,13 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
                             last_modified_times[run_id] = current_mtime
 
                             # Wrap the data with runId for client-side demultiplexing
+                            # Add received_at timestamp for lag calculation
+                            received_at = time.time()
                             try:
                                 data_obj = json.loads(latest)
-                                envelope = {"runId": run_id, "data": data_obj}
+                                envelope = {"runId": run_id, "data": data_obj, "received_at": received_at}
                             except json.JSONDecodeError:
-                                envelope = {"runId": run_id, "data": latest}
+                                envelope = {"runId": run_id, "data": latest, "received_at": received_at}
 
                             yield f"data: {json.dumps(envelope)}\n\n"
                 except OSError:

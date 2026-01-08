@@ -18,7 +18,7 @@
 
     const state = { selectedRunId: null, runs: new Map(), metadataSource: null, runUIs: new Map() };
     const DEFAULT_MODEL = 'InternVL2-1B';
-    const DEFAULT_PIPELINE = 'GenAI Pipeline on CPU';
+    const DEFAULT_PIPELINE = 'GenAI_Pipeline_on_CPU';
     const THEME_KEY = 'lvc-theme';
     const SETTINGS_KEY = 'lvc-settings';
     const statsCharts = {};
@@ -422,6 +422,7 @@
             <span class="chip"><strong>TTFT</strong><span data-ttft>—</span></span>
             <span class="chip"><strong>TPOT</strong><span data-tpot>—</span></span>
             <span class="chip"><strong>Throughput</strong><span data-throughput>—</span></span>
+            <span class="chip"><strong>Lag</strong><span data-lag>—</span></span>
         `;
 
         const timestamp = document.createElement('div');
@@ -524,16 +525,42 @@
                 const captionText = typeof data === 'object' && data.result ? data.result : (typeof data === 'string' ? data : JSON.stringify(data));
                 ui.caption.textContent = captionText;
                 
-                // Agent Mode: Check for "Yes" in caption and apply alert styling
+                // Agent Mode: Check for "Yes" or "No" in caption and apply alert styling
                 if (cfg.agentMode) {
                     const runCard = ui.wrap;
                     const captionPanel = ui.captionPanel;
-                    if (captionText && captionText.toLowerCase().includes('yes')) {
-                        if (runCard) runCard.classList.add('alert-active');
-                        if (captionPanel) captionPanel.classList.add('alert-active');
+                    const lowerCaption = captionText ? captionText.toLowerCase() : '';
+                    
+                    if (lowerCaption.includes('yes')) {
+                        // Red alert for "yes"
+                        if (runCard) {
+                            runCard.classList.add('alert-active');
+                            runCard.classList.remove('safe-active');
+                        }
+                        if (captionPanel) {
+                            captionPanel.classList.add('alert-active');
+                            captionPanel.classList.remove('safe-active');
+                        }
+                    } else if (lowerCaption.includes('no')) {
+                        // Green indicator for "no"
+                        if (runCard) {
+                            runCard.classList.add('safe-active');
+                            runCard.classList.remove('alert-active');
+                        }
+                        if (captionPanel) {
+                            captionPanel.classList.add('safe-active');
+                            captionPanel.classList.remove('alert-active');
+                        }
                     } else {
-                        if (runCard) runCard.classList.remove('alert-active');
-                        if (captionPanel) captionPanel.classList.remove('alert-active');
+                        // No keyword detected - remove both states
+                        if (runCard) {
+                            runCard.classList.remove('alert-active');
+                            runCard.classList.remove('safe-active');
+                        }
+                        if (captionPanel) {
+                            captionPanel.classList.remove('alert-active');
+                            captionPanel.classList.remove('safe-active');
+                        }
                     }
                 }
                 
@@ -549,6 +576,15 @@
                 ui.chips.querySelector('[data-ttft]').textContent = metrics.ttft_mean ? `${metrics.ttft_mean.toFixed(0)} ms` : '—';
                 ui.chips.querySelector('[data-tpot]').textContent = metrics.tpot_mean ? `${metrics.tpot_mean.toFixed(2)} ms` : '—';
                 ui.chips.querySelector('[data-throughput]').textContent = throughput ? `${throughput.toFixed(2)} tok/s` : '—';
+                
+                // Calculate lag: time since this caption was received by the browser
+                // We use the browser's own timestamp to avoid clock sync issues with the container
+                const receivedAtMs = Date.now();
+                // Store when this run last received a caption update
+                if (!state.lastCaptionTime) state.lastCaptionTime = new Map();
+                state.lastCaptionTime.set(runId, receivedAtMs);
+                ui.chips.querySelector('[data-lag]').textContent = '0.00s';
+                
                 ui.timestamp.textContent = timestampText;
                 if (els.hintEl) els.hintEl.textContent = '';
                 
@@ -982,6 +1018,24 @@
         restoreActiveRuns();
         
         els.form.addEventListener('submit', startPipeline);
+        
+        // Initialize lag tracking map
+        if (!state.lastCaptionTime) state.lastCaptionTime = new Map();
+        
+        // Update lag display every 100ms for all active runs
+        setInterval(() => {
+            const now = Date.now();
+            for (const [runId, ui] of state.runUIs) {
+                const lastTime = state.lastCaptionTime.get(runId);
+                if (lastTime && ui.chips) {
+                    const lagSeconds = (now - lastTime) / 1000;
+                    const lagEl = ui.chips.querySelector('[data-lag]');
+                    if (lagEl) {
+                        lagEl.textContent = `${lagSeconds.toFixed(2)}s`;
+                    }
+                }
+            }
+        }, 100);
         
         // Cleanup SSE connections when page unloads
         window.addEventListener('beforeunload', () => {
