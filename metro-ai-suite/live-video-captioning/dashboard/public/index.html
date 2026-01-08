@@ -46,7 +46,7 @@
                     </label>
                     <div class="field-row">
                         <label class="field">
-                            <span class="label">Model Name</span>
+                            <span class="label">Select Model</span>
                             <select id="modelNameSelect" class="input"></select>
                         </label>
                         <label class="field">
@@ -54,10 +54,16 @@
                             <input id="maxTokensInput" class="input" type="number" min="1" max="4096" value="70" />
                         </label>
                     </div>
-                    <label class="field">
-                        <span class="label">Pipeline Name</span>
-                        <select id="pipelineSelect" class="input"></select>
-                    </label>
+                    <div class="field-row">
+                        <label class="field">
+                            <span class="label">Select Pipeline</span>
+                            <select id="pipelineSelect" class="input"></select>
+                        </label>
+                        <label class="field">
+                            <span class="label">Run Name</span>
+                            <input id="runNameInput" class="input" type="text" placeholder="Enter Run Name (Optional)" />
+                        </label>
+                    </div>
                     <div class="field-row" style="justify-content: space-between; align-items: center;">
                         <div class="status" style="margin: 0; flex-shrink: 0;">
                             <span class="dot active"></span>

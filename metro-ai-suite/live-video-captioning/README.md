@@ -19,7 +19,12 @@ WEBRTC_PEER_ID=stream
 HOST_IP=<HOST_IP>
 MTX_WEBRTCICESERVERS2_0_USERNAME=<UserName>
 MTX_WEBRTCICESERVERS2_0_PASSWORD=<Password>
+AGENT_MODE=true
 ```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AGENT_MODE` | `true` | When enabled, the dashboard applies alert styling (red border/glow) when the VLM caption contains "Yes". Useful for detection prompts like "Is there a person in the frame? Answer Yes or No." Set to `false` to disable. |
 
 2) (Optional) Download/convert OpenVINO models into `ov_models`
 
@@ -56,6 +61,3 @@ Exposed host ports: 8040 (REST pipelines), 8889 (WHIP/WebRTC signaling), 4173 (d
 ```
 docker compose down
 ```
-
-### TODOs
-- [ ] Add support for GPU graphs using Qmassa

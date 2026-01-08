@@ -9,6 +9,7 @@
         pipelineSelect: document.getElementById('pipelineSelect'),
         maxTokensInput: document.getElementById('maxTokensInput'),
         rtspInput: document.getElementById('rtspInput'),
+        runNameInput: document.getElementById('runNameInput'),
         startBtn: document.getElementById('startBtn'),
         pipelineInfo: document.getElementById('pipelineInfo'),
         runsContainer: document.getElementById('runsContainer'),
@@ -67,6 +68,7 @@
                 modelName: els.modelNameSelect?.value || '',
                 pipelineName: els.pipelineSelect?.value || '',
                 maxTokens: els.maxTokensInput?.value || '70',
+                runName: els.runNameInput?.value || '',
             };
             localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         } catch (_err) {
@@ -97,6 +99,9 @@
         if (settings.maxTokens && els.maxTokensInput) {
             els.maxTokensInput.value = settings.maxTokens;
         }
+        if (settings.runName && els.runNameInput) {
+            els.runNameInput.value = settings.runName;
+        }
         // Model and pipeline will be restored after options are loaded
     }
 
@@ -120,7 +125,7 @@
 
     function setupSettingsPersistence() {
         // Save settings on input changes
-        const inputs = [els.rtspInput, els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect];
+        const inputs = [els.rtspInput, els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect, els.runNameInput];
         inputs.forEach(el => {
             if (el) {
                 el.addEventListener('change', saveSettings);
@@ -329,9 +334,11 @@
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>'
             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="3"/></svg>';
         
+        // Format run name for display: underscores become spaces
+        const displayRunName = formatRunNameForDisplay(run.runId);
         headerLeft.innerHTML = `
             <span class="dot active"></span>
-            <span>Run <strong>${run.runId}</strong></span>
+            <span><strong> Run Name : </strong>${displayRunName}</strong></span>
             <span style="color: var(--muted); margin: 0 4px;">|</span>
             <span class="chip" style="background: var(--accent); color: var(--bg);">
                 ${deviceIcon}
@@ -342,6 +349,47 @@
                 ${run.modelName || 'Unknown'}
             </span>
         `;
+
+        // Info button with tooltip
+        const infoBtn = document.createElement('button');
+        infoBtn.className = 'info-btn';
+        infoBtn.type = 'button';
+        infoBtn.title = 'View pipeline details';
+        infoBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+        
+        // Create tooltip element
+        const tooltip = document.createElement('div');
+        tooltip.className = 'info-tooltip';
+        tooltip.innerHTML = `
+            <div class="info-tooltip-title">Pipeline Details</div>
+            <div class="info-tooltip-row"><strong>Pipeline:</strong> <span>${run.pipelineName || 'N/A'}</span></div>
+            <div class="info-tooltip-row"><strong>RTSP URL:</strong> <span>${run.rtspUrl || 'N/A'}</span></div>
+            <div class="info-tooltip-row"><strong>Max Tokens:</strong> <span>${run.maxTokens || 'N/A'}</span></div>
+            <div class="info-tooltip-row"><strong>Prompt:</strong> <span class="info-tooltip-prompt">${run.prompt || 'N/A'}</span></div>
+        `;
+        tooltip.style.display = 'none';
+        
+        // Toggle tooltip on click
+        infoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isVisible = tooltip.style.display === 'block';
+            tooltip.style.display = isVisible ? 'none' : 'block';
+        });
+        
+        // Close tooltip when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!infoBtn.contains(e.target) && !tooltip.contains(e.target)) {
+                tooltip.style.display = 'none';
+            }
+        });
+        
+        // Wrapper for info button and tooltip
+        const infoBtnWrapper = document.createElement('div');
+        infoBtnWrapper.className = 'info-btn-wrapper';
+        infoBtnWrapper.appendChild(infoBtn);
+        infoBtnWrapper.appendChild(tooltip);
+        headerLeft.appendChild(infoBtnWrapper);
 
         const grid = document.createElement('div');
         grid.style.display = 'flex';
@@ -430,7 +478,7 @@
         wrap.appendChild(header);
         wrap.appendChild(grid);
 
-        return { wrap, video, caption, watcher, timestamp, chips, stopBtn };
+        return { wrap, video, caption, captionPanel, watcher, timestamp, chips, stopBtn };
     }
 
     function initMultiplexedMetadataStream() {
@@ -475,6 +523,19 @@
                 const data = msg.data;
                 const captionText = typeof data === 'object' && data.result ? data.result : (typeof data === 'string' ? data : JSON.stringify(data));
                 ui.caption.textContent = captionText;
+                
+                // Agent Mode: Check for "Yes" in caption and apply alert styling
+                if (cfg.agentMode) {
+                    const runCard = ui.wrap;
+                    const captionPanel = ui.captionPanel;
+                    if (captionText && captionText.toLowerCase().includes('yes')) {
+                        if (runCard) runCard.classList.add('alert-active');
+                        if (captionPanel) captionPanel.classList.add('alert-active');
+                    } else {
+                        if (runCard) runCard.classList.remove('alert-active');
+                        if (captionPanel) captionPanel.classList.remove('alert-active');
+                    }
+                }
                 
                 // Extract metrics from the data object
                 const metrics = (typeof data === 'object' && data.metrics) ? data.metrics : {};
@@ -557,6 +618,9 @@
                     metadataFile: runData.metadataFile,
                     modelName: runData.modelName || 'Unknown',
                     pipelineName: runData.pipelineName || '',
+                    prompt: runData.prompt || 'N/A',
+                    maxTokens: runData.maxTokens || 'N/A',
+                    rtspUrl: runData.rtspUrl || 'N/A',
                 };
                 
                 const ui = createRunElement(run);
@@ -815,6 +879,33 @@
         return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 
+    function formatRunNameForDisplay(runId) {
+        // Convert underscores to spaces for UI display
+        if (!runId) return runId;
+        return runId.replace(/_/g, ' ');
+    }
+
+    function validateAndPrepareRunName(rawName) {
+        // Validate and convert run name: replace spaces with underscores
+        if (!rawName || !rawName.trim()) return null;
+        // Replace spaces with underscores, trim, and remove special characters except alphanumeric, underscore, hyphen
+        let prepared = rawName.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+        return prepared || null;
+    }
+
+    function getUniqueRunName(baseName) {
+        // Check for existing runs with the same name and append suffix if needed
+        if (!baseName) return null;
+        const existingRunIds = Array.from(state.runs.keys());
+        let finalName = baseName;
+        let counter = 1;
+        while (existingRunIds.includes(finalName)) {
+            finalName = `${baseName}_${counter}`;
+            counter++;
+        }
+        return finalName;
+    }
+
     async function startPipeline(evt) {
         evt.preventDefault();
         const rtspUrl = els.rtspInput.value.trim();
@@ -824,14 +915,26 @@
         const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
         const maxTokensParsed = Number.parseInt(maxTokensRaw, 10);
         const maxTokens = Number.isFinite(maxTokensParsed) && maxTokensParsed > 0 ? maxTokensParsed : 70;
+        
+        // Process optional run name
+        const rawRunName = (els.runNameInput?.value || '').trim();
+        let runName = validateAndPrepareRunName(rawRunName);
+        if (runName) {
+            runName = getUniqueRunName(runName);
+        }
+        
         if (!rtspUrl) return;
         els.startBtn.disabled = true;
         updatePipelineInfo('Starting pipeline...');
         try {
+            const requestBody = { rtspUrl, prompt, modelName, maxNewTokens: maxTokens, pipelineName };
+            if (runName) {
+                requestBody.runName = runName;
+            }
             const resp = await fetch('/api/runs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({ rtspUrl, prompt, modelName, maxNewTokens: maxTokens, pipelineName })
+                body: JSON.stringify(requestBody)
             });
             const data = await resp.json().catch(async () => ({ message: await resp.text() }));
             if (!resp.ok) throw new Error(data?.message || data?.detail?.message || resp.statusText);
@@ -843,6 +946,9 @@
                 metadataFile: data.metadataFile,
                 modelName: modelName,
                 pipelineName: pipelineName,
+                prompt: prompt,
+                maxTokens: maxTokens,
+                rtspUrl: rtspUrl,
             };
 
             // Hide the hint when first pipeline starts
@@ -851,7 +957,7 @@
             const ui = createRunElement(run);
             els.runsContainer.appendChild(ui.wrap);
             attachRunStreams(run, ui);
-            updatePipelineInfo(`Latest Run ID: (${run.runId})`);
+            updatePipelineInfo(`Latest Run: (${run.runId})`);
             state.selectedRunId = run.runId;
         } catch (err) {
             updatePipelineInfo(`Start failed: ${err.message}`);

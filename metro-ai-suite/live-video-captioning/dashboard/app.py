@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Any, AsyncGenerator, Optional
@@ -20,6 +21,7 @@ METADATA_FILE = os.environ.get("METADATA_FILE", "/tmp/results.jsonl")
 PEER_ID = os.environ.get("WEBRTC_PEER_ID", "genai_pipeline")
 SIGNALING_URL = os.environ.get("SIGNALING_URL", "http://localhost:8889")
 POLL_INTERVAL = float(os.environ.get("METADATA_POLL_SECONDS", "1"))
+AGENT_MODE = os.environ.get("AGENT_MODE", "false").lower() in ("true", "1", "yes")
 
 PIPELINE_SERVER_URL = os.environ.get(
     "PIPELINE_SERVER_URL", "http://video-ingestion:8080"
@@ -42,6 +44,7 @@ class StartRunRequest(BaseModel):
     modelName: str = Field(default="OpenGVLab/InternVL2-2B")
     maxNewTokens: int = Field(default=70, ge=1, le=4096)
     pipelineName: Optional[str] = Field(default=None)
+    runName: Optional[str] = Field(default=None)
 
 
 class RunInfo(BaseModel):
@@ -51,6 +54,7 @@ class RunInfo(BaseModel):
     metadataFile: str
     modelName: Optional[str] = None
     pipelineName: Optional[str] = None
+    runName: Optional[str] = None
 
 
 class ModelList(BaseModel):
@@ -164,6 +168,7 @@ async def runtime_config() -> Response:
         "signalingUrl": SIGNALING_URL,
         "defaultPeerId": PEER_ID,
         "defaultMetadataFile": METADATA_FILE,
+        "agentMode": AGENT_MODE,
     }
     body = f"window.RUNTIME_CONFIG = {json.dumps(payload)};"
     return Response(content=body, media_type="application/javascript")
@@ -183,9 +188,29 @@ async def list_pipelines() -> PipelineList:
 
 @app.post("/api/runs")
 async def start_run(req: StartRunRequest) -> RunInfo:
-    run_id = uuid.uuid4().hex
-    peer_id = f"stream-{run_id[:10]}"
-    metadata_file = f"/tmp/results-{run_id[:10]}.jsonl"
+    # Process optional runName - use it for run_id if provided
+    run_name = None
+    if req.runName and req.runName.strip():
+        # Sanitize: replace spaces with underscores, remove special chars
+        sanitized = re.sub(r'\s+', '_', req.runName.strip())
+        sanitized = re.sub(r'[^a-zA-Z0-9_-]', '', sanitized)
+        if sanitized:
+            run_name = sanitized
+            # Check for duplicates and append suffix if needed
+            base_name = sanitized
+            counter = 1
+            while run_name in RUNS:
+                run_name = f"{base_name}_{counter}"
+                counter += 1
+    
+    # Use runName for run_id if provided, otherwise generate UUID
+    if run_name:
+        run_id = run_name
+    else:
+        run_id = uuid.uuid4().hex[:10]
+    
+    peer_id = f"stream-{run_id[:10] if len(run_id) > 10 else run_id}"
+    metadata_file = f"/tmp/results-{run_id[:10] if len(run_id) > 10 else run_id}.jsonl"
 
     pipeline_name = (req.pipelineName or PIPELINE_NAME).strip() or PIPELINE_NAME
 
@@ -217,13 +242,16 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         )
 
     model_name = (req.modelName or "").strip() or "InternVL2-2B"
+    # Use full run_id for custom names, truncated for UUID-based
+    final_run_id = run_id if run_name else run_id[:10]
     info = RunInfo(
-        runId=run_id[:10],
+        runId=final_run_id,
         pipelineId=pipeline_id,
         peerId=peer_id,
         metadataFile=metadata_file,
         modelName=model_name,
         pipelineName=pipeline_name,
+        runName=run_name,
     )
     RUNS[info.runId] = info
     return info
