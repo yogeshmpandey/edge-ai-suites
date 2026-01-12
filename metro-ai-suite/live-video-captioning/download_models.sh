@@ -8,7 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 MODELS_DIR="${SCRIPT_DIR}/ov_models"
-REQUIREMENTS_URL="https://raw.githubusercontent.com/openvinotoolkit/openvino.genai/releases/2025/4/samples/export-requirements.txt"
+REQUIREMENTS_URL="https://raw.githubusercontent.com/openvinotoolkit/openvino.genai/refs/tags/2025.4.1.0/samples/export-requirements.txt"
 DEFAULT_MODEL="phi4"
 
 usage() {

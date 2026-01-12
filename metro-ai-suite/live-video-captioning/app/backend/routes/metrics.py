@@ -22,28 +22,22 @@ Telegraf sends metrics as a JSON array directly:
 We wrap this as {"metrics": [...]} before forwarding to clients.
 """
 
-import asyncio
-import json
 import logging
+from asyncio import Lock
 from typing import Optional, Set
 
-from fastapi import WebSocket, WebSocketDisconnect, status
-from fastapi.routing import APIRouter
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 router = APIRouter(tags=["metrics"])
 logger = logging.getLogger("app.metrics")
 
-# Configure logging to show in container logs
-logging.basicConfig(level=logging.INFO)
-logger.setLevel(logging.INFO)
-
 # Single collector websocket (None if not connected)
 collector_ws: Optional[WebSocket] = None
-collector_lock = asyncio.Lock()
+collector_lock = Lock()
 
 # Set of client websockets
 client_connections: Set[WebSocket] = set()
-clients_lock = asyncio.Lock()
+clients_lock = Lock()
 
 
 @router.websocket("/ws/collector")
@@ -98,25 +92,10 @@ async def collector_websocket(websocket: WebSocket):
 
     try:
         while True:
-            # Receive message - Telegraf may send as text or binary
-            message = await websocket.receive()
-            
-            # Handle different message types
-            if "text" in message:
-                raw_data = message["text"]
-            elif "bytes" in message:
-                raw_data = message["bytes"].decode("utf-8")
-            else:
-                logger.warning("Received unknown message type: %s", message.keys())
-                continue
-            
-            # Parse JSON
-            try:
-                data = json.loads(raw_data)
-            except json.JSONDecodeError as e:
-                logger.error("Failed to parse JSON from collector: %s", e)
-                continue
-            
+            # Receive JSON - Telegraf sends as binary
+            data = await websocket.receive_json(mode="binary")
+            logger.debug("Received metrics from collector: %s", data)
+
             # Telegraf sends an array of metrics directly, wrap it
             if isinstance(data, list):
                 wrapped_data = {"metrics": data}
@@ -126,20 +105,16 @@ async def collector_websocket(websocket: WebSocket):
             else:
                 # Single metric or unknown format, wrap as array
                 wrapped_data = {"metrics": [data] if isinstance(data, dict) else data}
-            
-            logger.debug("Received %d metrics from collector", len(wrapped_data.get("metrics", [])))
 
             # Broadcast to all connected clients
             disconnects = []
             async with clients_lock:
                 clients = list(client_connections)
 
-            if clients:
-                logger.debug("Broadcasting to %d clients", len(clients))
-            
             for client in clients:
                 try:
-                    await client.send_json(wrapped_data)
+                    await client.send_json(wrapped_data, mode="text")
+                    logger.debug("Forwarded metrics to client %s", client.client)
                 except Exception as e:
                     logger.error(
                         "Error sending to client %s: %s", client.client, e
@@ -151,19 +126,19 @@ async def collector_websocket(websocket: WebSocket):
                 async with clients_lock:
                     for client in disconnects:
                         client_connections.discard(client)
-                logger.info(
+                logger.debug(
                     "Cleaned up %d disconnected clients", len(disconnects)
                 )
 
     except WebSocketDisconnect:
         logger.info("Collector disconnected: %s", websocket.client)
     except Exception as e:
-        logger.error("Exception in collector handler: %s", e, exc_info=True)
+        logger.error("Exception in collector handler: %s", e)
     finally:
         async with collector_lock:
             if collector_ws == websocket:
                 collector_ws = None
-        logger.info("Collector slot released")
+        logger.debug("Collector slot released")
 
 
 @router.websocket("/ws/clients")

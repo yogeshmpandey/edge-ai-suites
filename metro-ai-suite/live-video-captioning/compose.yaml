@@ -1,4 +1,4 @@
-name: ${PROJECT_NAME:-video-ingestion}
+name: ${PROJECT_NAME:-live-video-caption}
 services:
   video-ingestion:
     image: intel/dlstreamer-pipeline-server:latest
@@ -15,8 +15,8 @@ services:
       - "${EVAM_HOST_PORT:-8040}:${EVAM_PORT:-8080}"
       - "8556:8554"
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -42,7 +42,6 @@ services:
       - "/tmp:/tmp"
       - ./ov_models:/home/pipeline-server/models
       - ./config.json:/home/pipeline-server/config.json:ro
-      - ./resources:/home/pipeline-server/resources/videos:ro
     group_add:
       # render group ID for ubuntu 20.04 host OS
       - "109"
@@ -69,8 +68,8 @@ services:
     image: bluenviron/mediamtx:1.11.3
     container_name: mediamtx
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -99,8 +98,8 @@ services:
     image: coturn/coturn:latest
     container_name: coturn
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -111,12 +110,12 @@ services:
     networks:
       - app_network
 
-  lvc-dashboard:
+  video-caption-service:
     build: ./app
-    container_name: lvc-dashboard
+    container_name: video-caption-service
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,lvc-dashboard,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -157,10 +156,10 @@ services:
     environment:
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
-      - no_proxy=localhost,127.0.0.1,lvc-dashboard,collector,${no_proxy}
-      - WEBSOCKET_URL=ws://lvc-dashboard:4173/ws/collector
+      - no_proxy=localhost,127.0.0.1,video-caption-service,collector,${no_proxy}
+      - WEBSOCKET_URL=ws://video-caption-service:4173/ws/collector
     depends_on:
-      - lvc-dashboard
+      - video-caption-service
     networks:
       - app_network
 
