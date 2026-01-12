@@ -3,8 +3,8 @@
     --bg-gradient: radial-gradient(circle at 20% -10%, #12225b 0%, #050814 55%);
     --panel: #0d152c;
     --panel-strong: #111c38;
-    --accent: #6ae6ff;
-    --accent-strong: #1ad0ff;
+    --accent: #1a73e8;
+    --accent-strong: #0f5cc8;
     --text: #f5f7fb;
     --muted: #8ca0c2;
     --border: rgba(255, 255, 255, 0.08);
@@ -32,7 +32,7 @@ html, body {
     margin: 0;
     height: 100vh;
     overflow: hidden;
-    font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     background: var(--bg-gradient);
     color: var(--text);
 }
@@ -151,7 +151,7 @@ main { display: flex; flex-direction: column; flex: 1; padding: 10px 20px; overf
     padding: 6px;
 }
 .caption-panel, .video-panel { display: flex; flex-direction: column; gap: 6px; }
-.caption-panel { flex: 0 0 auto; min-height: 100px; max-height: 150px; overflow-y: auto; padding: 8px 4px; }
+.caption-panel { flex: 0 0 auto; min-height: 100px; max-height: 90%; overflow-y: auto; padding: 8px 10px; }
 .video-panel iframe { flex: 1; min-height: 0; }
 .fc h2 { margin: 0 0 10px 0; letter-spacing: 0.01em; }
 .card strong { color: var(--text); }

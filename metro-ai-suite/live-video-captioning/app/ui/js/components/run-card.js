@@ -53,14 +53,14 @@ const RunCardComponent = (function() {
         const infoBtn = document.createElement('button');
         infoBtn.className = 'info-btn';
         infoBtn.type = 'button';
-        infoBtn.title = 'View pipeline details';
+        infoBtn.title = 'View Run details';
         infoBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
         
         // Create tooltip element
         const tooltip = document.createElement('div');
         tooltip.className = 'info-tooltip';
         tooltip.innerHTML = `
-            <div class="info-tooltip-title">Pipeline Details</div>
+            <div class="info-tooltip-title">Run Details</div>
             <div class="info-tooltip-row"><strong>Pipeline:</strong> <span>${run.pipelineName || 'N/A'}</span></div>
             <div class="info-tooltip-row"><strong>RTSP URL:</strong> <span>${run.rtspUrl || 'N/A'}</span></div>
             <div class="info-tooltip-row"><strong>Max Tokens:</strong> <span>${run.maxTokens || 'N/A'}</span></div>
@@ -109,8 +109,8 @@ const RunCardComponent = (function() {
         captionPanel.className = 'caption-panel';
         captionPanel.style.padding = '0';
         captionPanel.style.flexShrink = '0';
-        captionPanel.style.maxHeight = '100px';
-        captionPanel.style.overflow = 'hidden';
+        captionPanel.style.maxHeight = '200px';
+        captionPanel.style.overflowY = 'auto';
 
         const chips = document.createElement('div');
         chips.className = 'chips';
