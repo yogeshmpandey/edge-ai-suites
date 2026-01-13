@@ -2,7 +2,7 @@ import json
 
 from fastapi import APIRouter, Response
 
-from ..config import AGENT_MODE, METADATA_FILE, PEER_ID, SIGNALING_URL
+from ..config import AGENT_MODE, METADATA_FILE, PEER_ID, SIGNALING_URL, ENABLE_DETECTION_PIPELINE
 
 router = APIRouter()
 
@@ -15,6 +15,7 @@ async def runtime_config() -> Response:
         "defaultPeerId": PEER_ID,
         "defaultMetadataFile": METADATA_FILE,
         "agentMode": AGENT_MODE,
+        "enableDetectionPipeline": ENABLE_DETECTION_PIPELINE,
     }
     body = f"window.RUNTIME_CONFIG = {json.dumps(payload)};"
     return Response(content=body, media_type="application/javascript")

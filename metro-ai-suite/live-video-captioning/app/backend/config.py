@@ -7,6 +7,7 @@ PEER_ID = os.environ.get("WEBRTC_PEER_ID", "genai_pipeline")
 SIGNALING_URL = os.environ.get("SIGNALING_URL", "http://localhost:8889")
 POLL_INTERVAL = float(os.environ.get("METADATA_POLL_SECONDS", "1"))
 AGENT_MODE = os.environ.get("AGENT_MODE", "false").lower() in ("true", "1", "yes")
+ENABLE_DETECTION_PIPELINE = os.environ.get("ENABLE_DETECTION_PIPELINE", "false").lower() in ("true", "1", "yes")
 
 PIPELINE_SERVER_URL = os.environ.get(
     "PIPELINE_SERVER_URL", "http://dlstreamer-pipeline-server:8080"

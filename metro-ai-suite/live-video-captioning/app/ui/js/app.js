@@ -26,6 +26,25 @@
 
     const state = { selectedRunId: null, runs: new Map() };
 
+    (function initDetectionVisibility() {
+        if (!els.enableDetectionCheckBox) return;
+
+        // Find the wrapping <div class="field"> for the "Detection Properties" checkbox
+        const detectionFieldContainer = els.enableDetectionCheckBox.closest('.field');
+        if (!detectionFieldContainer) return;
+
+        // Toggle visibility based on cfg.enableDetectionPipeline
+        const enabledByFlag = cfg.enableDetectionPipeline === true;
+        detectionFieldContainer.style.display = enabledByFlag ? '' : 'none';
+
+        // If the feature is disabled, also make sure dependent fields are hidden
+        if (!enabledByFlag) {
+            if (els.detectionModelField) els.detectionModelField.style.display = 'none';
+            if (els.detectionThresholdField) els.detectionThresholdField.style.display = 'none';
+        }
+    })();
+
+
     function resolveSignalingBase(url) {
         if (!url) return '';
         let base = url.replace(/\/$/, '');
@@ -302,10 +321,25 @@
     }
 
     function toggleDetection() {
-        els.detectionThresholdField.style.display = els.enableDetectionCheckBox.checked ? 'block' : 'none';
-        els.detectionModelField.style.display = els.enableDetectionCheckBox.checked ? 'block' : 'none';
-        loadDetectionModels();
+        const visibleByFlag = cfg.enableDetectionPipeline === true;
+
+        // If the feature is disabled globally, keep dependent fields hidden and skip loading
+        if (!visibleByFlag) {
+            if (els.detectionThresholdField) els.detectionThresholdField.style.display = 'none';
+            if (els.detectionModelField) els.detectionModelField.style.display = 'none';
+            return;
+        }
+
+        const show = els.enableDetectionCheckBox.checked;
+        if (els.detectionThresholdField) els.detectionThresholdField.style.display = show ? 'block' : 'none';
+        if (els.detectionModelField) els.detectionModelField.style.display = show ? 'block' : 'none';
+
+        // Load detection models only when the user enables detection
+        if (show) {
+            loadDetectionModels();
+        }
     }
+
 
     function init() {
         ThemeManager.applyTheme(ThemeManager.detectInitialTheme(), els.themeToggle);
