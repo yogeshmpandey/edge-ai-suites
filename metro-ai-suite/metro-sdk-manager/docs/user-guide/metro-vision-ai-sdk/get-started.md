@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Metro Vision AI SDK provides a comprehensive development environment for computer vision applications using Intel's optimized tools and frameworks. This guide demonstrates the installation process and provides a practical object detection implementation using DLStreamer and OpenVINO.
+The Metro Vision AI SDK provides a comprehensive development environment for computer vision applications using Intel's optimized tools and frameworks. This guide demonstrates the installation process and provides a practical object detection implementation using DL Streamer and OpenVINO.
 
 ## Learning Objectives
 
@@ -34,7 +34,7 @@ curl https://raw.githubusercontent.com/open-edge-platform/edge-ai-suites/refs/he
 The installation process configures the following components:
 
 - Docker containerization platform
-- Intel DLStreamer video analytics framework
+- DL Streamer video analytics framework
 - OpenVINO inference optimization toolkit
 - Pre-trained model repositories and sample implementations
 
@@ -110,9 +110,9 @@ The resulting output displays the original video content with overlaid detection
 
 ## Technology Framework Overview
 
-### DLStreamer Framework
+### DL Streamer Framework
 
-DLStreamer provides a comprehensive video analytics framework built on GStreamer technology. Key capabilities include:
+DL Streamer provides a comprehensive video analytics framework built on GStreamer technology. Key capabilities include:
 
 - Multi-format video input support (files, network streams, camera devices)
 - Real-time inference execution on video frame sequences
@@ -156,9 +156,9 @@ Profiling and monitoring performance of Metro Vision AI workloads using command-
 
 ### Technical Documentation
 
-- [DLStreamer](http://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dl-streamer/index.html)
+- [DL Streamer](http://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dl-streamer/index.html)
   \- Comprehensive documentation for Intel's GStreamer-based video analytics framework
-- [DLStreamer Pipeline Server](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer-pipeline-server/index.html)
+- [DL Streamer Pipeline Server](https://docs.openedgeplatform.intel.com/dev/edge-ai-libraries/dlstreamer-pipeline-server/index.html)
   \- RESTful microservice architecture documentation for scalable video analytics deployment
 - [OpenVINO](https://docs.openvino.ai/2025/get-started.html)
   \- Complete reference for Intel's cross-platform inference optimization toolkit

@@ -35,10 +35,16 @@ def create_modified_yaml(device):
             / 'object_segmentation_pipeline.yaml'
         )
 
+        # Get package share directory for dynamic path resolution
+        package_share_dir = get_package_share_directory('segmentation_realsense_tutorial')
+
         with template_path.open('r') as file:
             config = yaml.safe_load(file)
 
-        config['Pipelines'][0]['infers'][0]['engine'] = device
+        # Update paths dynamically using ROS package share directory
+        pipeline = config['Pipelines'][0]
+        pipeline['infers'][0]['label'] = os.path.join(package_share_dir, 'label', 'object.labels')
+        pipeline['infers'][0]['engine'] = device
 
         with NamedTemporaryFile(mode='w', delete=False, suffix='.yaml') as tmp_file:
             yaml.safe_dump(config, tmp_file)

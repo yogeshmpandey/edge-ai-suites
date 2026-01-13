@@ -69,7 +69,7 @@ export TAG="1.2.3"
 # VSS Service Endpoints
 export http_proxy=<http-proxy>
 export https_proxy=<https-proxy>
-export no_proxy=<no_proxy>            
+export no_proxy=<no_proxy>
 
 # VSS Service Endpoints
 export VSS_SUMMARY_IP=<vss-summary-device-ip>
@@ -83,7 +83,7 @@ export MQTT_PASSWORD=<mqtt-password>
 
 # Feature Toggles
 export NVR_GENAI=false                  # Set to 'true' to enable AI-powered event descriptions
-export NVR_SCENESCAPE=false             # Set to 'true' to enable Scenescape integration
+export NVR_SCENESCAPE=false             # Set to 'true' to enable SceneScape integration
 ```
 
 ### Step 3: Launch Application
@@ -192,9 +192,9 @@ To ensure the functionality of the microservice and measure test coverage, follo
 
 These steps will help you verify the functionality of the microservice and ensure adequate test coverage.
 
-### Scenescape Integration
+### Intel® SceneScape Integration
 
-For traffic analytics capabilities with Intel Scenescape (vehicle counting, traffic flow analysis), see the **[Scenescape Integration Guide](./scenescape-integration.md)**.
+For traffic analytics capabilities with Intel® SceneScape (vehicle counting, traffic flow analysis), see the **[Intel® SceneScape Integration Guide](./scenescape-integration.md)**.
 
 ### Custom Build Configuration
 

@@ -21,6 +21,7 @@ install(DIRECTORY
   label
   param
   image
+  rviz
   DESTINATION share/${PROJECT_NAME}/
   USE_SOURCE_PERMISSIONS
 )
