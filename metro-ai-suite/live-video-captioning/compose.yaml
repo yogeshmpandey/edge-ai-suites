@@ -1,22 +1,23 @@
 name: ${PROJECT_NAME:-live-video-caption}
 services:
-  video-ingestion:
+  dlstreamer-pipeline-server:
     image: intel/dlstreamer-pipeline-server:latest
-    hostname: video-ingestion
+    hostname: dlstreamer-pipeline-server
+    container_name: dlstreamer-pipeline-server
     read_only: false
     security_opt:
-    - no-new-privileges
+      - no-new-privileges
     privileged: true
     tty: true
-    entrypoint: ["./run.sh"]
+    entrypoint: [ "./run.sh" ]
     depends_on:
       - mediamtx
     ports:
       - "${EVAM_HOST_PORT:-8040}:${EVAM_PORT:-8080}"
       - "8556:8554"
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -41,6 +42,8 @@ services:
       - "/dev:/dev"
       - "/tmp:/tmp"
       - ./ov_models:/home/pipeline-server/models
+      - ./ov_detection_models:/home/pipeline-server/detection_models
+      - ./user_scripts/:/home/pipeline-server/gvapython/publisher/
       - ./config.json:/home/pipeline-server/config.json:ro
     group_add:
       # render group ID for ubuntu 20.04 host OS
@@ -50,17 +53,17 @@ services:
       # render group ID for ubuntu 24.04 host OS
       - "992"
     device_cgroup_rules:
-    # Default run - device-cgroup-rule='c 189:* rmw'
-    # Selective rules can be applied for deployment
-    - 'c 189:* rmw'
-    - 'c 209:* rmw'
-    - 'a 189:* rwm'
+      # Default run - device-cgroup-rule='c 189:* rmw'
+      # Selective rules can be applied for deployment
+      - 'c 189:* rmw'
+      - 'c 209:* rmw'
+      - 'a 189:* rwm'
     devices:
-    # Following devices under /dev filesystem will be needed based on usecase
-    # dri - GPU
-    # USB camera devices
-    # Selective mount can be done for deployment as mounting whole /dev is not recommended
-    - "/dev/dri:/dev/dri"
+      # Following devices under /dev filesystem will be needed based on usecase
+      # dri - GPU
+      # USB camera devices
+      # Selective mount can be done for deployment as mounting whole /dev is not recommended
+      - "/dev/dri:/dev/dri"
     networks:
       - app_network
 
@@ -68,8 +71,8 @@ services:
     image: bluenviron/mediamtx:1.11.3
     container_name: mediamtx
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -98,15 +101,15 @@ services:
     image: coturn/coturn:latest
     container_name: coturn
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
       - HTTPS_PROXY=$https_proxy
     ports:
       - "3478:3478/udp"
-    command: ["-v"]  # Verbose mode for logging
+    command: [ "-v" ] # Verbose mode for logging
     networks:
       - app_network
 
@@ -114,8 +117,8 @@ services:
     build: ./app
     container_name: video-caption-service
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,video-ingestion,video-caption-service,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -129,10 +132,11 @@ services:
     volumes:
       - "/tmp:/tmp:ro"
       - "./ov_models:/app/ov_models:ro"
+      - "./ov_detection_models:/app/ov_detection_models:ro"
     ports:
       - "${DASHBOARD_PORT:-4173}:4173"
     depends_on:
-      - video-ingestion
+      - dlstreamer-pipeline-server
       - mediamtx
     networks:
       - app_network

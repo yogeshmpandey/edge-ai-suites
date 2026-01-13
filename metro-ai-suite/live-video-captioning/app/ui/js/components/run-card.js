@@ -1,7 +1,7 @@
 /**
  * Run card UI component
  */
-const RunCardComponent = (function() {
+const RunCardComponent = (function () {
     function formatRunNameForDisplay(runId) {
         // Convert underscores to spaces for UI display
         if (!runId) return runId;
@@ -26,13 +26,13 @@ const RunCardComponent = (function() {
         headerLeft.style.gap = '8px';
         headerLeft.style.fontSize = '0.85rem';
         headerLeft.style.flexWrap = 'wrap';
-        
+
         // Determine device from pipeline name
         const deviceType = (run.pipelineName || '').toLowerCase().includes('gpu') ? 'GPU' : 'CPU';
-        const deviceIcon = deviceType === 'GPU' 
+        const deviceIcon = deviceType === 'GPU'
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>'
             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="3"/></svg>';
-        
+
         // Format run name for display: underscores become spaces
         const displayRunName = formatRunNameForDisplay(run.runId);
         headerLeft.innerHTML = `
@@ -47,6 +47,10 @@ const RunCardComponent = (function() {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                 ${run.modelName || 'Unknown'}
             </span>
+            <span class="chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+                ${run.detectionModelName || 'No Detection'}
+            </span>
         `;
 
         // Info button with tooltip
@@ -55,7 +59,7 @@ const RunCardComponent = (function() {
         infoBtn.type = 'button';
         infoBtn.title = 'View Run details';
         infoBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
-        
+
         // Create tooltip element
         const tooltip = document.createElement('div');
         tooltip.className = 'info-tooltip';
@@ -65,9 +69,15 @@ const RunCardComponent = (function() {
             <div class="info-tooltip-row"><strong>RTSP URL:</strong> <span>${run.rtspUrl || 'N/A'}</span></div>
             <div class="info-tooltip-row"><strong>Max Tokens:</strong> <span>${run.maxTokens || 'N/A'}</span></div>
             <div class="info-tooltip-row"><strong>Prompt:</strong> <span class="info-tooltip-prompt">${run.prompt || 'N/A'}</span></div>
+            ${run.detectionModelName
+                ? `<div class="info-tooltip-row"><strong>Detection Model:</strong> <span>${run.detectionModelName}</span></div>`
+                : ''}
+            ${(run.detectionThreshold ?? '') !== ''
+                ? `<div class="info-tooltip-row"><strong>Detection Threshold:</strong> <span>${run.detectionThreshold}</span></div>`
+                : ''}
         `;
         tooltip.style.display = 'none';
-        
+
         // Toggle tooltip on click
         infoBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -75,14 +85,14 @@ const RunCardComponent = (function() {
             const isVisible = tooltip.style.display === 'block';
             tooltip.style.display = isVisible ? 'none' : 'block';
         });
-        
+
         // Close tooltip when clicking outside
         document.addEventListener('click', (e) => {
             if (!infoBtn.contains(e.target) && !tooltip.contains(e.target)) {
                 tooltip.style.display = 'none';
             }
         });
-        
+
         // Wrapper for info button and tooltip
         const infoBtnWrapper = document.createElement('div');
         infoBtnWrapper.className = 'info-btn-wrapper';

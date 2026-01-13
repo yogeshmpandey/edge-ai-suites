@@ -34,13 +34,13 @@ async def start_run(req: StartRunRequest) -> RunInfo:
             while run_name in RUNS:
                 run_name = f"{base_name}_{counter}"
                 counter += 1
-    
+
     # Use runName for run_id if provided, otherwise generate UUID
     if run_name:
         run_id = run_name
     else:
         run_id = uuid.uuid4().hex[:10]
-    
+
     peer_id = f"stream-{run_id[:10] if len(run_id) > 10 else run_id}"
     metadata_file = f"/tmp/results-{run_id[:10] if len(run_id) > 10 else run_id}.jsonl"
 
@@ -59,6 +59,10 @@ async def start_run(req: StartRunRequest) -> RunInfo:
             "captioner_model_name": (req.modelName or "").strip()
             or "OpenGVLab/InternVL2-2B",
             "captioner_max_new_tokens": req.maxNewTokens,
+            "detection_model_name": (req.detectionModelName or "").strip()
+            or "yolov8s",
+            "detection_threshold": req.detectionThreshold,
+            "metadata-save-path": metadata_file,
         },
     }
 
@@ -191,7 +195,7 @@ async def stop_run(run_id: str) -> dict[str, str]:
     if not info:
         raise HTTPException(status_code=404, detail={"message": "Run not found"})
     stop_url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines/{info.pipelineId}"
-    
+
     # Try to stop pipeline on backend, but always remove from internal list
     # A failure (502) usually means the pipeline is already stopped
     try:
@@ -199,7 +203,7 @@ async def stop_run(run_id: str) -> dict[str, str]:
     except HTTPException:
         # Pipeline may already be stopped or unreachable - continue cleanup
         pass
-    
+
     RUNS.pop(run_id, None)
     try:
         Path(info.metadataFile).unlink(missing_ok=True)

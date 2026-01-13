@@ -22,20 +22,42 @@ def discover_models(root: Path) -> list[str]:
     return models
 
 
+def discover_detection_models(root: Path) -> list[str]:
+    """Discover available detection models from the detection models directory."""
+    if not root.exists():
+        return []
+    models: list[str] = []
+    for entry in sorted(root.iterdir()):
+        if entry.name.startswith("."):
+            continue
+        if entry.is_dir():
+            # Check if this directory has the expected structure: model_name/public/model_name
+            public_dir = entry / "public"
+            if public_dir.exists() and public_dir.is_dir():
+                # Check if there's a subdirectory with the same name as the parent
+                model_subdir = public_dir / entry.name
+                if model_subdir.exists() and model_subdir.is_dir():
+                    models.append(entry.name)
+    return models
+
+
 def discover_pipelines_remote() -> list[str]:
     """Discover available pipelines from the pipeline server."""
     url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines"
     try:
         raw = http_json("GET", url)
         payload = json.loads(raw)
+        print(f"payload: {payload}")
         # Accept either list[str] or list[dict {name}] or {'pipelines': [...]}
         if isinstance(payload, list):
             names = []
             for item in payload:
                 if isinstance(item, str):
                     names.append(item)
+                    print(f"item: {item}")
                 elif isinstance(item, dict) and isinstance(item.get("version"), str):
                     names.append(item["version"])
+            print(f"names: {names}")
             return names or [PIPELINE_NAME]
         if isinstance(payload, dict):
             items = payload.get("pipelines") or payload.get("items") or []

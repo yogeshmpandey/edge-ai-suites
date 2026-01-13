@@ -17,6 +17,11 @@
         pipelineInfo: document.getElementById('pipelineInfo'),
         runsContainer: document.getElementById('runsContainer'),
         themeToggle: document.getElementById('themeToggle'),
+        enableDetectionCheckBox: document.getElementById('enableDetectionCheckBox'),
+        detectionModelField: document.getElementById('detectionModelField'),
+        detectionThresholdField: document.getElementById('detectionThresholdField'),
+        detectionModelNameSelect: document.getElementById('detectionModelNameSelect'),
+        detectionThresholdInput: document.getElementById('detectionThresholdInput'),
     };
 
     const state = { selectedRunId: null, runs: new Map() };
@@ -54,6 +59,21 @@
         select.value = preferred;
     }
 
+    function setDetectionModelOptions(models) {
+        const select = els.detectionModelNameSelect;
+        if (!select) return;
+        select.innerHTML = '';
+        const list = Array.isArray(models) && models.length ? models : [ApiService.DEFAULT_DETECTION_MODEL];
+        for (const name of list) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        }
+        const preferred = list.includes(ApiService.DEFAULT_DETECTION_MODEL) ? ApiService.DEFAULT_DETECTION_MODEL : list[0];
+        select.value = preferred;
+    }
+
     function setPipelineOptions(pipelines) {
         const select = els.pipelineSelect;
         if (!select) return;
@@ -78,6 +98,19 @@
             setModelOptions([ApiService.DEFAULT_MODEL]);
             SettingsManager.restoreSelectValues(els);
             updatePipelineInfo('Model list unavailable, using default');
+        }
+    }
+
+    async function loadDetectionModels() {
+        try {
+            const detectionModels = await ApiService.fetchDetectionModels();
+            setDetectionModelOptions(detectionModels);
+            SettingsManager.restoreSelectValues(els);
+            updatePipelineInfo('Detection models loaded');
+        } catch (_err) {
+            setDetectionModelOptions([ApiService.DEFAULT_DETECTION_MODEL]);
+            SettingsManager.restoreSelectValues(els);
+            updatePipelineInfo('Detection model list unavailable, using default');
         }
     }
 
@@ -143,10 +176,10 @@
 
         // Store UI reference for the multiplexed metadata stream
         MetadataStreamService.registerRunUI(run.runId, ui);
-        
+
         // Initialize the multiplexed stream if not already done
         MetadataStreamService.initMultiplexedMetadataStream(cfg);
-        
+
         // Store run info without individual EventSource
         state.runs.set(run.runId, { ...run, ui });
         // Keep references for UI teardown
@@ -158,14 +191,14 @@
         // Fetch active runs from backend and restore UI cards
         try {
             const runs = await ApiService.fetchRuns();
-            
+
             if (runs.length === 0) {
                 return;
             }
-            
+
             // Hide hint if there are active runs
             if (els.hintEl) els.hintEl.style.display = 'none';
-            
+
             for (const runData of runs) {
                 const run = {
                     runId: runData.runId,
@@ -178,13 +211,13 @@
                     maxTokens: runData.maxTokens || 'N/A',
                     rtspUrl: runData.rtspUrl || 'N/A',
                 };
-                
+
                 const ui = RunCardComponent.createRunElement(run, stopRun);
                 els.runsContainer.appendChild(ui.wrap);
                 attachRunStreams(run, ui);
                 state.selectedRunId = run.runId;
             }
-            
+
             updatePipelineInfo(`Restored ${runs.length} active run(s)`);
         } catch (err) {
             console.warn('Failed to restore active runs:', err);
@@ -203,7 +236,7 @@
             gpuTemp: document.getElementById('gpuTemp'),
             gpuError: document.getElementById('gpuError'),
         };
-        
+
         MetricsCollectorService.init(elements);
     }
 
@@ -216,7 +249,11 @@
         const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
         const maxTokensParsed = Number.parseInt(maxTokensRaw, 10);
         const maxTokens = Number.isFinite(maxTokensParsed) && maxTokensParsed > 0 ? maxTokensParsed : 70;
-        
+        const detectionModelName = (els.detectionModelNameSelect?.value || '').trim();
+        const detectionThresholdRaw = (els.detectionThresholdInput?.value || '').toString().trim();
+        const detectionThresholdParsed = Number.parseFloat(detectionThresholdRaw);
+        const detectionThreshold = Number.isFinite(detectionThresholdParsed) && detectionThresholdParsed >= 0 && detectionThresholdParsed <= 1 ? detectionThresholdParsed : 0.5;
+
         // Process optional run name
         const rawRunName = (els.runNameInput?.value || '').trim();
         let runName = RunCardComponent.validateAndPrepareRunName(rawRunName);
@@ -224,12 +261,12 @@
             const existingRunIds = Array.from(state.runs.keys());
             runName = RunCardComponent.getUniqueRunName(runName, existingRunIds);
         }
-        
+
         if (!rtspUrl) return;
         els.startBtn.disabled = true;
         updatePipelineInfo('Starting pipeline...');
         try {
-            const requestBody = { rtspUrl, prompt, modelName, maxNewTokens: maxTokens, pipelineName };
+            const requestBody = { rtspUrl, prompt, detectionModelName, detectionThreshold, modelName, maxNewTokens: maxTokens, pipelineName };
             if (runName) {
                 requestBody.runName = runName;
             }
@@ -240,6 +277,8 @@
                 pipelineId: data.pipelineId,
                 peerId: data.peerId,
                 metadataFile: data.metadataFile,
+                detectionModelName: detectionModelName,
+                detectionThreshold: detectionThreshold,
                 modelName: modelName,
                 pipelineName: pipelineName,
                 prompt: prompt,
@@ -262,6 +301,12 @@
         }
     }
 
+    function toggleDetection() {
+        els.detectionThresholdField.style.display = els.enableDetectionCheckBox.checked ? 'block' : 'none';
+        els.detectionModelField.style.display = els.enableDetectionCheckBox.checked ? 'block' : 'none';
+        loadDetectionModels();
+    }
+
     function init() {
         ThemeManager.applyTheme(ThemeManager.detectInitialTheme(), els.themeToggle);
         if (els.themeToggle) {
@@ -270,20 +315,21 @@
                 ChartManager.updateChartColors();
             });
         }
-        
+
         // Restore settings from localStorage before loading options
         SettingsManager.restoreSettings(els);
         SettingsManager.setupSettingsPersistence(els);
-        
+
+        if (els.enableDetectionCheckBox) els.enableDetectionCheckBox.addEventListener('change', toggleDetection);
         loadModels();
         loadPipelines();
         initCollectorMetrics();
-        
+
         // Restore active runs from backend
         restoreActiveRuns();
-        
+
         els.form.addEventListener('submit', startPipeline);
-        
+
         // Update lag display every 100ms for all active runs
         setInterval(() => {
             const now = Date.now();
@@ -299,7 +345,7 @@
                 }
             }
         }, 100);
-        
+
         // Cleanup SSE connections when page unloads
         window.addEventListener('beforeunload', () => {
             MetadataStreamService.close();
