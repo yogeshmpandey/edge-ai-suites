@@ -110,3 +110,21 @@ clean:
 		amd64/ros:${ROS_DISTRO}-ros-base \
 		bash -c "cd /src && rm -rf ros-* build/ install/; \
 		$(foreach pkg,$(PACKAGES), cd /src/$(pkg) && rm -rf debian/ build/ install/ obj-x86_64-linux-gnu/;)"
+
+help:
+	@printf "%-20s %s\n" "Target" "Description"
+	@printf "%-20s %s\n" "------" "-----------"
+	@grep -E '^[a-zA-Z0-9_%-]+:|^[[:space:]]+@# Help:' Makefile | \
+	awk '\
+		/^[a-zA-Z0-9_%-]+:/ { \
+			target = $$1; \
+			sub(":", "", target); \
+		} \
+		/^[[:space:]]+@# Help:/ { \
+			if (target != "") { \
+				help_line = $$0; \
+				sub("^[[:space:]]+@# Help: ", "", help_line); \
+				printf "%-20s %s\n", target, help_line; \
+				target = ""; \
+			} \
+		}' | sort -k1,1

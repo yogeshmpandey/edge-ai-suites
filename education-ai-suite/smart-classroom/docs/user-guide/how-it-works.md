@@ -40,7 +40,7 @@ The uploaded audio is passed to the Backend API, which acts as the gateway to th
 
 - **Pipeline Service**
 
-The Pipeline Service manages multiple DLStreamer-based pipelines:
+The Pipeline Service manages multiple DL Streamer-based pipelines:
 
 - Front Video Pipeline for front camera streams
 - Back Video Pipeline for back camera streams
@@ -54,10 +54,8 @@ A Media Server (MediaMTX) supports streaming and distribution of processed video
 - Performance metrics (e.g., utilisation, model efficiency) are displayed for monitoring.
 - Localisation ensures outputs are available in multiple languages (English/Chinese).
 
-
 ## Learn More
 
 - [System Requirements](system-requirements.md): Check the hardware and software requirements for deploying the application.
 - [Get Started](get-started.md): Follow step-by-step instructions to set up the application.
 - [Application Flow](application-flow.md): Check the flow of application.
-
