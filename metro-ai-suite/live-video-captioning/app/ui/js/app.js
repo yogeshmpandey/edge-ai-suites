@@ -263,6 +263,12 @@
     }
 
     function init() {
+        // Set application title based on agent mode
+        const appTitleEl = document.getElementById('appTitle');
+        if (appTitleEl && cfg.agentMode) {
+            appTitleEl.textContent = 'Live Video Captioning and Alerts';
+        }
+        
         ThemeManager.applyTheme(ThemeManager.detectInitialTheme(), els.themeToggle);
         if (els.themeToggle) {
             els.themeToggle.addEventListener('click', () => {

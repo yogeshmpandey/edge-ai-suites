@@ -24,5 +24,4 @@ docker compose up --build
 
 
 Notes:
-- When running locally, you may still want the other services (pipeline server, signaling, TURN, collector) running via Docker Compose.
-- Ensure your `.env` is configured, especially `PIPELINE_SERVER_URL` and `HOST_IP`.
+- Ensure your `.env` is configured, especially `HOST_IP`.

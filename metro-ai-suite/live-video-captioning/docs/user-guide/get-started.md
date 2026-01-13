@@ -10,43 +10,45 @@ This guide walks you through running Live Video Captioning with Docker Compose.
 
 See [System Requirements](./system-requirements.md) for details.
 
-## 1) Configure environment
+## 1. Configure environment
 
-Create a `.env` file in the repository root:
+Create a `.env` file in the repository root and update the HOST_IP with the system IP.
 
 ```bash
-PROJECT_NAME=live-video-captioning
+WHIP_SERVER_IP=mediamtx
+WHIP_SERVER_PORT=8889
+WHIP_SERVER_TIMEOUT=30s
+PROJECT_NAME=live-captioning
+HOST_IP=<HOST_IP>
 EVAM_HOST_PORT=8040
 EVAM_PORT=8080
-WHIP_SERVER_PORT=8889
 DASHBOARD_PORT=4173
 WEBRTC_PEER_ID=stream
-HOST_IP=<YOUR_HOST_IP>
-MTX_WEBRTCICESERVERS2_0_USERNAME=<TURN_USER>
-MTX_WEBRTCICESERVERS2_0_PASSWORD=<TURN_PASS>
-AGENT_MODE=false
-METADATA_POLL_SECONDS=1
-PIPELINE_NAME=GenAI_Pipeline_on_CPU
+METADATA_POLL_SECONDS=0.5
+AGENT_MODE=False
 ```
 
-Notes:
-- `HOST_IP` must be reachable by the browser client for WebRTC signaling.
-- `PIPELINE_SERVER_URL` defaults to `http://video-ingestion:8080`.
 
-## 2) (Optional) Download/export models
+## 2. Download/export models
 
 ```bash
 chmod +x download_models.sh
-./download_models.sh [phi4|minicpm|gemma3|internvl2]
+./download_models.sh [internvl2_1B|internvl2_2B|gemma3]
 ```
 
-For gated models (for example, MiniCPM-V-2_6):
+For other OpenVINO supported models, provide the HuggingFace model name.
+
+```
+./download_models.sh OpenGVLab/InternVL2_5-1B
+```
+
+For gated models export the huggingface token:
 
 ```bash
 export HF_TOKEN=<YOUR_HUGGING_FACE_TOKEN>
 ```
 
-## 3) Start the stack
+## 3. Start the stack
 
 ```bash
 docker compose up --build
@@ -57,7 +59,7 @@ Exposed services (defaults):
 - WebRTC signaling: `ws://<HOST_IP>:8889`
 - Dashboard UI: `http://<HOST_IP>:4173`
 
-## 4) Run a captioning pipeline
+## 4. Run a captioning pipeline
 
 1. Open the dashboard at `http://<HOST_IP>:4173`.
 2. Enter an RTSP URL.
@@ -65,7 +67,7 @@ Exposed services (defaults):
 4. Edit prompt/max tokens as needed.
 5. Click **Start**.
 
-## 5) Stop services
+## 5. Stop services
 
 ```bash
 docker compose down

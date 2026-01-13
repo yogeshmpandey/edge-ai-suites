@@ -14,7 +14,7 @@ Deploy AI-powered captioning for live video streams with Intel DLStreamer and Op
 
 ## Key Features
 
-**Multi-Model Support**: Switch between VLMs (InternVL2, Gemma-3, MiniCPM-V, Phi-4) with automatic model discovery from `ov_models/`.
+**Multi-Model Support**: Switch between VLMs (InternVL2, Gemma-3, etc.) with automatic model discovery from `ov_models/`.
 
 **Real-time Streaming**: WebRTC-based low-latency preview video delivery.
 
@@ -30,15 +30,7 @@ The stack ingests an RTSP stream, runs a DLStreamer pipeline that samples frames
 
 ![System Architecture Diagram](./_assets/architecture.jpg)
 
-### System Components
-
-- **video-ingestion**: Intel DLStreamer Pipeline Server processing RTSP sources with GStreamer pipelines and `gvagenai` for VLM inference
-- **mediamtx**: WebRTC/WHIP signaling server for video streaming
-- **coturn**: TURN server for NAT traversal in WebRTC connections
-- **app**: Python FastAPI backend serving REST APIs, SSE metadata streams, and WebSocket metrics
-- **collector**: Intel VIP-PET system metrics collector (CPU, GPU, memory, power)
-
-### Data Flow
+#### Data Flow
 
 ```
 RTSP Source → video-ingestion
@@ -47,6 +39,14 @@ RTSP Source → video-ingestion
                                                  ↓
                                   Dashboard collects metrics (CPU, GPU, RAM)
 ```
+### System Components
+
+- **video-ingestion**: Intel DLStreamer Pipeline Server processing RTSP sources with GStreamer pipelines and `gvagenai` for VLM inference
+- **mediamtx**: WebRTC/WHIP signaling server for video streaming
+- **coturn**: TURN server for NAT traversal in WebRTC connections
+- **app**: Python FastAPI backend serving REST APIs, SSE metadata streams, and WebSocket metrics
+- **collector**: Intel VIP-PET system metrics collector (CPU, GPU, memory, power)
+
 
 ## Learn More
 
