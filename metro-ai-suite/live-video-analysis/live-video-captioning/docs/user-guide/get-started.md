@@ -29,7 +29,7 @@ By following this guide, you will learn how to:
 
 2. **Navigate to the Directory**:
      ```bash
-     cd edge-ai-suites/metro-ai-suite/live-video-captioning
+     cd edge-ai-suites/metro-ai-suite/live-video-analysis/live-video-captioning
      ```
 
 3. **Configure Image Registry and Tag**:

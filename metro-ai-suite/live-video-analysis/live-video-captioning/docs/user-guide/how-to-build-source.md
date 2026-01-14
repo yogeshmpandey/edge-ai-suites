@@ -7,7 +7,7 @@ To build the Docker image for `Live Captioning` application, follow these steps:
 
 1. Ensure you are in the project directoy:
      ```bash
-     cd edge-ai-suites/metro-ai-suite/live-video-captioning
+     cd edge-ai-suites/metro-ai-suite/live-video-analysis/live-video-captioning
      ```
 
 2. Run the following `docker compose` command:
