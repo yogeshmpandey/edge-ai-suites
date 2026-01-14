@@ -210,7 +210,8 @@
     async function startPipeline(evt) {
         evt.preventDefault();
         const rtspUrl = els.rtspInput.value.trim();
-        const prompt = (els.promptInput.value || '').trim() || 'Describe what you see in the image in one sentence.';
+        const defaultPrompt = cfg.defaultPrompt || 'Describe what you see in one sentence.';
+        const prompt = (els.promptInput.value || '').trim() || defaultPrompt;
         const modelName = (els.modelNameSelect?.value || '').trim() || ApiService.DEFAULT_MODEL;
         const pipelineName = (els.pipelineSelect?.value || '').trim() || ApiService.DEFAULT_PIPELINE;
         const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
@@ -269,6 +270,19 @@
             appTitleEl.textContent = 'Live Video Captioning and Alerts';
         }
         
+        // Set default RTSP URL from runtime config (before restoring localStorage)
+        if (cfg.defaultRtspUrl && els.rtspInput && !els.rtspInput.value) {
+            els.rtspInput.value = cfg.defaultRtspUrl;
+        }
+        
+        // Set default prompt from runtime config (before restoring localStorage)
+        if (cfg.defaultPrompt && els.promptInput) {
+            // Only set if empty or still has HTML default value
+            if (!els.promptInput.value || els.promptInput.value === 'Describe what you see in one sentence.') {
+                els.promptInput.value = cfg.defaultPrompt;
+            }
+        }
+        
         ThemeManager.applyTheme(ThemeManager.detectInitialTheme(), els.themeToggle);
         if (els.themeToggle) {
             els.themeToggle.addEventListener('click', () => {
@@ -277,8 +291,8 @@
             });
         }
         
-        // Restore settings from localStorage before loading options
-        SettingsManager.restoreSettings(els);
+        // Restore settings from localStorage - will override defaults if user has saved values
+        SettingsManager.restoreSettings(els, cfg);
         SettingsManager.setupSettingsPersistence(els);
         
         loadModels();

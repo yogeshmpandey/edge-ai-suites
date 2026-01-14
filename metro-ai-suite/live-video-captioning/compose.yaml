@@ -126,6 +126,7 @@ services:
       - WEBRTC_PEER_ID=${WEBRTC_PEER_ID:-stream}
       - SIGNALING_URL=http://${HOST_IP:-localhost}:${WHIP_SERVER_PORT:-8889}
       - AGENT_MODE=${AGENT_MODE:-false}
+      - DEFAULT_RTSP_URL=${DEFAULT_RTSP_URL:-}
     volumes:
       - "/tmp:/tmp:ro"
       - "./ov_models:/app/ov_models:ro"

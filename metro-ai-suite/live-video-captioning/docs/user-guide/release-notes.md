@@ -1,6 +1,6 @@
 # Release Notes
 
-## 0.1.0
+## 2026.1.3
 
 - Initial release of Live Video Captioning
 - Docker Compose stack integrating DLStreamer pipeline server, WebRTC signaling (mediamtx), TURN (coturn), and FastAPI dashboard
@@ -9,4 +9,4 @@
 
 ## Upgrade Notes
 
-- If you change `.env` values (ports, `HOST_IP`, model paths), restart the stack: `docker compose down && docker compose up --build`.
+- If you change `.env` values (ports, `HOST_IP`, model paths), restart the stack: `docker compose down && docker compose up `.

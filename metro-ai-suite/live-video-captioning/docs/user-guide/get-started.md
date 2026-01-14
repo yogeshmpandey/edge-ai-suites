@@ -75,5 +75,6 @@ docker compose down
 
 ## Next
 
+- [Agent Mode](./agent-mode.md) - Enable alert-style responses for binary detection scenarios
 - [API Reference](./api-reference.md)
 - [Known Issues](./known-issues.md)
