@@ -2,7 +2,15 @@
 
 Deploy AI-powered captioning for live video streams with Intel DLStreamer and OpenVINO Vision Language Models. Process RTSP streams, generate real-time captions, and monitor performance metrics on a dashboard.
 
-## Use Cases
+## Table of Contents
+
+1. [Overview and Features](#overview-and-features)
+2. [How the Application Works ](#how-the-application-works)
+3. [Learn More](#learn-more)
+
+## Overview and Features
+
+### Use Cases
 
 **Real-time Video Analytics**: Monitor security cameras, industrial equipment, or public spaces with AI-powered scene understanding and automatic captioning.
 
@@ -12,7 +20,7 @@ Deploy AI-powered captioning for live video streams with Intel DLStreamer and Op
 
 **Intelligent Surveillance**: Deploy custom prompts (for example, “Is there a person in the frame?”) for security and safety monitoring workflows.
 
-## Key Features
+### Key Features
 
 **Multi-Model Support**: Switch between VLMs (InternVL2, Gemma-3, etc.) with automatic model discovery from `ov_models/`.
 
@@ -24,24 +32,27 @@ Deploy AI-powered captioning for live video streams with Intel DLStreamer and Op
 
 **Agent Mode**: Optional alert styling for binary classification prompts (“Yes”/“No”).
 
-## How It Works
+**Object-Detection-Model Support**: Optionally integrate YOLO-based detection models into the pipeline to enable object detection and frame filtering.
+
+## How the Application Works
 
 The stack ingests an RTSP stream, runs a DLStreamer pipeline that samples frames for VLM inference, and sends results to the dashboard.
 
 ![System Architecture Diagram](./_assets/architecture.jpg)
 
-#### Data Flow
+### Data Flow
 
 ```
-RTSP Source → video-ingestion
+RTSP Source → dlstreamer-pipeline-server
             ├─→ 1fps AI branch (GStreamer gvagenai) → /tmp/results.jsonl
             └─→ 30fps preview → mediamtx (WebRTC) → Dashboard
                                                  ↓
                                   Dashboard collects metrics (CPU, GPU, RAM)
 ```
+
 ### System Components
 
-- **video-ingestion**: Intel DLStreamer Pipeline Server processing RTSP sources with GStreamer pipelines and `gvagenai` for VLM inference
+- **dlstreamer-pipeline-server**: Intel DLStreamer Pipeline Server processing RTSP sources with GStreamer pipelines and `gvagenai` for VLM inference
 - **mediamtx**: WebRTC/WHIP signaling server for video streaming
 - **coturn**: TURN server for NAT traversal in WebRTC connections
 - **app**: Python FastAPI backend serving REST APIs, SSE metadata streams, and WebSocket metrics

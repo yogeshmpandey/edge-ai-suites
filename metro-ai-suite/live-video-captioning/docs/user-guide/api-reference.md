@@ -13,6 +13,7 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
 ## REST Endpoints
 
 - `GET /api/models` — List available VLM models discovered under `ov_models/`
+- `GET /api//detection-models` - List available object detection models discovered under `ov_detection_models/`
 - `GET /api/pipelines` — List available pipeline configurations
 - `POST /api/runs` — Start a new captioning pipeline
 - `GET /api/runs` — List active runs

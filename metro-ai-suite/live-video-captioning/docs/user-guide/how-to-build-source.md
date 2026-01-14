@@ -1,26 +1,37 @@
 # How to Build Source
 
-This project is primarily intended to run via Docker Compose. This page documents common build/run flows.
+This guide provides step-by-step instructions for building Live Captioning Sample Application from source.
 
-## Build containers
+## Building the Images
+To build the Docker image for `Live Captioning` application, follow these steps:
 
-From the repository root:
+1. Ensure you are in the project directoy:
+     ```bash
+     cd edge-ai-suites/metro-ai-suite/live-video-captioning
+     ```
 
-```bash
-docker compose build
-```
+2. Run the following `docker compose` command:
+     ```bash
+     docker compose build
+     ```
 
-## Run the stack
+## Run the Application
+- Run the application using follow command:
+     ```bash
+     docker compose up
+     ```
 
-```bash
-docker compose up
-```
+- Ensure that the application is running by checking the container status:
+     ```bash
+     docker ps
+     ```
 
-To force a clean rebuild:
+- Access the application by opening your web browser and navigate to `http://<host-ip>:4173 to view the dashboard UI.
 
-```bash
-docker compose up --build
-```
+- [OPTIONAL] To force a clean rebuild run the following:
+     ```bash
+     docker compose up --build
+     ```
 
 
 Notes:

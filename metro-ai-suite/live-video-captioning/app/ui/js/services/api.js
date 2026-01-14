@@ -1,8 +1,9 @@
 /**
  * API service for backend communication
  */
-const ApiService = (function() {
+const ApiService = (function () {
     const DEFAULT_MODEL = 'InternVL2-1B';
+    const DEFAULT_DETECTION_MODEL = 'yolov8s';
     const DEFAULT_PIPELINE = 'GenAI_Pipeline_on_CPU';
 
     async function fetchModels() {
@@ -13,6 +14,17 @@ const ApiService = (function() {
             return data?.models || [DEFAULT_MODEL];
         } catch (_err) {
             return [DEFAULT_MODEL];
+        }
+    }
+
+    async function fetchDetectionModels() {
+        try {
+            const resp = await fetch('/api/detection-models');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            return data?.models || ['yolov8s'];
+        } catch (_err) {
+            return [DEFAULT_DETECTION_MODEL];
         }
     }
 
@@ -58,6 +70,7 @@ const ApiService = (function() {
 
     return {
         fetchModels,
+        fetchDetectionModels,
         fetchPipelines,
         fetchRuns,
         startRun,
