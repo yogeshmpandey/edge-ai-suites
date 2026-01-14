@@ -1,4 +1,3 @@
-```markdown
 # Object Detection Pipeline
 
 Object Detection is an optional configuration to enhances the base live captioning pipeline by integrating object detection as a pre-filtering step. Instead of sending every video frame to the captioning model, only frames containing detected objects are passed to VLM for caption generation. This approach significantly reduces compute overhead while maintaining meaningful captions, as frames without relevant objects are skipped. It is ideal for scenarios where captions should focus on detected entities rather than every frame.
@@ -40,5 +39,3 @@ User can enable object detection in the pipeline by following the steps below:
 - [Get Started](./get-started.md) - Basic setup and configuration
 - [API Reference](./api-reference.md) - REST API documentation
 - [System Requirements](./system-requirements.md) - Hardware and software requirements
-
-```

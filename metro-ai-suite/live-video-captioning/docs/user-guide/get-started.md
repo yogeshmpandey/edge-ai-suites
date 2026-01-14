@@ -63,11 +63,17 @@ By following this guide, you will learn how to:
     Run the following scripts to download and convert VLM models.
      ```bash
      chmod +x download_models.sh
-     ./download_models.sh [phi4|minicpm|gemma3|internvl2]
+     ./download_models.sh [internvl2_1B|gemma3|internvl2_2B]
      ```
 
-    For gated models (for example, MiniCPM-V-2_6):
-    Please export you HF_TOKEN before running the scripts above:
+    For other OpenVINO supported models, provide the HuggingFace model name.
+
+    ```
+    ./download_models.sh OpenGVLab/InternVL2_5-1B
+    ```
+
+    For gated models, please export you HF_TOKEN before running the scripts above:
+    
      ```bash
      export HF_TOKEN=<YOUR_HUGGING_FACE_TOKEN>
      ```

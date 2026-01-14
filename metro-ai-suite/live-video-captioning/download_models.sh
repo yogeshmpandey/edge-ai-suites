@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 MODELS_DIR="${SCRIPT_DIR}/ov_models"
 REQUIREMENTS_URL="https://raw.githubusercontent.com/openvinotoolkit/openvino.genai/refs/tags/2025.4.1.0/samples/export-requirements.txt"
-DEFAULT_MODEL="phi4"
+DEFAULT_MODEL="internvl2_1B"
 
 usage() {
   cat <<EOF
@@ -22,7 +22,7 @@ MODEL_KEY options:
   <hf_id>   -> any other Hugging Face repo id (warned)
 
 Example:
-  $(basename "$0") phi4
+  $(basename "$0") internvl2_1B
 EOF
 }
 
