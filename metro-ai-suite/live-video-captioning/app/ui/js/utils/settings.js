@@ -30,15 +30,26 @@ const SettingsManager = (function() {
         }
     }
 
-    function restoreSettings(els) {
+    function restoreSettings(els, cfg) {
         const settings = loadSettings();
         if (!settings) return;
         
+        // Only restore RTSP URL if it's different from the current runtime config default
+        // This allows runtime config to take precedence for fresh sessions
         if (settings.rtspUrl && els.rtspInput) {
-            els.rtspInput.value = settings.rtspUrl;
+            const cfgDefault = cfg?.defaultRtspUrl || '';
+            // Only restore if user had a custom value (different from config default)
+            if (settings.rtspUrl !== cfgDefault) {
+                els.rtspInput.value = settings.rtspUrl;
+            }
         }
+        // Only restore prompt if it's different from the current runtime config default
         if (settings.prompt && els.promptInput) {
-            els.promptInput.value = settings.prompt;
+            const cfgDefault = cfg?.defaultPrompt || 'Describe what you see in one sentence.';
+            // Only restore if user had a custom value (different from config default)
+            if (settings.prompt !== cfgDefault && settings.prompt !== 'Describe what you see in one sentence.') {
+                els.promptInput.value = settings.prompt;
+            }
         }
         if (settings.maxTokens && els.maxTokensInput) {
             els.maxTokensInput.value = settings.maxTokens;

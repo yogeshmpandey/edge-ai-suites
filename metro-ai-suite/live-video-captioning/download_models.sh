@@ -16,11 +16,9 @@ usage() {
 Usage: $(basename "$0") [MODEL_KEY]
 
 MODEL_KEY options:
-  minicpm   -> openbmb/MiniCPM-V-2_6 (int4)
-  phi4      -> microsoft/Phi-4-multimodal-instruct
   gemma3    -> google/gemma-3-4b-it
-  internvl2 -> OpenGVLab/InternVL2-2B
-  smolvlm2  -> HuggingFaceTB/SmolVLM2-256M-Video-Instruct
+  internvl2_1B -> OpenGVLab/InternVL2-1B
+  internvl2_2B -> OpenGVLab/InternVL2-2B
   <hf_id>   -> any other Hugging Face repo id (warned)
 
 Example:
@@ -34,22 +32,17 @@ OUTPUT_NAME=""
 EXTRA_ARGS=()
 
 case "$MODEL_KEY" in
-  minicpm|MiniCPM-V-2_6|minicpm-v-2_6)
-    MODEL_ID="openbmb/MiniCPM-V-2_6"
-    OUTPUT_NAME="MiniCPM-V-2_6"
-    EXTRA_ARGS+=(--weight-format int4)
-    ;;
-  phi4|phi-4|phi-4-multimodal|phi-4-multimodal-instruct)
-    MODEL_ID="microsoft/Phi-4-multimodal-instruct"
-    OUTPUT_NAME="Phi-4-multimodal"
-    ;;
   gemma3|gemma-3|gemma-3-4b-it)
     MODEL_ID="google/gemma-3-4b-it"
     OUTPUT_NAME="Gemma3"
     ;;
-  internvl2|internvl2-2b|OpenGVLab/InternVL2-2B|internvl2_2b)
+  internvl2_2B|internvl2-2b|OpenGVLab/InternVL2-2B|internvl2_2b)
     MODEL_ID="OpenGVLab/InternVL2-2B"
     OUTPUT_NAME="InternVL2-2B"
+    ;;
+  internvl2_1B|internvl2-1b|OpenGVLab/InternVL2-1B|internvl2_1b)
+    MODEL_ID="OpenGVLab/InternVL2-1B"
+    OUTPUT_NAME="InternVL2-1B"
     ;;
   -h|--help)
     usage

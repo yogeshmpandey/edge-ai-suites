@@ -2,6 +2,8 @@
 
 Deploy AI-powered captioning for live RTSP video streams with Intel DLStreamer and OpenVINO Vision Language Models (VLMs).
 
+![Overview](docs/user-guide/_assets/demo.gif)
+
 ## Learn More
 
 - [Overview](docs/user-guide/Overview.md)

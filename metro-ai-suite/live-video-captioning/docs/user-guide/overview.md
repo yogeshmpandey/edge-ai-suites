@@ -22,7 +22,7 @@ Deploy AI-powered captioning for live video streams with Intel DLStreamer and Op
 
 ### Key Features
 
-**Multi-Model Support**: Switch between VLMs (InternVL2, Gemma-3, MiniCPM-V, Phi-4) with automatic model discovery from `ov_models/`.
+**Multi-Model Support**: Switch between VLMs (InternVL2, Gemma-3, etc.) with automatic model discovery from `ov_models/`.
 
 **Real-time Streaming**: WebRTC-based low-latency preview video delivery.
 

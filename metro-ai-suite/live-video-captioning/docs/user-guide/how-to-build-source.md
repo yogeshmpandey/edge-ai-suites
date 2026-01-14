@@ -35,5 +35,4 @@ To build the Docker image for `Live Captioning` application, follow these steps:
 
 
 Notes:
-- When running locally, you may still want the other services (pipeline server, signaling, TURN, collector) running via Docker Compose.
-- Ensure your `.env` is configured, especially `PIPELINE_SERVER_URL` and `HOST_IP`.
+- Ensure your `.env` is configured, especially `HOST_IP`.

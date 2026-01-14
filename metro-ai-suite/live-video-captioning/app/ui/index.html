@@ -16,7 +16,7 @@
                     stroke-width="2" />
                 <text x="6" y="15.5" font-size="8" font-weight="bold" fill="currentColor">CC</text>
             </svg>
-            Live Video Captioning
+            <span id="appTitle">Live Video Captioning</span>
         </h2>
         <button id="themeToggle" class="icon-button" type="button" aria-label="Switch theme">
             <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -42,13 +42,12 @@
                 <form id="pipelineForm" class="controls">
                     <label class="field">
                         <span class="label">Enter RTSP URL</span>
-                        <input id="rtspInput" class="input" type="text"
-                            value="rtsp://10.223.24.242:8555/garage_restream" />
+                        <input id="rtspInput" class="input" type="text" placeholder="Enter RTSP link" />
                     </label>
                     <label class="field">
                         <span class="label">Enter Prompt</span>
                         <textarea id="promptInput" class="input textarea"
-                            rows="2">Describe what you see in the image in one sentence.</textarea>
+                            rows="2">Describe what you see in one sentence.</textarea>
                     </label>
                     <div class="field-row">
                         <label class="field">

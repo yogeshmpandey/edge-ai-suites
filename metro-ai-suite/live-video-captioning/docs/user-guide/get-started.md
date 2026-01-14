@@ -122,5 +122,6 @@ For alternative ways to setup the application, see:
 ## Supporting Resources
 
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
+- [Agent Mode](./agent-mode.md) - Enable alert-style responses for binary detection scenarios
 - [API Reference](./api-reference.md)
 - [Known Issues](./known-issues.md)

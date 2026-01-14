@@ -9,8 +9,8 @@ const ThemeManager = (function() {
             const saved = localStorage.getItem(THEME_KEY);
             if (saved === 'light' || saved === 'dark') return saved;
         } catch (_err) {}
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
-        return 'dark';
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        return 'light';
     }
 
     function applyTheme(theme, themeToggle) {

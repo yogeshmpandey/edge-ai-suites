@@ -9,8 +9,9 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from ..config import PIPELINE_NAME, PIPELINE_SERVER_URL, POLL_INTERVAL
+from ..config import AGENT_MODE, PIPELINE_NAME, PIPELINE_SERVER_URL, POLL_INTERVAL
 from ..models import RunInfo, StartRunRequest
+from ..models.requests import DEFAULT_PROMPT
 from ..services import http_json, read_latest_line
 from ..state import RUNS
 
@@ -55,7 +56,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         },
         "parameters": {
             "captioner-prompt": (req.prompt or "").strip()
-            or "Describe what you see in the image in one sentence.",
+            or DEFAULT_PROMPT,
             "captioner_model_name": (req.modelName or "").strip()
             or "OpenGVLab/InternVL2-2B",
             "captioner_max_new_tokens": req.maxNewTokens,
@@ -88,7 +89,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         modelName=model_name,
         pipelineName=pipeline_name,
         runName=run_name,
-        prompt=(req.prompt or "").strip() or "Describe what you see in the image in one sentence.",
+        prompt=(req.prompt or "").strip() or DEFAULT_PROMPT,
         maxTokens=req.maxNewTokens,
         rtspUrl=req.rtspUrl,
     )

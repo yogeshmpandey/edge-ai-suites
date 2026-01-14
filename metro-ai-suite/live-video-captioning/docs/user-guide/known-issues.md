@@ -7,7 +7,6 @@ Symptoms:
 
 Checks:
 - Verify `HOST_IP` in `.env` is reachable from the browser client.
-- If clients are remote or behind NAT, ensure TURN credentials are configured (`MTX_WEBRTCICESERVERS2_0_USERNAME`, `MTX_WEBRTCICESERVERS2_0_PASSWORD`).
 - Confirm firewall rules allow the configured ports.
 
 ## No models in dropdown
