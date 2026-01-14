@@ -114,6 +114,7 @@ services:
       - app_network
 
   video-caption-service:
+    image: ${REGISTRY:-}video-caption-service:${TAG:-latest}
     build: ./app
     container_name: video-caption-service
     environment:
