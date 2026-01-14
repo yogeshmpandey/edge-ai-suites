@@ -268,10 +268,16 @@
         const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
         const maxTokensParsed = Number.parseInt(maxTokensRaw, 10);
         const maxTokens = Number.isFinite(maxTokensParsed) && maxTokensParsed > 0 ? maxTokensParsed : 70;
-        const detectionModelName = (els.detectionModelNameSelect?.value || '').trim();
+        const isDetectionEnabled = Boolean(els.enableDetectionCheckBox?.checked ?? els.enabledDetectionCheckBox?.checked);
+        const detectionModelNameRaw = (els.detectionModelNameSelect?.value || '').trim();
         const detectionThresholdRaw = (els.detectionThresholdInput?.value || '').toString().trim();
         const detectionThresholdParsed = Number.parseFloat(detectionThresholdRaw);
-        const detectionThreshold = Number.isFinite(detectionThresholdParsed) && detectionThresholdParsed >= 0 && detectionThresholdParsed <= 1 ? detectionThresholdParsed : 0.5;
+        const detectionModelName = isDetectionEnabled ? detectionModelNameRaw || null : null;
+        const detectionThreshold = isDetectionEnabled
+            ? (Number.isFinite(detectionThresholdParsed) && detectionThresholdParsed >= 0 && detectionThresholdParsed <= 1
+                ? detectionThresholdParsed
+                : 0.5)
+            : null;
 
         // Process optional run name
         const rawRunName = (els.runNameInput?.value || '').trim();
@@ -296,6 +302,7 @@
                 pipelineId: data.pipelineId,
                 peerId: data.peerId,
                 metadataFile: data.metadataFile,
+                isEnabledDetection: isDetectionEnabled,
                 detectionModelName: detectionModelName,
                 detectionThreshold: detectionThreshold,
                 modelName: modelName,

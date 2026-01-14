@@ -47,10 +47,17 @@ const RunCardComponent = (function () {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                 ${run.modelName || 'Unknown'}
             </span>
-            <span class="chip">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
-                ${run.detectionModelName || 'No Detection'}
-            </span>
+            ${run.isEnabledDetection ? `
+                <span class="chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                    <path d="M16 2v4"></path>
+                    <path d="M8 2v4"></path>
+                    <path d="M3 10h18"></path>
+                </svg>
+                ${run.detectionModelName}
+                </span>
+            ` : ``}
         `;
 
         // Info button with tooltip
@@ -69,10 +76,10 @@ const RunCardComponent = (function () {
             <div class="info-tooltip-row"><strong>RTSP URL:</strong> <span>${run.rtspUrl || 'N/A'}</span></div>
             <div class="info-tooltip-row"><strong>Max Tokens:</strong> <span>${run.maxTokens || 'N/A'}</span></div>
             <div class="info-tooltip-row"><strong>Prompt:</strong> <span class="info-tooltip-prompt">${run.prompt || 'N/A'}</span></div>
-            ${run.detectionModelName
+            ${(run.isEnabledDetection && (run.detectionModelName ?? '') !== '')
                 ? `<div class="info-tooltip-row"><strong>Detection Model:</strong> <span>${run.detectionModelName}</span></div>`
                 : ''}
-            ${(run.detectionThreshold ?? '') !== ''
+            ${(run.isEnabledDetection && (run.detectionThreshold ?? '') !== '')
                 ? `<div class="info-tooltip-row"><strong>Detection Threshold:</strong> <span>${run.detectionThreshold}</span></div>`
                 : ''}
         `;
