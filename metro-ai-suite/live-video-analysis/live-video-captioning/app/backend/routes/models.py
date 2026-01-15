@@ -9,7 +9,7 @@ from ..services import discover_models, discover_detection_models
 router = APIRouter(prefix="/api", tags=["models"])
 
 
-@router.get("/models", response_model=ModelList)
+@router.get("/vlm-models", response_model=ModelList)
 async def list_models() -> ModelList:
     """List available VLM models from the models directory."""
     models = discover_models(MODELS_DIR)

@@ -5,11 +5,11 @@ from ..config import PIPELINE_NAME, PIPELINE_SERVER_URL, ENABLE_DETECTION_PIPELI
 from .http_client import http_json
 
 
-def discover_models(root: Path) -> list[str]:
+def discover_models(root: Path) -> List[str]:
     """Discover available models from the models directory."""
     if not root.exists():
         return []
-    models: list[str] = []
+    models: List[str] = []
     for entry in sorted(root.iterdir()):
         if entry.name.startswith("."):
             continue
@@ -22,11 +22,11 @@ def discover_models(root: Path) -> list[str]:
     return models
 
 
-def discover_detection_models(root: Path) -> list[str]:
+def discover_detection_models(root: Path) -> List[str]:
     """Discover available detection models from the detection models directory."""
     if not root.exists():
         return []
-    models: list[str] = []
+    models: List[str] = []
     for entry in sorted(root.iterdir()):
         if entry.name.startswith("."):
             continue
@@ -62,14 +62,14 @@ def is_detection_pipeline(item: dict) -> bool:
 
 def discover_pipelines_remote() -> List[Dict[str, str]]:
     """
-    Discover available pipelines from the pipeline server and return a list of dicts:
+    Discover available pipelines from the pipeline server and return a List of dicts:
     {
       "pipeline_name": <name>,
       "pipeline_type": "detection" | "non-detection"
     }
 
     Behavior:
-    - Normalizes payload that may be list[str], list[dict], or dict with 'pipelines'/'items'
+    - Normalizes payload that may be List[str], List[dict], or dict with 'pipelines'/'items'
     - Classifies using is_detection_pipeline(item) when item is a dict
     - Defaults string-only items to 'non-detection' (no metadata to inspect)
     - Optionally filters out detection pipelines when ENABLE_DETECTION_PIPELINE is False
@@ -79,15 +79,15 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
         raw = http_json("GET", url)
         payload = json.loads(raw)
 
-        # Normalize to a list of items
-        if isinstance(payload, list):
+        # Normalize to a List of items
+        if isinstance(payload, List):
             items = payload
         elif isinstance(payload, dict):
             items = payload.get("pipelines") or payload.get("items") or []
         else:
             items = []
 
-        if not isinstance(items, list):
+        if not isinstance(items, List):
             # Fallback to a single default pipeline
             results = [{
                 "pipeline_name": PIPELINE_NAME,

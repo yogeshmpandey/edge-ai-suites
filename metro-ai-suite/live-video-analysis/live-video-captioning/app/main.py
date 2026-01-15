@@ -12,6 +12,7 @@ from backend.routes import (
     models_router,
     pipelines_router,
     runs_router,
+    health_router,
 )
 
 app = FastAPI(title="Live Video Captioning API")
@@ -22,6 +23,7 @@ app.include_router(metrics_router)
 app.include_router(models_router)
 app.include_router(pipelines_router)
 app.include_router(runs_router)
+app.include_router(health_router)
 
 
 @app.get("/")

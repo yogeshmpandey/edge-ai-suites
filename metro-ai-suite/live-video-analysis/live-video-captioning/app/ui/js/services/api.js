@@ -9,7 +9,7 @@ const ApiService = (function () {
 
     async function fetchModels() {
         try {
-            const resp = await fetch('/api/models');
+            const resp = await fetch('/api/vlm-models');
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             return data?.models || [DEFAULT_MODEL];
@@ -85,8 +85,35 @@ const ApiService = (function () {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
         });
+
         const data = await resp.json().catch(async () => ({ message: await resp.text() }));
-        if (!resp.ok) throw new Error(data?.message || data?.detail?.message || resp.statusText);
+
+        if (!resp.ok) {
+            let errorMessage = resp.statusText;
+
+            // Handle FastAPI validation errors (status 422)
+            if (resp.status === 422 && data?.detail && Array.isArray(data.detail)) {
+                // Extract validation error messages
+                const validationErrors = data.detail.map(error => {
+                    const field = error.loc ? error.loc[error.loc.length - 1] : 'unknown field';
+                    return `${field}: ${error.msg}`;
+                }).join(', ');
+                errorMessage = validationErrors;
+            }
+            // Handle other error formats
+            else if (data?.message) {
+                errorMessage = data.message;
+            }
+            else if (data?.detail?.message) {
+                errorMessage = data.detail.message;
+            }
+            else if (typeof data?.detail === 'string') {
+                errorMessage = data.detail;
+            }
+
+            throw new Error(errorMessage);
+        }
+
         return data;
     }
 
