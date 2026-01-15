@@ -3,6 +3,6 @@
 
 # Pydantic models for API request/response
 from .requests import StartRunRequest
-from .responses import RunInfo, ModelList, PipelineList
+from .responses import RunInfo, ModelList, PipelineInfo, PipelineInfoList
 
-__all__ = ["StartRunRequest", "RunInfo", "ModelList", "PipelineList"]
+__all__ = ["StartRunRequest", "RunInfo", "ModelList", "PipelineInfo", "PipelineInfoList"]

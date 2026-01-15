@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-
+from typing import List, Dict
 from ..config import PIPELINE_NAME, PIPELINE_SERVER_URL, ENABLE_DETECTION_PIPELINE
 from .http_client import http_json
 
@@ -59,8 +59,21 @@ def is_detection_pipeline(item: dict) -> bool:
     return False
 
 
-def discover_pipelines_remote() -> list[str]:
-    """Discover available pipelines from the pipeline server."""
+
+def discover_pipelines_remote() -> List[Dict[str, str]]:
+    """
+    Discover available pipelines from the pipeline server and return a list of dicts:
+    {
+      "pipeline_name": <name>,
+      "pipeline_type": "detection" | "non-detection"
+    }
+
+    Behavior:
+    - Normalizes payload that may be list[str], list[dict], or dict with 'pipelines'/'items'
+    - Classifies using is_detection_pipeline(item) when item is a dict
+    - Defaults string-only items to 'non-detection' (no metadata to inspect)
+    - Optionally filters out detection pipelines when ENABLE_DETECTION_PIPELINE is False
+    """
     url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines"
     try:
         raw = http_json("GET", url)
@@ -75,25 +88,58 @@ def discover_pipelines_remote() -> list[str]:
             items = []
 
         if not isinstance(items, list):
-            return [PIPELINE_NAME]
+            # Fallback to a single default pipeline
+            results = [{
+                "pipeline_name": PIPELINE_NAME,
+                "pipeline_type": "non-detection"
+            }]
+            # Optional filtering: if detection were disabled, 'non-detection' remains
+            return results
 
-        names: List[str] = []
+        results: List[Dict[str, str]] = []
+
         for item in items:
-            # Determine string name to return
+            # Determine pipeline name
             if isinstance(item, str):
                 name = item
-            elif isinstance(item, dict) and isinstance(item.get("version"), str):
-                name = item["version"]
+                pipeline_type = "non-detection"  # No metadata available
+            elif isinstance(item, dict):
+                # Preserve your original preference for 'version' as name
+                if isinstance(item.get("version"), str):
+                    name = item["version"]
+                elif isinstance(item.get("name"), str):
+                    name = item["name"]
+                elif isinstance(item.get("id"), str):
+                    name = item["id"]
+                else:
+                    # No usable identifier
+                    continue
+
+                pipeline_type = "detection" if is_detection_pipeline(item) else "non-detection"
             else:
                 continue
 
-            # Apply filtering only when detection is disabled
-            if not ENABLE_DETECTION_PIPELINE and is_detection_pipeline(item):
-                continue
-            names.append(name)
+            results.append({
+                "pipeline_name": name,
+                "pipeline_type": pipeline_type
+            })
 
-        return names or [PIPELINE_NAME]
+        # Optional filtering based on your existing flag
+        if not ENABLE_DETECTION_PIPELINE:
+            results = [r for r in results if r["pipeline_type"] != "detection"]
+
+        # Fallback if nothing usable left
+        if not results:
+            return [{
+                "pipeline_name": PIPELINE_NAME,
+                "pipeline_type": "non-detection"
+            }]
+
+        return results
 
     except Exception:
-        return [PIPELINE_NAME]
-    return [PIPELINE_NAME]
+        # Conservative fallback
+        return [{
+            "pipeline_name": PIPELINE_NAME,
+            "pipeline_type": "non-detection"
+        }]

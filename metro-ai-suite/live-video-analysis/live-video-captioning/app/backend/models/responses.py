@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Optional
+from typing import Optional, List, Literal
 from pydantic import BaseModel
 
 
@@ -22,5 +22,10 @@ class ModelList(BaseModel):
     models: list[str]
 
 
-class PipelineList(BaseModel):
-    pipelines: list[str]
+class PipelineInfo(BaseModel):
+    pipeline_name: str
+    pipeline_type: Literal["detection", "non-detection"]
+
+
+class PipelineInfoList(BaseModel):
+    pipelines: List[PipelineInfo]
