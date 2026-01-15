@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import asyncio
 import json
 import re
@@ -5,10 +8,8 @@ import time
 import uuid
 from pathlib import Path
 from typing import AsyncGenerator
-
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-
 from ..config import AGENT_MODE, PIPELINE_NAME, PIPELINE_SERVER_URL, POLL_INTERVAL
 from ..models import RunInfo, StartRunRequest
 from ..models.requests import DEFAULT_PROMPT

@@ -1,5 +1,7 @@
-from fastapi import APIRouter
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
+from fastapi import APIRouter
 from ..config import MODELS_DIR, DETECTION_MODELS_DIR
 from ..models import ModelList
 from ..services import discover_models, discover_detection_models

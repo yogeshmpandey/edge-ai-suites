@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Optional
 from pydantic import BaseModel, Field
 from ..config import AGENT_MODE

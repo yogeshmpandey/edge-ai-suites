@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 # API route handlers
 from .config import router as config_router
 from .metrics import router as metrics_router
