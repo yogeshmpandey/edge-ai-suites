@@ -42,6 +42,17 @@ User can enable object detection in the pipeline by following the steps below:
 
 3. Then, now you are ready to deploy the pipeline which enabled with object detection model. You may find those pipelines available under the `Select Pipelines` dropdown menu.
 
+## Troubleshooting
+
+## No detection models in dropdown
+
+Symptoms:
+- Detection Model list is empty in the UI.
+
+Checks:
+- Ensure `ov_detection_models/` contains at least one model directory with OpenVINO IR files.
+- If you downloaded models, re-run the stack so the service rescans.
+
 ## Next Steps
 
 - [Get Started](./get-started.md) - Basic setup and configuration

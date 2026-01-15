@@ -24,8 +24,8 @@ Symptoms:
 - Starting a run fails; backend reports it cannot reach the pipeline server.
 
 Checks:
-- Ensure the `video-ingestion` service is running.
-- Verify `PIPELINE_SERVER_URL` (defaults to `http://video-ingestion:8080`).
+- Ensure the `dlstreamer-pipeline-server` service is running.
+- Verify `PIPELINE_SERVER_URL` (defaults to `http://dlstreamer-pipeline-server:8080`).
 
 ## Port conflicts
 
