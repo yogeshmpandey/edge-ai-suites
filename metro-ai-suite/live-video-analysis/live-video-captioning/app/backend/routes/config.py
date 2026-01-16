@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 from fastapi import APIRouter, Response
 from ..config import AGENT_MODE, DEFAULT_RTSP_URL, METADATA_FILE, PEER_ID, SIGNALING_URL, ENABLE_DETECTION_PIPELINE

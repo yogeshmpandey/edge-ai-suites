@@ -17,7 +17,6 @@
         pipelineInfo: document.getElementById('pipelineInfo'),
         runsContainer: document.getElementById('runsContainer'),
         themeToggle: document.getElementById('themeToggle'),
-        enableDetectionCheckBox: document.getElementById('enableDetectionCheckBox'),
         detectionModelField: document.getElementById('detectionModelField'),
         detectionThresholdField: document.getElementById('detectionThresholdField'),
         detectionModelNameSelect: document.getElementById('detectionModelNameSelect'),
@@ -27,23 +26,60 @@
     const state = { selectedRunId: null, runs: new Map() };
 
     (function initDetectionVisibility() {
-        if (!els.enableDetectionCheckBox) return;
-
-        // Find the wrapping <div class="field"> for the "Detection Properties" checkbox
-        const detectionFieldContainer = els.enableDetectionCheckBox.closest('.field');
-        if (!detectionFieldContainer) return;
-
-        // Toggle visibility based on cfg.enableDetectionPipeline
         const enabledByFlag = cfg.enableDetectionPipeline === true;
-        detectionFieldContainer.style.display = enabledByFlag ? '' : 'none';
-
-        // If the feature is disabled, also make sure dependent fields are hidden
+        const detectionSection = document.getElementById('detectionSection');
         if (!enabledByFlag) {
-            if (els.detectionModelField) els.detectionModelField.style.display = 'none';
-            if (els.detectionThresholdField) els.detectionThresholdField.style.display = 'none';
+            setSectionVisible(detectionSection, false);
         }
     })();
 
+    function setSectionVisible(el, show) {
+        if (!el) return;
+        el.style.display = show ? '' : 'none';
+    }
+
+    function showDetectionFields(show) {
+        const detectionSection = document.getElementById('detectionSection');
+        const visibleByFlag = cfg.enableDetectionPipeline === true; // respects global flag
+        const shouldShow = visibleByFlag && !!show;
+
+        setSectionVisible(detectionSection, shouldShow);
+
+        // Disable inputs when hidden to avoid accidental submission
+        const toDisableSelectors = [
+            '#detectionModelNameSelect',
+            '#detectionThresholdInput'
+        ];
+        for (const sel of toDisableSelectors) {
+            const el = document.querySelector(sel);
+            if (el) el.disabled = !shouldShow;
+        }
+
+        if (shouldShow) {
+            loadDetectionModels();
+        }
+    }
+
+    function toggleDetectionFieldsByText() {
+        const select = els.pipelineSelect;
+        if (!select) return;
+
+        const selectedOpt = select.options[select.selectedIndex];
+        const label = selectedOpt?.textContent || '';
+        const isDetection = label.includes('[Detection]');
+
+        showDetectionFields(isDetection);
+    }
+
+    function getSelectedPipelineType() {
+        const select = els.pipelineSelect;
+        if (!select || select.selectedIndex < 0) return 'non-detection';
+
+        const opt = select.options[select.selectedIndex];
+        // Preferred: data attribute set by setPipelineOptions
+        const fromData = opt?.dataset?.pipelineType;
+        if (fromData === 'detection' || fromData === 'non-detection') return fromData;
+    }
 
     function resolveSignalingBase(url) {
         if (!url) return '';
@@ -97,14 +133,39 @@
         const select = els.pipelineSelect;
         if (!select) return;
         select.innerHTML = '';
-        const list = Array.isArray(pipelines) && pipelines.length ? pipelines : [ApiService.DEFAULT_PIPELINE];
-        for (const name of list) {
+
+        const list = Array.isArray(pipelines) && pipelines.length
+            ? pipelines
+            : [{ pipeline_name: ApiService.DEFAULT_PIPELINE, pipeline_type: 'non-detection' }];
+
+        const map = new Map();
+        for (const it of list) {
+            if (!it || typeof it !== 'object' || typeof it.pipeline_name !== 'string') continue;
+            const t = it.pipeline_type === 'detection' ? 'detection' : 'non-detection';
+            map.set(it.pipeline_name, { pipeline_name: it.pipeline_name, pipeline_type: t });
+        }
+        const normalized = Array.from(map.values()).sort((a, b) => {
+            if (a.pipeline_type !== b.pipeline_type) {
+                return a.pipeline_type === 'non-detection' ? -1 : 1;
+            }
+            return a.pipeline_name.localeCompare(b.pipeline_name);
+        });
+
+        for (const { pipeline_name, pipeline_type } of normalized) {
             const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
+            opt.value = pipeline_name;
+            opt.textContent = pipeline_type === 'detection'
+                ? `${pipeline_name}  [Detection]`
+                : pipeline_name;
+            opt.dataset.pipelineType = pipeline_type;
             select.appendChild(opt);
         }
-        select.value = list[0];
+
+        if (normalized.length > 0) {
+            select.value = normalized[0].pipeline_name;
+        }
+
+        toggleDetectionFieldsByText();
     }
 
     async function loadModels() {
@@ -138,9 +199,11 @@
             const pipelines = await ApiService.fetchPipelines();
             setPipelineOptions(pipelines);
             SettingsManager.restoreSelectValues(els);
+            toggleDetectionFieldsByText();
         } catch (_err) {
             setPipelineOptions([ApiService.DEFAULT_PIPELINE]);
             SettingsManager.restoreSelectValues(els);
+            toggleDetectionFieldsByText();
         }
     }
 
@@ -269,11 +332,14 @@
         const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
         const maxTokensParsed = Number.parseInt(maxTokensRaw, 10);
         const maxTokens = Number.isFinite(maxTokensParsed) && maxTokensParsed > 0 ? maxTokensParsed : 70;
-        const isDetectionEnabled = Boolean(els.enableDetectionCheckBox?.checked ?? els.enabledDetectionCheckBox?.checked);
+        const selectedPipelineType = getSelectedPipelineType(); // 'detection' | 'non-detection'
+        const isDetectionEnabled = (selectedPipelineType === 'detection');
         const detectionModelNameRaw = (els.detectionModelNameSelect?.value || '').trim();
         const detectionThresholdRaw = (els.detectionThresholdInput?.value || '').toString().trim();
         const detectionThresholdParsed = Number.parseFloat(detectionThresholdRaw);
-        const detectionModelName = isDetectionEnabled ? detectionModelNameRaw || null : null;
+
+        // Derive detection fields only when the selected pipeline is detection
+        const detectionModelName = isDetectionEnabled ? (detectionModelNameRaw || null) : null;
         const detectionThreshold = isDetectionEnabled
             ? (Number.isFinite(detectionThresholdParsed) && detectionThresholdParsed >= 0 && detectionThresholdParsed <= 1
                 ? detectionThresholdParsed
@@ -328,27 +394,6 @@
         }
     }
 
-    function toggleDetection() {
-        const visibleByFlag = cfg.enableDetectionPipeline === true;
-
-        // If the feature is disabled globally, keep dependent fields hidden and skip loading
-        if (!visibleByFlag) {
-            if (els.detectionThresholdField) els.detectionThresholdField.style.display = 'none';
-            if (els.detectionModelField) els.detectionModelField.style.display = 'none';
-            return;
-        }
-
-        const show = els.enableDetectionCheckBox.checked;
-        if (els.detectionThresholdField) els.detectionThresholdField.style.display = show ? 'block' : 'none';
-        if (els.detectionModelField) els.detectionModelField.style.display = show ? 'block' : 'none';
-
-        // Load detection models only when the user enables detection
-        if (show) {
-            loadDetectionModels();
-        }
-    }
-
-
     function init() {
         // Set application title based on agent mode
         const appTitleEl = document.getElementById('appTitle');
@@ -381,7 +426,10 @@
         SettingsManager.restoreSettings(els, cfg);
         SettingsManager.setupSettingsPersistence(els);
 
-        if (els.enableDetectionCheckBox) els.enableDetectionCheckBox.addEventListener('change', toggleDetection);
+        if (els.pipelineSelect) {
+            els.pipelineSelect.addEventListener('change', toggleDetectionFieldsByText);
+        }
+
         loadModels();
         loadPipelines();
         initCollectorMetrics();

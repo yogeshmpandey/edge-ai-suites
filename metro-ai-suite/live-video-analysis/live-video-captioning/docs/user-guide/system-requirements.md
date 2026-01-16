@@ -24,7 +24,7 @@ This page summarizes the recommended environment for running Live Video Captioni
 ## Software Requirements
 
 - Docker Engine and Docker Compose
-- RTSP source reachable from the `video-ingestion` container
+- RTSP source reachable from the `dlstreamer-pipeline-server` container
 
 ## Network / Ports
 

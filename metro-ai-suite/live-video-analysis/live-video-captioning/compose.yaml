@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 name: ${PROJECT_NAME:-live-video-caption}
 services:
   dlstreamer-pipeline-server:
@@ -81,9 +84,7 @@ services:
       - MTX_RTSP=no
       - MTX_RTMP=no
       - MTX_SRT=no
-      - MTX_RTMP=no
       - MTX_HLS=no
-      - MTX_SRT=no
       - MTX_WEBRTCTRACKGATHERTIMEOUT=30s
       - MTX_WEBRTCADDRESS=:8889
       - MTX_WEBRTCICESERVERS2_0_URL=turn:${HOST_IP:-localhost}:3478
@@ -138,6 +139,12 @@ services:
       - "./ov_detection_models:/app/ov_detection_models:ro"
     ports:
       - "${DASHBOARD_PORT:-4173}:4173"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:4173/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
       - dlstreamer-pipeline-server
       - mediamtx

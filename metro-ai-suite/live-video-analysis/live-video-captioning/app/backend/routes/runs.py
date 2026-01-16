@@ -1,14 +1,16 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import asyncio
 import json
+import logging
 import re
 import time
 import uuid
 from pathlib import Path
 from typing import AsyncGenerator
-
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-
 from ..config import AGENT_MODE, PIPELINE_NAME, PIPELINE_SERVER_URL, POLL_INTERVAL
 from ..models import RunInfo, StartRunRequest
 from ..models.requests import DEFAULT_PROMPT
@@ -16,7 +18,7 @@ from ..services import http_json, read_latest_line
 from ..state import RUNS
 
 router = APIRouter(prefix="/api", tags=["runs"])
-
+logger = logging.getLogger("app.runs")
 
 @router.post("/runs")
 async def start_run(req: StartRunRequest) -> RunInfo:
@@ -157,7 +159,7 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
 
         except Exception as e:
             # Log error but don't break the generator
-            print(f"Error in multiplexed metadata generator: {e}")
+            logger.error(f"Error in multiplexed metadata generator: {e}")
             yield f": error - {e}\n\n"
 
         await asyncio.sleep(POLL_INTERVAL)
@@ -166,7 +168,7 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
 @router.get("/runs/metadata-stream")
 async def multiplexed_metadata_stream() -> StreamingResponse:
     """Multiplexed SSE stream that provides metadata for all active runs."""
-    print("Multiplexed metadata stream requested")
+    logger.info("Multiplexed metadata stream requested")
     headers = {
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",

@@ -59,72 +59,6 @@
                             <input id="maxTokensInput" class="input" type="number" min="1" max="4096" value="70" />
                         </label>
                     </div>
-                    <div class="field">
-                        <span class="label">
-                            <label for="enableDetectionCheckBox" class="text-label">Detection Properties</label>
-                            <span class="tooltip-wrap">
-                                <button type="button" class="tooltip-icon"
-                                    aria-label="More info about Detection Properties"
-                                    aria-describedby="detection-tooltip">
-                                    <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"
-                                        focusable="false">
-                                        <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
-                                        <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                    </svg>
-                                </button>
-                                <div id="detection-tooltip" role="tooltip" class="tooltip top-right-float" hidden>
-                                    Configuration for gvadetect detection element.
-                                </div>
-                            </span>
-                            <!-- Checkbox -->
-                            <input type="checkbox" id="enableDetectionCheckBox" style="margin-left: 8px" />
-                        </span>
-                    </div>
-                    <div class="field-row">
-                        <label class="field" id="detectionModelField" style="display: none;">
-                            <span class="label">
-                                Detection Model
-                                <span class="tooltip-wrap">
-                                    <button type="button" class="tooltip-icon"
-                                        aria-label="More info about Detection Model"
-                                        aria-describedby="detection-model-tooltip">
-                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
-                                            aria-hidden="true" focusable="false">
-                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
-                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                        </svg>
-                                    </button>
-                                    <div id="detection-model-tooltip" role="tooltip" class="tooltip top-right-float"
-                                        hidden>
-                                        Model used for object detection.
-                                    </div>
-                                </span>
-                            </span>
-                            <select id="detectionModelNameSelect" class="input"></select>
-                        </label>
-                        <label class="field" id="detectionThresholdField" style="display: none;">
-                            <span class="label">
-                                Detection Threshold
-                                <span class="tooltip-wrap">
-                                    <button type="button" class="tooltip-icon"
-                                        aria-label="More info about Detection Threshold"
-                                        aria-describedby="detection-threshold-tooltip">
-                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
-                                            aria-hidden="true" focusable="false">
-                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
-                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                        </svg>
-                                    </button>
-                                    <div id="detection-threshold-tooltip" role="tooltip" class="tooltip top-right"
-                                        hidden>
-                                        Threshold for detection results. Value between 0 and 1.
-                                    </div>
-                                </span>
-                            </span>
-                            <input id="detectionThresholdInput" class="input" type="number" min="0" max="1" step="0.1"
-                                value="0.5" />
-                        </label>
-                    </div>
                     <div class="field-row">
                         <label class="field">
                             <span class="label">Select Pipeline</span>
@@ -136,6 +70,77 @@
                                 placeholder="Enter Run Name (Optional)" />
                         </label>
                     </div>
+                    <div id="detectionSection" class="field-group" style="display: none;">
+                        <div class="field">
+                            <span class="label">
+                                <label class="text-label">Detection Properties</label>
+                                <span class="tooltip-wrap">
+                                    <button type="button" class="tooltip-icon"
+                                        aria-label="More info about Detection Properties"
+                                        aria-describedby="detection-tooltip">
+                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
+                                            aria-hidden="true" focusable="false">
+                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
+                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
+                                        </svg>
+                                    </button>
+                                    <div id="detection-tooltip" role="tooltip" class="tooltip top-right-float" hidden>
+                                        Configuration for gvadetect detection element.
+                                    </div>
+                                </span>
+                            </span>
+                        </div>
+
+                        <div class="field-row">
+                            <label class="field" id="detectionModelField">
+                                <span class="label">
+                                    Detection Model
+                                    <span class="tooltip-wrap">
+                                        <button type="button" class="tooltip-icon"
+                                            aria-label="More info about Detection Model"
+                                            aria-describedby="detection-model-tooltip">
+                                            <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
+                                                aria-hidden="true" focusable="false">
+                                                <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15">
+                                                </circle>
+                                                <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
+                                            </svg>
+                                        </button>
+                                        <div id="detection-model-tooltip" role="tooltip" class="tooltip top-right-float"
+                                            hidden>
+                                            Model used for object detection.
+                                        </div>
+                                    </span>
+                                </span>
+                                <select id="detectionModelNameSelect" class="input"></select>
+                            </label>
+
+                            <label class="field" id="detectionThresholdField">
+                                <span class="label">
+                                    Detection Threshold
+                                    <span class="tooltip-wrap">
+                                        <button type="button" class="tooltip-icon"
+                                            aria-label="More info about Detection Threshold"
+                                            aria-describedby="detection-threshold-tooltip">
+                                            <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
+                                                aria-hidden="true" focusable="false">
+                                                <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15">
+                                                </circle>
+                                                <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
+                                            </svg>
+                                        </button>
+                                        <div id="detection-threshold-tooltip" role="tooltip" class="tooltip top-right"
+                                            hidden>
+                                            Threshold for detection results. Value between 0 and 1.
+                                        </div>
+                                    </span>
+                                </span>
+                                <input id="detectionThresholdInput" class="input" type="number" min="0" max="1"
+                                    step="0.1" value="0.5" />
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="field-row" style="justify-content: space-between; align-items: center;">
                         <div class="status" style="margin: 0; flex-shrink: 0;">
                             <span class="dot active"></span>

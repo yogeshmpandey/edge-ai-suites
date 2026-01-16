@@ -9,7 +9,7 @@ In Agent Mode, the application:
 - Changes the default prompt to: **"Is there an accident in the stream? Just Answer with a Yes or No"**
 - Applies distinct visual styling to "Yes" and "No" responses in the caption display
 - Updates the application title to "Live Video Captioning and Alerts"
-- Provides clear alert indicators for detections (Green vs Red) 
+- Provides clear alert indicators for detections (Green vs Red)
 
 This mode is particularly useful for:
 
@@ -67,7 +67,7 @@ Example prompts for different scenarios:
 2. Ensure Docker Compose picks up the environment variable:
    ```bash
    docker compose down
-   docker compose up 
+   docker compose up
    ```
 3. Check the application title - it should display "Live Video Captioning and Alerts"
 

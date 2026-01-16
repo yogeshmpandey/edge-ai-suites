@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +12,7 @@ from backend.routes import (
     models_router,
     pipelines_router,
     runs_router,
+    health_router,
 )
 
 app = FastAPI(title="Live Video Captioning API")
@@ -19,6 +23,7 @@ app.include_router(metrics_router)
 app.include_router(models_router)
 app.include_router(pipelines_router)
 app.include_router(runs_router)
+app.include_router(health_router)
 
 
 @app.get("/")
