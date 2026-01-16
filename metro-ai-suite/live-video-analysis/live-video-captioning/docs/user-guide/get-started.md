@@ -81,7 +81,7 @@ By following this guide, you will learn how to:
 6. **Start the Application**:
     Start the application using Docker Compose tool:
      ```bash
-     docker compose up --build
+     docker compose up
      ```
 
 7. **Access the Application**:
