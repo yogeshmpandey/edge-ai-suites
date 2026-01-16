@@ -9,7 +9,7 @@ class RunInfo(BaseModel):
     runId: str
     pipelineId: str
     peerId: str
-    metadataFile: str
+    mqttTopic: str
     modelName: Optional[str] = None
     pipelineName: Optional[str] = None
     runName: Optional[str] = None

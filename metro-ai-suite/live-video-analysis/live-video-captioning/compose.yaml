@@ -3,6 +3,25 @@
 
 name: ${PROJECT_NAME:-live-video-caption}
 services:
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    hostname: mqtt-broker
+    container_name: mqtt-broker
+    environment:
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,${NO_PROXY}
+      - http_proxy=$http_proxy
+      - HTTP_PROXY=$http_proxy
+      - https_proxy=$https_proxy
+      - HTTPS_PROXY=$https_proxy
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped
+    networks:
+      - app_network
+
   dlstreamer-pipeline-server:
     image: intel/dlstreamer-pipeline-server:2025.2.0-ubuntu24
     hostname: dlstreamer-pipeline-server
@@ -15,18 +34,19 @@ services:
     entrypoint: [ "./run.sh" ]
     depends_on:
       - mediamtx
+      - mqtt-broker
     ports:
       - "${EVAM_HOST_PORT:-8040}:${EVAM_PORT:-8080}"
       - "8556:8554"
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
       - HTTPS_PROXY=$https_proxy
       - RUN_MODE=EVA
-      - ENABLE_RTSP=true
+      - ENABLE_RTSP=false
       - ENABLE_WEBRTC=true
       - REST_SERVER_PORT=8554
       # Default Detection and Classification Device
@@ -39,6 +59,10 @@ services:
       - APPEND_PIPELINE_NAME_TO_PUBLISHER_TOPIC=false
       - REST_SERVER_PORT=${EVAM_PORT:-8080}
       - WEBRTC_SIGNALING_SERVER=http://mediamtx:${WHIP_SERVER_PORT:-8889}
+      - MQTT_HOST=10.223.23.199
+      - MQTT_PORT=1883
+      # Debug logging for MQTT publishing
+      - GST_DEBUG=1
     volumes:
       - vol_evam_pipeline_root:/var/cache/pipeline_root:uid=1999,gid=1999
       - "/run/udev:/run/udev:ro"
@@ -119,22 +143,22 @@ services:
     build: ./app
     container_name: video-caption-service
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
       - HTTPS_PROXY=$https_proxy
       - DASHBOARD_PORT=4173
-      - METADATA_FILE=/tmp/results.jsonl
-      - METADATA_POLL_SECONDS=${METADATA_POLL_SECONDS:-1}
+      - MQTT_BROKER_HOST=10.223.23.199
+      - MQTT_BROKER_PORT=1883
+      - MQTT_TOPIC_PREFIX=live-video-captioning
       - WEBRTC_PEER_ID=${WEBRTC_PEER_ID:-stream}
       - SIGNALING_URL=http://${HOST_IP:-localhost}:${WHIP_SERVER_PORT:-8889}
       - AGENT_MODE=${AGENT_MODE:-false}
       - DEFAULT_RTSP_URL=${DEFAULT_RTSP_URL:-}
       - ENABLE_DETECTION_PIPELINE=${ENABLE_DETECTION_PIPELINE:-false}
     volumes:
-      - "/tmp:/tmp:ro"
       - "./ov_models:/app/ov_models:ro"
       - "./ov_detection_models:/app/ov_detection_models:ro"
     ports:
@@ -148,6 +172,7 @@ services:
     depends_on:
       - dlstreamer-pipeline-server
       - mediamtx
+      - mqtt-broker
     networks:
       - app_network
 
