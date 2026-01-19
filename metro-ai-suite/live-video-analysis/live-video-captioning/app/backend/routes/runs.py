@@ -15,6 +15,7 @@ from ..config import (
     MQTT_BROKER_HOST,
     MQTT_BROKER_PORT,
     MQTT_TOPIC_PREFIX,
+    WEBRTC_BITRATE,
 )
 from ..models import RunInfo, StartRunRequest
 from ..models.requests import DEFAULT_PROMPT
@@ -59,7 +60,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     payload = {
         "source": {"uri": req.rtspUrl, "type": "uri"},
         "destination": {
-            "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": 5000},
+            "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": WEBRTC_BITRATE},
         },
         "parameters": {
             "captioner-prompt": (req.prompt or "").strip()
