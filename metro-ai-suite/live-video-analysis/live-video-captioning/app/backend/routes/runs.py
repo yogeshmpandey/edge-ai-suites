@@ -61,10 +61,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         "destination": {
             "metadata": {
                 "type": "mqtt",
-                #"host": f"{MQTT_BROKER_HOST}:{MQTT_BROKER_PORT}",
-                "topic": "test",
-                #"publish_frame": False,
-                #"mqtt-client-id": f"pipeline-{run_id}",
+                "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
             },
             "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": 5000},
         },

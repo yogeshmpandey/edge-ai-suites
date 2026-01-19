@@ -163,9 +163,17 @@ class MQTTSubscriber:
                 
                 # Parse the payload
                 try:
-                    data = json.loads(payload)
+                    raw_data = json.loads(payload)
                 except json.JSONDecodeError:
-                    data = {"raw": payload}
+                    raw_data = {"raw": payload}
+                
+                # Extract the metadata field if present (pipeline server wraps data in metadata)
+                # Expected format: {"metadata": {...}, "blob": ""}
+                # We want to send the contents of metadata to the frontend
+                if isinstance(raw_data, dict) and "metadata" in raw_data:
+                    data = raw_data["metadata"]
+                else:
+                    data = raw_data
                 
                 # Extract run_id from topic
                 # Topic format: {prefix}/{run_id}
