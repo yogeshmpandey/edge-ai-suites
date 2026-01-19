@@ -59,10 +59,6 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     payload = {
         "source": {"uri": req.rtspUrl, "type": "uri"},
         "destination": {
-            "metadata": {
-                "type": "mqtt",
-                "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
-            },
             "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": 5000},
         },
         "parameters": {
@@ -74,6 +70,10 @@ async def start_run(req: StartRunRequest) -> RunInfo:
             "detection_model_name": (req.detectionModelName or "").strip()
             or "yolov8s",
             "detection_threshold": req.detectionThreshold,
+            "mqtt_publisher": {
+                "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
+                "publish_frame": False,
+            },
         },
     }
 

@@ -59,7 +59,7 @@ services:
       - APPEND_PIPELINE_NAME_TO_PUBLISHER_TOPIC=false
       - REST_SERVER_PORT=${EVAM_PORT:-8080}
       - WEBRTC_SIGNALING_SERVER=http://mediamtx:${WHIP_SERVER_PORT:-8889}
-      - MQTT_HOST=10.223.23.199
+      - MQTT_HOST=mqtt-broker
       - MQTT_PORT=1883
       # Debug logging for MQTT publishing
       - GST_DEBUG=1
@@ -150,7 +150,7 @@ services:
       - https_proxy=$https_proxy
       - HTTPS_PROXY=$https_proxy
       - DASHBOARD_PORT=4173
-      - MQTT_BROKER_HOST=10.223.23.199
+      - MQTT_BROKER_HOST=mqtt-broker
       - MQTT_BROKER_PORT=1883
       - MQTT_TOPIC_PREFIX=live-video-captioning
       - WEBRTC_PEER_ID=${WEBRTC_PEER_ID:-stream}

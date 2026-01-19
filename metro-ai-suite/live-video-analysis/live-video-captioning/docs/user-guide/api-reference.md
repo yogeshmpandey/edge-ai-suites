@@ -2,34 +2,6 @@
 
 The backend is a FastAPI application that serves REST APIs, an SSE stream for captions/metadata (via MQTT), and WebSocket endpoints for metrics.
 
-## Architecture Overview
-
-The application uses MQTT for real-time metadata streaming:
-
-1. **MQTT Broker** (Eclipse Mosquitto) - Central message broker for pipeline results
-2. **DLStreamer Pipeline Server** - Publishes inference results to MQTT topics
-3. **Video Caption Service** - Subscribes to MQTT topics and bridges to SSE for the UI
-
-```
-┌─────────────────────┐      MQTT       ┌─────────────────────┐
-│  DLStreamer         │ ─────────────►  │   MQTT Broker       │
-│  Pipeline Server    │                 │   (Mosquitto)       │
-└─────────────────────┘                 └──────────┬──────────┘
-                                                   │
-                                                   │ Subscribe
-                                                   ▼
-                                        ┌─────────────────────┐
-                                        │  Video Caption      │
-                                        │  Service            │
-                                        └──────────┬──────────┘
-                                                   │
-                                                   │ SSE
-                                                   ▼
-                                        ┌─────────────────────┐
-                                        │   Browser UI        │
-                                        └─────────────────────┘
-```
-
 ## Interactive API docs
 
 When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
@@ -93,26 +65,6 @@ The SSE stream provides real-time metadata received from the MQTT broker. Each m
 
 - `ws://localhost:4173/ws/collector` — Metrics collector connection (single connection)
 - `ws://localhost:4173/ws/clients` — Metrics broadcast to dashboard clients (multiple connections)
-
-## MQTT Configuration
-
-The following environment variables configure MQTT connectivity:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MQTT_BROKER_HOST` | `mqtt-broker` | MQTT broker hostname |
-| `MQTT_BROKER_PORT` | `1883` | MQTT broker port |
-| `MQTT_TOPIC_PREFIX` | `live-video-captioning` | Topic prefix for pipeline results |
-
-### MQTT Topic Structure
-
-Each pipeline run publishes to a unique topic:
-
-```
-{MQTT_TOPIC_PREFIX}/{runId}
-```
-
-For example: `live-video-captioning/abc123def4`
 
 ## Related docs
 
