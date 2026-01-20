@@ -90,7 +90,7 @@ main {
 
 .panels {
     display: grid;
-    gap: 16px;
+    gap: 8px;
     grid-template-columns: minmax(300px, 30%) minmax(0, 1fr);
     align-items: stretch;
     flex: 1;
@@ -122,7 +122,7 @@ main {
     max-height: 100%;
     display: flex;
     flex-direction: column;
-    padding-bottom: 16px;
+    padding-bottom: 6px;
 }
 
 /* Make System Stats card fill remaining space */
@@ -205,7 +205,7 @@ main {
 #runsContainer {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    gap: 2px;
     width: 100%;
     flex: 1;
     overflow-y: auto;
@@ -219,12 +219,13 @@ main {
     grid-column: 1 / -1;
 }
 
-/* Video card styling within the grid */
+/* Video card styling within the grid - fixed height based on container */
 #runsContainer .card {
     margin-top: 0;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto 1fr;
     height: 100%;
+    min-height: 350px;
     overflow: hidden;
     padding: 6px;
 }
@@ -236,12 +237,40 @@ main {
     gap: 6px;
 }
 
+/* Inner grid container for video + caption with fixed proportions */
+#runsContainer .card > div:last-child,
+.run-grid {
+    display: grid;
+    grid-template-rows: 60% 40%;
+    gap: 2px;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .caption-panel {
-    flex: 0 0 auto;
-    min-height: 100px;
-    max-height: 90%;
-    overflow-y: auto;
-    padding: 8px 10px;
+    overflow: hidden;
+    padding: 4px 5px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Chips row must not shrink */
+.caption-panel > div:first-child {
+    flex-shrink: 0;
+}
+
+/* Watcher status must not shrink */
+.caption-panel > .status {
+    flex-shrink: 0;
+}
+
+/* Caption content wrapper - takes remaining space */
+.caption-content {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
 }
 
 .video-panel iframe {
@@ -266,10 +295,9 @@ iframe {
 }
 
 .run-video {
-    flex: 1;
-    min-height: 80px;
-    max-height: 65%;
-    height: auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
 }
 
 .status {
@@ -305,14 +333,19 @@ iframe {
 }
 
 .caption-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     line-height: 1.5;
-    margin: 6px 0 0;
+    margin: 0;
     font-weight: 300;
     color: var(--text);
-    max-height: none;
-    overflow-y: visible;
+    overflow-y: scroll;
     font-size: 0.9rem;
     word-wrap: break-word;
+    scrollbar-gutter: stable;
 }
 
 .chips {
