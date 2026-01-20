@@ -51,6 +51,7 @@ By following this guide, you will learn how to:
      EVAM_PORT=8080
      DASHBOARD_PORT=4173
      WEBRTC_PEER_ID=stream
+     WEBRTC_BITRATE=5000
      METADATA_POLL_SECONDS=0.5
      AGENT_MODE=False
      ENABLE_DETECTION_PIPELINE=False
@@ -58,6 +59,7 @@ By following this guide, you will learn how to:
     Notes:
     - `HOST_IP` must be reachable by the browser client for WebRTC signaling.
     - `PIPELINE_SERVER_URL` defaults to `http://dlstreamer-pipeline-server:8080`.
+    - `WEBRTC_BITRATE` controls the video bitrate in kbps for WebRTC streaming (default: 2048).
 
 5. **Download/Export Models**:
     Run the following scripts to download and convert VLM models.

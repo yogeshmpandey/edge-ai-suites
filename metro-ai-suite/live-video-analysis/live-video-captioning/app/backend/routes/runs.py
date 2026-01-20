@@ -5,16 +5,21 @@ import asyncio
 import json
 import logging
 import re
-import time
 import uuid
-from pathlib import Path
 from typing import AsyncGenerator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from ..config import AGENT_MODE, PIPELINE_NAME, PIPELINE_SERVER_URL, POLL_INTERVAL
+from ..config import (
+    PIPELINE_NAME,
+    PIPELINE_SERVER_URL,
+    MQTT_BROKER_HOST,
+    MQTT_BROKER_PORT,
+    MQTT_TOPIC_PREFIX,
+    WEBRTC_BITRATE,
+)
 from ..models import RunInfo, StartRunRequest
 from ..models.requests import DEFAULT_PROMPT
-from ..services import http_json, read_latest_line
+from ..services import http_json, get_mqtt_subscriber
 from ..state import RUNS
 
 router = APIRouter(prefix="/api", tags=["runs"])
@@ -45,7 +50,9 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         run_id = uuid.uuid4().hex[:10]
 
     peer_id = f"stream-{run_id[:10] if len(run_id) > 10 else run_id}"
-    metadata_file = f"/tmp/results-{run_id[:10] if len(run_id) > 10 else run_id}.jsonl"
+    
+    # MQTT topic for this run's metadata
+    mqtt_topic = f"{MQTT_TOPIC_PREFIX}"
 
     pipeline_name = (req.pipelineName or PIPELINE_NAME).strip() or PIPELINE_NAME
 
@@ -53,8 +60,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     payload = {
         "source": {"uri": req.rtspUrl, "type": "uri"},
         "destination": {
-            "metadata": {"type": "file", "path": metadata_file, "format": "json-lines"},
-            "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": 5000},
+            "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": WEBRTC_BITRATE},
         },
         "parameters": {
             "captioner-prompt": (req.prompt or "").strip()
@@ -65,7 +71,10 @@ async def start_run(req: StartRunRequest) -> RunInfo:
             "detection_model_name": (req.detectionModelName or "").strip()
             or "yolov8s",
             "detection_threshold": req.detectionThreshold,
-            "metadata-save-path": metadata_file,
+            "mqtt_publisher": {
+                "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
+                "publish_frame": False,
+            },
         },
     }
 
@@ -87,7 +96,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         runId=final_run_id,
         pipelineId=pipeline_id,
         peerId=peer_id,
-        metadataFile=metadata_file,
+        mqttTopic=mqtt_topic,
         modelName=model_name,
         pipelineName=pipeline_name,
         runName=run_name,
@@ -106,63 +115,71 @@ async def list_runs() -> list[RunInfo]:
 
 
 async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
-    """Generator that reads metadata from all active runs and multiplexes into a single SSE stream."""
-    last_payloads: dict[str, str] = {}
-    last_modified_times: dict[str, float] = {}
-
-    while True:
+    """Generator that receives metadata from MQTT and multiplexes into a single SSE stream."""
+    message_queue: asyncio.Queue = asyncio.Queue()
+    subscribed_runs: set[str] = set()
+    
+    def on_message(run_id: str, data: dict, received_at: float):
+        """Callback for MQTT messages - puts them into the async queue."""
         try:
-            # Get current list of runs (defensive copy)
-            current_runs = dict(RUNS)
-
-            for run_id, info in current_runs.items():
-                path = Path(info.metadataFile)
-
-                # Check if file exists and get its modification time
-                if not path.exists():
-                    continue
-
-                try:
-                    current_mtime = path.stat().st_mtime
-                    last_mtime = last_modified_times.get(run_id, 0)
-
-                    # Only read file if it was modified since last check
-                    if current_mtime > last_mtime:
-                        latest = read_latest_line(path)
-                        if latest and latest != last_payloads.get(run_id):
-                            last_payloads[run_id] = latest
-                            last_modified_times[run_id] = current_mtime
-
-                            # Wrap the data with runId for client-side demultiplexing
-                            # Add received_at timestamp for lag calculation
-                            received_at = time.time()
-                            try:
-                                data_obj = json.loads(latest)
-                                envelope = {"runId": run_id, "data": data_obj, "received_at": received_at}
-                            except json.JSONDecodeError:
-                                envelope = {"runId": run_id, "data": latest, "received_at": received_at}
-
-                            yield f"data: {json.dumps(envelope)}\n\n"
-                except OSError:
-                    # File might have been deleted or is inaccessible
-                    continue
-
-            # Send heartbeat to keep connection alive
-            yield f": heartbeat\n\n"
-
-            # Clean up stale entries
-            current_run_ids = set(current_runs.keys())
-            stale_ids = [rid for rid in last_payloads if rid not in current_run_ids]
-            for rid in stale_ids:
-                last_payloads.pop(rid, None)
-                last_modified_times.pop(rid, None)
-
+            asyncio.get_event_loop().call_soon_threadsafe(
+                message_queue.put_nowait,
+                (run_id, data, received_at)
+            )
         except Exception as e:
-            # Log error but don't break the generator
-            logger.error(f"Error in multiplexed metadata generator: {e}")
-            yield f": error - {e}\n\n"
+            logger.error(f"Error queueing MQTT message: {e}")
 
-        await asyncio.sleep(POLL_INTERVAL)
+    try:
+        mqtt_subscriber = await get_mqtt_subscriber()
+        
+        while True:
+            try:
+                # Update subscriptions based on current active runs
+                current_runs = set(RUNS.keys())
+                
+                # Subscribe to new runs
+                new_runs = current_runs - subscribed_runs
+                for run_id in new_runs:
+                    mqtt_subscriber.subscribe_to_run(run_id, on_message)
+                    subscribed_runs.add(run_id)
+                    logger.info(f"Subscribed to MQTT topic for run {run_id}")
+                
+                # Unsubscribe from stopped runs
+                stopped_runs = subscribed_runs - current_runs
+                for run_id in stopped_runs:
+                    mqtt_subscriber.unsubscribe_from_run(run_id)
+                    subscribed_runs.discard(run_id)
+                    logger.info(f"Unsubscribed from MQTT topic for run {run_id}")
+                
+                # Process any messages in the queue with a short timeout
+                try:
+                    run_id, data, received_at = await asyncio.wait_for(
+                        message_queue.get(), timeout=1.0
+                    )
+                    
+                    # Wrap the data with runId for client-side demultiplexing
+                    envelope = {
+                        "runId": run_id,
+                        "data": data,
+                        "received_at": received_at,
+                    }
+                    yield f"data: {json.dumps(envelope)}\n\n"
+                    
+                except asyncio.TimeoutError:
+                    # No message received, send heartbeat
+                    yield f": heartbeat\n\n"
+                    
+            except Exception as e:
+                logger.error(f"Error in multiplexed metadata generator: {e}")
+                yield f": error - {e}\n\n"
+                await asyncio.sleep(1)
+                
+    finally:
+        # Cleanup subscriptions when generator is closed
+        mqtt_subscriber = await get_mqtt_subscriber()
+        for run_id in subscribed_runs:
+            mqtt_subscriber.unsubscribe_from_run(run_id)
+        logger.info("Cleaned up MQTT subscriptions")
 
 
 @router.get("/runs/metadata-stream")
@@ -208,8 +225,4 @@ async def stop_run(run_id: str) -> dict[str, str]:
         pass
 
     RUNS.pop(run_id, None)
-    try:
-        Path(info.metadataFile).unlink(missing_ok=True)
-    except OSError:
-        pass
     return {"status": "stopped", "runId": run_id}

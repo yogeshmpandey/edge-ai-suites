@@ -5,13 +5,17 @@ import os
 from pathlib import Path
 
 APP_PORT = int(os.environ.get("DASHBOARD_PORT", "4173"))
-METADATA_FILE = os.environ.get("METADATA_FILE", "/tmp/results.jsonl")
 PEER_ID = os.environ.get("WEBRTC_PEER_ID", "genai_pipeline")
 SIGNALING_URL = os.environ.get("SIGNALING_URL", "http://localhost:8889")
-POLL_INTERVAL = float(os.environ.get("METADATA_POLL_SECONDS", "1"))
+WEBRTC_BITRATE = int(os.environ.get("WEBRTC_BITRATE", "2048"))
 AGENT_MODE = os.environ.get("AGENT_MODE", "false").lower() in ("true", "1", "yes")
 DEFAULT_RTSP_URL = os.environ.get("DEFAULT_RTSP_URL", "")
 ENABLE_DETECTION_PIPELINE = os.environ.get("ENABLE_DETECTION_PIPELINE", "false").lower() in ("true", "1", "yes")
+
+# MQTT Configuration
+MQTT_BROKER_HOST = os.environ.get("MQTT_BROKER_HOST", "mqtt-broker")
+MQTT_BROKER_PORT = int(os.environ.get("MQTT_BROKER_PORT", "1883"))
+MQTT_TOPIC_PREFIX = os.environ.get("MQTT_TOPIC_PREFIX", "live-video-captioning")
 
 PIPELINE_SERVER_URL = os.environ.get(
     "PIPELINE_SERVER_URL", "http://dlstreamer-pipeline-server:8080"

@@ -108,26 +108,14 @@ const RunCardComponent = (function () {
         headerLeft.appendChild(infoBtnWrapper);
 
         const grid = document.createElement('div');
-        grid.style.display = 'flex';
-        grid.style.flexDirection = 'column';
-        grid.style.gap = '6px';
-        grid.style.flex = '1';
-        grid.style.minHeight = '0';
-        grid.style.overflow = 'hidden';
+        grid.className = 'run-grid';
 
         const video = document.createElement('iframe');
         video.className = 'run-video';
         video.title = `WebRTC ${run.peerId}`;
-        video.style.border = '0';
-        video.style.flex = '1';
-        video.style.minHeight = '0';
 
         const captionPanel = document.createElement('div');
         captionPanel.className = 'caption-panel';
-        captionPanel.style.padding = '0';
-        captionPanel.style.flexShrink = '0';
-        captionPanel.style.maxHeight = '200px';
-        captionPanel.style.overflowY = 'auto';
 
         const chips = document.createElement('div');
         chips.className = 'chips';
@@ -162,9 +150,15 @@ const RunCardComponent = (function () {
         watcher.style.fontSize = '0.8rem';
         watcher.style.marginBottom = '2px';
 
+        // Wrapper for caption text to enable absolute positioning
+        const captionContent = document.createElement('div');
+        captionContent.className = 'caption-content';
+
         const caption = document.createElement('p');
         caption.className = 'caption-text';
         caption.textContent = 'Waiting for metadata...';
+
+        captionContent.appendChild(caption);
 
         const stopBtn = document.createElement('button');
         stopBtn.className = 'btn btn-danger';
@@ -188,7 +182,7 @@ const RunCardComponent = (function () {
 
         captionPanel.appendChild(chipsRow);
         captionPanel.appendChild(watcher);
-        captionPanel.appendChild(caption);
+        captionPanel.appendChild(captionContent);
 
         grid.appendChild(video);
         grid.appendChild(captionPanel);
