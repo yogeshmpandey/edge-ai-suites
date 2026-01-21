@@ -50,7 +50,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         run_id = uuid.uuid4().hex[:10]
 
     peer_id = f"stream-{run_id[:10] if len(run_id) > 10 else run_id}"
-    
+
     # MQTT topic for this run's metadata
     mqtt_topic = f"{MQTT_TOPIC_PREFIX}"
 
@@ -73,7 +73,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
             "detection_threshold": req.detectionThreshold,
             "mqtt_publisher": {
                 "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
-                "publish_frame": False,
+                "publish_frame": True,
             },
         },
     }
@@ -118,7 +118,7 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
     """Generator that receives metadata from MQTT and multiplexes into a single SSE stream."""
     message_queue: asyncio.Queue = asyncio.Queue()
     subscribed_runs: set[str] = set()
-    
+
     def on_message(run_id: str, data: dict, received_at: float):
         """Callback for MQTT messages - puts them into the async queue."""
         try:
@@ -131,32 +131,32 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
 
     try:
         mqtt_subscriber = await get_mqtt_subscriber()
-        
+
         while True:
             try:
                 # Update subscriptions based on current active runs
                 current_runs = set(RUNS.keys())
-                
+
                 # Subscribe to new runs
                 new_runs = current_runs - subscribed_runs
                 for run_id in new_runs:
                     mqtt_subscriber.subscribe_to_run(run_id, on_message)
                     subscribed_runs.add(run_id)
                     logger.info(f"Subscribed to MQTT topic for run {run_id}")
-                
+
                 # Unsubscribe from stopped runs
                 stopped_runs = subscribed_runs - current_runs
                 for run_id in stopped_runs:
                     mqtt_subscriber.unsubscribe_from_run(run_id)
                     subscribed_runs.discard(run_id)
                     logger.info(f"Unsubscribed from MQTT topic for run {run_id}")
-                
+
                 # Process any messages in the queue with a short timeout
                 try:
                     run_id, data, received_at = await asyncio.wait_for(
                         message_queue.get(), timeout=1.0
                     )
-                    
+
                     # Wrap the data with runId for client-side demultiplexing
                     envelope = {
                         "runId": run_id,
@@ -164,16 +164,16 @@ async def _multiplexed_metadata_generator() -> AsyncGenerator[str, None]:
                         "received_at": received_at,
                     }
                     yield f"data: {json.dumps(envelope)}\n\n"
-                    
+
                 except asyncio.TimeoutError:
                     # No message received, send heartbeat
                     yield f": heartbeat\n\n"
-                    
+
             except Exception as e:
                 logger.error(f"Error in multiplexed metadata generator: {e}")
                 yield f": error - {e}\n\n"
                 await asyncio.sleep(1)
-                
+
     finally:
         # Cleanup subscriptions when generator is closed
         mqtt_subscriber = await get_mqtt_subscriber()
