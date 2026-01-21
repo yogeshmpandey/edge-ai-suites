@@ -1,5 +1,6 @@
 /**
  * Metrics collector service for WebSocket-based system metrics
+ * Connects to the external live-metrics-service for real-time metrics streaming
  */
 const MetricsCollectorService = (function() {
     let metricsWS = null;
@@ -13,6 +14,19 @@ const MetricsCollectorService = (function() {
     // Track GPU power values separately for combining
     let gpuPowerValue = null;
     let pkgPowerValue = null;
+
+    // Metrics service configuration - can be overridden via window config
+    function getMetricsServiceUrl() {
+        // Check for explicit metrics service URL configuration
+        if (window.METRICS_SERVICE_URL) {
+            return window.METRICS_SERVICE_URL;
+        }
+        // Default: live-metrics-service on port 9090
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.hostname;
+        const port = window.METRICS_SERVICE_PORT || '9090';
+        return `${protocol}//${host}:${port}/ws/clients`;
+    }
 
     function formatEngineName(name) {
         // Format engine names for display (e.g., "rcs0" -> "RCS0", "video" -> "Video")
@@ -152,9 +166,8 @@ const MetricsCollectorService = (function() {
         ChartManager.createStatChart('ramChart', 'RAM %', '#8ca0c2');
         ChartManager.createStatChart('gpuChart', 'GPU %', '#ffb347');
 
-        // WebSocket connection to metrics collector
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws/clients`;
+        // WebSocket connection to external metrics service
+        const wsUrl = getMetricsServiceUrl();
 
         function connectMetricsWS() {
             if (metricsWS && (metricsWS.readyState === WebSocket.CONNECTING || metricsWS.readyState === WebSocket.OPEN)) {

@@ -9,7 +9,6 @@ from fastapi.staticfiles import StaticFiles
 from backend.config import APP_PORT, UI_DIR
 from backend.routes import (
     config_router,
-    metrics_router,
     models_router,
     pipelines_router,
     runs_router,
@@ -38,7 +37,6 @@ app = FastAPI(title="Live Video Captioning API", lifespan=lifespan)
 
 # Include all routers
 app.include_router(config_router)
-app.include_router(metrics_router)
 app.include_router(models_router)
 app.include_router(pipelines_router)
 app.include_router(runs_router)

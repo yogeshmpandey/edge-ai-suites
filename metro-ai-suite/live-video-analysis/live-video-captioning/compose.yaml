@@ -143,8 +143,8 @@ services:
     build: ./app
     container_name: video-caption-service
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,live-metrics-service,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,live-metrics-service,${NO_PROXY}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -173,6 +173,33 @@ services:
       - dlstreamer-pipeline-server
       - mediamtx
       - mqtt-broker
+      - live-metrics-service
+    networks:
+      - app_network
+
+  live-metrics-service:
+    image: ${REGISTRY:-}live-metrics-service:${TAG:-latest}
+    build: ../live-metrics-service
+    container_name: live-metrics-service
+    environment:
+      - no_proxy=localhost,127.0.0.1,video-caption-service,collector,live-metrics-service,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,video-caption-service,collector,live-metrics-service,${NO_PROXY}
+      - http_proxy=$http_proxy
+      - HTTP_PROXY=$http_proxy
+      - https_proxy=$https_proxy
+      - HTTPS_PROXY=$https_proxy
+      - METRICS_PORT=9090
+      - LOG_LEVEL=INFO
+      - CORS_ORIGINS=*
+    ports:
+      - "${METRICS_SERVICE_PORT:-9090}:9090"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9090/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
     networks:
       - app_network
 
@@ -190,15 +217,15 @@ services:
     pid: host # qmassa needs it
     volumes:
       - "./shared/collector-signals:/app/.collector-signals"
-      - "./collector/telegraf.conf:/etc/telegraf/telegraf.conf:ro"
+      - "../live-metrics-service/telegraf.conf:/etc/telegraf/telegraf.conf:ro"
     restart: on-failure:5
     environment:
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
-      - no_proxy=localhost,127.0.0.1,video-caption-service,collector,${no_proxy}
-      - WEBSOCKET_URL=ws://video-caption-service:4173/ws/collector
+      - no_proxy=localhost,127.0.0.1,video-caption-service,collector,live-metrics-service,${no_proxy}
+      - WEBSOCKET_URL=ws://live-metrics-service:9090/ws/collector
     depends_on:
-      - video-caption-service
+      - live-metrics-service
     networks:
       - app_network
 
