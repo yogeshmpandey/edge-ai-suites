@@ -65,7 +65,7 @@ The Metrics Service provides a decoupled solution for collecting, relaying, and 
 
 2. **Start the service with collector:**
    ```bash
-   docker compose up -d
+   docker compose up --build
    ```
 
 3. **Verify the service is running:**
@@ -91,19 +91,6 @@ docker run -d \
   live-metrics-service:latest
 ```
 
-### Local Development
-
-```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -e .
-
-# Run the service
-uvicorn app.main:app --host 0.0.0.0 --port 9090 --reload
-```
 
 ## API Reference
 
@@ -544,7 +531,18 @@ curl http://localhost:9090/api/health
 curl http://localhost:9090/api/metrics/status
 ```
 
-## License
+### Testing WebSocket with curl
 
-Copyright (C) 2025 Intel Corporation  
-SPDX-License-Identifier: Apache-2.0
+You can test WebSocket connections using curl with the upgrade headers:
+
+**Test the clients endpoint:**
+```bash
+curl -i -N \
+  -H "Connection: Upgrade" \
+  -H "Upgrade: websocket" \
+  -H "Host: localhost:9090" \
+  -H "Sec-WebSocket-Version: 13" \
+  -H "Sec-WebSocket-Key: <key-value>" \
+  http://localhost:9090/ws/clients
+```
+
