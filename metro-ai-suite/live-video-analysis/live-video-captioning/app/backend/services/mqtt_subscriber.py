@@ -195,11 +195,17 @@ class MQTTSubscriber:
                     embedding_service = CaptionEmbeddings()
                     image_data = raw_data.get("blob", None)
 
-                    ids = embedding_service.process_embeddings(
-                        img_blob=image_data,
-                        metadata=data
-                    )
+                    # ids = embedding_service.process_embeddings(
+                    #     img_blob=image_data,
+                    #     metadata=data
+                    # )
 
+
+                    ids = await asyncio.to_thread(
+                            embedding_service.process_embeddings,
+                            img_blob=image_data,
+                            metadata=data
+                        )
 
                 # Extract run_id from topic
                 # Topic format: {prefix}/{run_id}

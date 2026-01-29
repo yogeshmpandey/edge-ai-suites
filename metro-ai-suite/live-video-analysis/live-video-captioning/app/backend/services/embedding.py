@@ -10,6 +10,7 @@ import requests
 import uuid
 
 from ..config import VDMS_HOST, VDMS_PORT, EMBEDDING_HOST, EMBEDDING_PORT, EMBEDDING_MODEL_NAME
+from .embedding_wrapper import EmbeddingAPI
 
 logger = logging.getLogger("app.embedding")
 
@@ -39,10 +40,15 @@ class CaptionEmbeddings:
 
     def __init__(self):
 
-        # Initialize embedding resources
-        dummy_embedding = DummyEmbeddings()
-
         self.embedding_endpoint = f"http://{EMBEDDING_HOST}:{EMBEDDING_PORT}/embeddings"
+
+        # Initialize embedding resources
+        embeddings = EmbeddingAPI(
+            api_url=self.embedding_endpoint,
+            model_name=EMBEDDING_MODEL_NAME
+        )
+
+        vector_dimensions = embeddings.get_embedding_length()
 
         self.vdms_client = VDMS_Client(
             host = VDMS_HOST,
@@ -51,11 +57,11 @@ class CaptionEmbeddings:
 
         self.vdms_store = VDMS(
             client=self.vdms_client,
-            embedding=dummy_embedding,
+            embedding=embeddings,
             collection_name="captions_collection",
             engine="FaissFlat",
             distance_strategy="IP",
-            embedding_dimensions=512
+            embedding_dimensions=vector_dimensions,
         )
 
         self._http = requests.Session()
@@ -66,8 +72,7 @@ class CaptionEmbeddings:
         Add an image-caption pair to the VDMS vector store.
         """
         caption_text = metadata.get("result", "")
-        print(f"embedding_model: {EMBEDDING_MODEL_NAME}")  # Debug print
-        print(f"Generating embedding for caption: {caption_text}")
+
         payload = {
             "input": {"type": "text", "text": caption_text},
             "model": EMBEDDING_MODEL_NAME,
