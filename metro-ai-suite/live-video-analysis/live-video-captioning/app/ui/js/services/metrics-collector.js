@@ -15,16 +15,19 @@ const MetricsCollectorService = (function() {
     let gpuPowerValue = null;
     let pkgPowerValue = null;
 
-    // Metrics service configuration - can be overridden via window config
+    // Metrics service configuration - uses runtime config from backend
     function getMetricsServiceUrl() {
+        const cfg = window.RUNTIME_CONFIG || {};
+        
         // Check for explicit metrics service URL configuration
         if (window.METRICS_SERVICE_URL) {
             return window.METRICS_SERVICE_URL;
         }
-        // Default: live-metrics-service on port 9090
+        
+        // Use runtime config port from backend, fallback to 9090
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
-        const port = window.METRICS_SERVICE_PORT || '9090';
+        const port = cfg.metricsServicePort || window.METRICS_SERVICE_PORT || '9090';
         return `${protocol}//${host}:${port}/ws/clients`;
     }
 

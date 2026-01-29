@@ -12,6 +12,9 @@ AGENT_MODE = os.environ.get("AGENT_MODE", "false").lower() in ("true", "1", "yes
 DEFAULT_RTSP_URL = os.environ.get("DEFAULT_RTSP_URL", "")
 ENABLE_DETECTION_PIPELINE = os.environ.get("ENABLE_DETECTION_PIPELINE", "false").lower() in ("true", "1", "yes")
 
+# Metrics Service Configuration
+METRICS_SERVICE_PORT = os.environ.get("METRICS_SERVICE_PORT", "9090")
+
 # MQTT Configuration
 MQTT_BROKER_HOST = os.environ.get("MQTT_BROKER_HOST", "mqtt-broker")
 MQTT_BROKER_PORT = int(os.environ.get("MQTT_BROKER_PORT", "1883"))
