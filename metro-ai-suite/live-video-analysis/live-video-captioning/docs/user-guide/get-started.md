@@ -52,7 +52,6 @@ By following this guide, you will learn how to:
      DASHBOARD_PORT=4173
      WEBRTC_PEER_ID=stream
      WEBRTC_BITRATE=5000
-     METADATA_POLL_SECONDS=0.5
      AGENT_MODE=False
      ENABLE_DETECTION_PIPELINE=False
      ```
