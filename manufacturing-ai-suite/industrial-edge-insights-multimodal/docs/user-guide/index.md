@@ -14,7 +14,7 @@ detection using logical "AND" or "OR" operations, the system provides:
   minimize costly rework by enabling proactive defect detection on the
   factory floor.
 
-Industrial quality relies on safety and reliability and manual inspections
+Industrial quality relies on safety and reliability, and manual inspections
 are time-consuming and prone to human error. Therefore, we have developed the
 application to leverage deep learning models to automate defect detection,
 improving both accuracy and efficiency.
@@ -37,11 +37,11 @@ visual inspection and sensor data analysis to identify anomalies in welding data
 :::{toctree}
 :hidden:
 
-get-started
-system-requirements
-weld-defect-detection/index
-how-to-guides/index
-release_notes/Overview.md
-troubleshoot-guide
+get-started.md
+how-to-guides.md
+weld-defect-detection/index.md
+troubleshooting.md
+release-notes.md
+
 :::
 hide_directive-->

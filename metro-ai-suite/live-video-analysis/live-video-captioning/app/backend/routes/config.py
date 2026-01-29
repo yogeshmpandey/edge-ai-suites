@@ -21,6 +21,4 @@ async def runtime_config() -> Response:
         "defaultRtspUrl": DEFAULT_RTSP_URL,
         "enableDetectionPipeline": ENABLE_DETECTION_PIPELINE,
         "metricsServicePort": METRICS_SERVICE_PORT,
-    }
     body = f"window.RUNTIME_CONFIG = {json.dumps(payload)};"
-    return Response(content=body, media_type="application/javascript")
