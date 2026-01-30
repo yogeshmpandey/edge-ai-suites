@@ -469,6 +469,8 @@ curl http://localhost:9090/api/metrics/status
 
 You can test WebSocket connections using curl with the upgrade headers:
 
+> Note: Change the key-value to a a random 16-byte value encoded in Base64
+
 **Test the clients endpoint:**
 ```bash
 curl -i -N \
