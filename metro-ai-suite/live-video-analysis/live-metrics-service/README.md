@@ -22,7 +22,7 @@ curl http://localhost:9090/health
 
 ## Documentation
 
-Comprehensive documentation is available in the [user-guide](user-guide/) directory:
+Comprehensive documentation is available in the [user-guide](docs/user-guide/) directory:
 
 - [Overview](docs/user-guide/overview.md) - Architecture, features, and data flow
 - [Get Started](docs/user-guide/get-started.md) - Quick start guide and integration examples
