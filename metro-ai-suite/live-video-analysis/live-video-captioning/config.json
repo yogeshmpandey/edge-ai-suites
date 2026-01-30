@@ -25,7 +25,7 @@
                                 "name": "captioner",
                                 "property": "scheduler-config"
                             },
-                            "default": "max_num_batched_tokens=256,cache_size=4,enable_prefix_caching=false,dynamic_split_fuse=true,use_cache_eviction=true"
+                            "default": "max_num_batched_tokens=256,cache_size=4,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
                         },
                         "captioner-prompt": {
                             "type": "string",
@@ -71,7 +71,7 @@
                                 "name": "captioner",
                                 "property": "scheduler-config"
                             },
-                            "default": "max_num_batched_tokens=512,cache_size=8,enable_prefix_caching=false,dynamic_split_fuse=true,use_cache_eviction=true"
+                            "default": "max_num_batched_tokens=512,cache_size=8,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
                         },
                         "captioner-prompt": {
                             "type": "string",
@@ -127,7 +127,7 @@
                                 "name": "captioner",
                                 "property": "scheduler-config"
                             },
-                            "default": "max_num_batched_tokens=256,cache_size=4,enable_prefix_caching=false,dynamic_split_fuse=true,use_cache_eviction=true"
+                            "default": "max_num_batched_tokens=256,cache_size=4,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
                         },
                         "captioner-prompt": {
                             "type": "string",
@@ -183,7 +183,7 @@
                                 "name": "captioner",
                                 "property": "scheduler-config"
                             },
-                            "default": "max_num_batched_tokens=512,cache_size=4,enable_prefix_caching=false,dynamic_split_fuse=true,use_cache_eviction=true"
+                            "default": "max_num_batched_tokens=512,cache_size=4,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
                         },
                         "captioner-prompt": {
                             "type": "string",
