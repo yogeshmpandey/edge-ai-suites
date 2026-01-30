@@ -8,16 +8,30 @@ The Metrics Service provides a decoupled solution for collecting, relaying, and 
 
 ## Quick Start
 
+### 1. Configure Environment Variables
+
+Copy the example environment file and customize as needed:
+
 ```bash
-cd live-metrics-service
+cp .env.example .env
+```
+
+Edit `.env` to configure:
+- `METRICS_PORT` - Service port (default: 9090)
+- `LOG_LEVEL` - Logging verbosity (default: INFO)
+- `CORS_ORIGINS` - CORS allowed origins (default: *)
+
+```bash
 export REGISTRY="intel/"
 export TAG="1.0.0-rc.0"
 docker compose up
 ```
 
-Verify the service:
+### 2. Verify the Service
+
 ```bash
 curl http://localhost:9090/health
+# Response: {"status": "healthy"}
 ```
 
 ## Documentation

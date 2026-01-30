@@ -14,6 +14,17 @@ cd live-metrics-service
 
 ### Step 2: Start the Service with Collector
 
+Copy the example environment file and customize as needed:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` to configure:
+- `METRICS_PORT` - Service port (default: 9090)
+- `LOG_LEVEL` - Logging verbosity (default: INFO)
+- `CORS_ORIGINS` - CORS allowed origins (default: *)
+
 **Option A: Pull from registry (recommended)**
 
 ```bash
