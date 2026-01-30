@@ -34,8 +34,8 @@ By following this guide, you will learn how to:
 
 3. **Configure Image Registry and Tag**:
      ```bash
-     export REGISTRY="intel/"
-     export TAG="rc2026.1.3"
+        export REGISTRY="intel/"
+        export TAG="1.0.0-rc.0"
      ```
     Skip this step if you prefer to build the sample applciation from source. For detailed instructions, refer to [How to Build from Source](./how-to-build-source.md) guide for details.
 

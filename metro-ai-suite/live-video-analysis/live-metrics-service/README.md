@@ -25,16 +25,6 @@ The Metrics Service provides a decoupled solution for collecting, relaying, and 
 - Horizontal scalability for multiple clients
 - Works with standard Telegraf collectors
 
-## Architecture
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Telegraf/     │────▶│  Metrics Service │────▶│  Dashboard/UI   │
-│   Collector     │     │    (port 9090)   │     │   Clients       │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-    WebSocket              WebSocket Relay           WebSocket
-   /ws/collector          Single connection        Multiple clients
-```
 
 ### Data Flow
 
@@ -49,7 +39,6 @@ The Metrics Service provides a decoupled solution for collecting, relaying, and 
 | **WebSocket Relay** | Receives metrics from collectors and broadcasts to clients in real-time |
 | **Multi-Client Support** | Unlimited concurrent client connections with automatic cleanup |
 | **Single Collector Lock** | Ensures only one collector can connect at a time for data integrity |
-| **Optional Polling** | Can actively poll target services for additional metrics |
 | **Health Monitoring** | Built-in health and status endpoints for orchestration |
 | **CORS Support** | Configurable CORS for cross-origin dashboard access |
 | **Container-Ready** | Optimized Docker image with non-root user |
@@ -64,6 +53,15 @@ The Metrics Service provides a decoupled solution for collecting, relaying, and 
    ```
 
 2. **Start the service with collector:**
+   
+   **Option A: Pull from registry (recommended)**
+   ```bash
+   export REGISTRY="intel/"
+   export TAG="1.0.0-rc.0"
+   docker compose up
+   ```
+   
+   **Option B: Build locally**
    ```bash
    docker compose up --build
    ```
@@ -76,20 +74,6 @@ The Metrics Service provides a decoupled solution for collecting, relaying, and 
 
 4. **Connect a client:**
    Open a WebSocket connection to `ws://localhost:9090/ws/clients`
-
-### Using Docker Only
-
-```bash
-# Build the image
-docker build -t live-metrics-service:latest .
-
-# Run the container
-docker run -d \
-  --name live-metrics-service \
-  -p 9090:9090 \
-  -e LOG_LEVEL=INFO \
-  live-metrics-service:latest
-```
 
 
 ## API Reference
@@ -220,7 +204,7 @@ Service information and available endpoints.
 | `CORS_ORIGINS` | `*` | Comma-separated list of allowed CORS origins |
 | `TARGET_SERVICE_URL` | `` | Optional: URL of service to poll for metrics |
 | `METRICS_ENDPOINT` | `/api/metrics/status` | Endpoint path on target service for polling |
-| `POLL_INTERVAL_SECONDS` | `5` | Polling interval in seconds |
+| `POLL_INTERVAL_SECONDS` | `2` | Polling interval in seconds |
 
 ### Example Configuration
 
@@ -233,7 +217,7 @@ export CORS_ORIGINS=https://dashboard.example.com,https://admin.example.com
 # With optional polling enabled
 export TARGET_SERVICE_URL=http://my-app:8080
 export METRICS_ENDPOINT=/api/metrics
-export POLL_INTERVAL_SECONDS=10
+export POLL_INTERVAL_SECONDS=2
 ```
 
 ## Deployment
@@ -421,56 +405,6 @@ async def metrics_client():
 
 # Run the client
 asyncio.run(metrics_client())
-```
-
-### React Hook Example
-
-```jsx
-import { useState, useEffect, useCallback } from 'react';
-
-function useMetrics(url = 'ws://localhost:9090/ws/clients') {
-  const [metrics, setMetrics] = useState({});
-  const [connected, setConnected] = useState(false);
-
-  useEffect(() => {
-    const ws = new WebSocket(url);
-
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      const newMetrics = {};
-      
-      data.metrics.forEach(metric => {
-        newMetrics[metric.name] = {
-          ...metric.fields,
-          tags: metric.tags,
-          timestamp: metric.timestamp
-        };
-      });
-      
-      setMetrics(prev => ({ ...prev, ...newMetrics }));
-    };
-
-    return () => ws.close();
-  }, [url]);
-
-  return { metrics, connected };
-}
-
-// Usage in component
-function Dashboard() {
-  const { metrics, connected } = useMetrics();
-
-  return (
-    <div>
-      <p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
-      <p>CPU: {metrics.cpu?.usage_user?.toFixed(1)}%</p>
-      <p>Memory: {metrics.mem?.used_percent?.toFixed(1)}%</p>
-    </div>
-  );
-}
 ```
 
 ## Troubleshooting

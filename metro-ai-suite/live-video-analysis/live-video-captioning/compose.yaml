@@ -171,10 +171,14 @@ services:
       retries: 3
       start_period: 40s
     depends_on:
-      - dlstreamer-pipeline-server
-      - mediamtx
-      - mqtt-broker
-      - live-metrics-service
+      dlstreamer-pipeline-server:
+        condition: service_started
+      mediamtx:
+        condition: service_started
+      mqtt-broker:
+        condition: service_started
+      live-metrics-service:
+        condition: service_healthy
     networks:
       - app_network
 
@@ -196,10 +200,10 @@ services:
       - "${METRICS_SERVICE_PORT:-9090}:9090"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9090/health" ]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 3s
       retries: 3
-      start_period: 10s
+      start_period: 2s
     restart: unless-stopped
     networks:
       - app_network
