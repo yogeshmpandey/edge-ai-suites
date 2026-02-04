@@ -2,7 +2,65 @@
 # SPDX-License-Identifier: Apache-2.0
 
 name: ${PROJECT_NAME:-live-video-caption}
+
+x-nginx-common: &nginx-common
+  image: nginxinc/nginx-unprivileged:1.29.2
+  container_name: chatqna-core-nginx
+  ports:
+    - "8102:8102"
+  volumes:
+    - ./nginx_config/nginx.conf:/etc/nginx/nginx.conf:ro
+  networks:
+    - app_network
+
+x-chatqna-core-common:
+  #image: ${REGISTRY:-}chatqna:${BACKEND_TAG:-latest}
+  &chatqna-core-common
+  image: chatqna:vdms
+  environment:
+    http_proxy: ${http_proxy}
+    https_proxy: ${https_proxy}
+    no_proxy: ${no_proxy},mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,vdms-vector-db,multimodal-embedding-serving
+    HF_ACCESS_TOKEN: ${HF_ACCESS_TOKEN}
+    EMBEDDING_OV_MODELS_DIR: ${EMBEDDING_OV_MODELS_DIR}
+    EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
+    EMBEDDING_SERVER_PORT: ${EMBEDDING_SERVER_PORT}
+    EMBEDDING_DEVICE: ${EMBEDDING_DEVICE}
+    EMBEDDING_USE_OV: ${EMBEDDING_USE_OV}
+  ports:
+    - "8888:8888"
+  volumes:
+    - "${MODEL_CACHE_PATH}:/tmp/model_cache"
+    - "${MODEL_CONFIG_PATH:-/dev/null}:/tmp/model_config/config.yaml"
+  networks:
+    - app_network
+  group_add:
+    - ${USER_GROUP_ID-1000}
 services:
+  nginx-default:
+    <<: *nginx-common
+    profiles:
+      - OPENVINO
+    depends_on:
+      - chatqna-core-ov-cpu
+      - chatqna-core-ui
+  chatqna-core-ov-cpu:
+    <<: *chatqna-core-common
+    profiles:
+      - OPENVINO
+    container_name: chatqna-core-ov-cpu
+  chatqna-core-ui:
+    image: ${REGISTRY:-}chatqna-ui:${UI_TAG:-latest}
+    container_name: chatqna-core-ui
+    environment:
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+      no_proxy: ${no_proxy},mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,vdms-vector-db,multimodal-embedding-serving
+      APP_BACKEND_URL: ${APP_BACKEND_URL}
+    ports:
+      - "5173:8102"
+    networks:
+      - app_network
   mqtt-broker:
     image: eclipse-mosquitto:2.0
     hostname: mqtt-broker

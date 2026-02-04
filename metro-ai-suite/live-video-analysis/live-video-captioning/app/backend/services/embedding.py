@@ -78,7 +78,8 @@ class CaptionEmbeddings:
             "model": EMBEDDING_MODEL_NAME,
             "encoding_format": "float"
         }
-        resp = self._http.post(self.embedding_endpoint, json=payload, timeout=(1.0, 2.0))
+        print(f"Requesting embedding for caption: {caption_text} using {EMBEDDING_MODEL_NAME}")
+        resp = self._http.post(self.embedding_endpoint, json=payload, timeout=(1.0, 15.0))
         resp.raise_for_status()
         rj = resp.json()
         emb = rj.get("embedding")
