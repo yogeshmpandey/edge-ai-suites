@@ -1,8 +1,10 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+FROM python:3.13-slim@sha256:49b618b8afc2742b94fa8419d8f4d3b337f111a0527d417a1db97d4683cb71a6 AS base
+
 # Build stage
-FROM python:3.13-slim AS builder
+FROM base AS builder
 
 # Install uv for fast package installation
 RUN pip install --no-cache-dir uv==0.4.23
@@ -20,7 +22,7 @@ ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 RUN uv sync --frozen --no-dev --no-install-project
 
 # Production stage
-FROM python:3.13-slim AS production
+FROM base AS production
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*

@@ -1,8 +1,10 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+FROM python:3.13-slim@sha256:49b618b8afc2742b94fa8419d8f4d3b337f111a0527d417a1db97d4683cb71a6 AS base
+
 # Build stage
-FROM python:3.13-slim AS builder
+FROM base AS builder
 
 # Install system dependencies needed for building
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,7 +31,7 @@ RUN mkdir -p ui/js/vendor && \
     curl -o ui/js/vendor/chart.js https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js
 
 # Production stage
-FROM python:3.13-slim AS production
+FROM base AS production
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
