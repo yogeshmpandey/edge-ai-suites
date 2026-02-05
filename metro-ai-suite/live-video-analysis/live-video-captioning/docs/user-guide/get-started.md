@@ -86,17 +86,14 @@ By following this guide, you will learn how to:
      ```
 
 7. **Access the Application**:
-    Following are the exposed services with their default ports:
-     - Pipeline API: `http://<HOST_IP>:8040`
-     - WebRTC signaling: `ws://<HOST_IP>:8889`
-     - Dashboard UI: `http://<HOST_IP>:4173`
+    
+    To start processing video with live captioning:
 
-    Run a captioning pipeline
-     1. Open the dashboard at `http://<HOST_IP>:4173`.
-     2. Enter an RTSP URL.
-     3. Select a VLM model.
-     4. Edit prompt/max tokens as needed.
-     5. Click **Start**.
+    1. Open the dashboard at `http://<HOST_IP>:4173`.
+    2. Enter an RTSP URL for your video stream.
+    3. Select a VLM model from the dropdown.
+    4. Customize the prompt and maximum tokens as needed.
+    5. Click **Start** to begin captioning.
 
 8. **Stop the Services**:
     Stop the sample application services using below:
