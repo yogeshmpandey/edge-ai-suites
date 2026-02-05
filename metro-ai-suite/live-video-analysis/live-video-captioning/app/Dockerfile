@@ -16,12 +16,13 @@ RUN pip install --no-cache-dir uv==0.4.23
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies to a virtual environment
 RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN uv pip install --no-cache .
+ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Download Chart.js during build for airgapped runtime
 RUN mkdir -p ui/js/vendor && \

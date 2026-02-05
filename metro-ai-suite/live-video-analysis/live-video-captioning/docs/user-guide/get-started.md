@@ -74,7 +74,7 @@ By following this guide, you will learn how to:
     ```
 
     For gated models, please export you HF_TOKEN before running the scripts above:
-    
+
      ```bash
      export HF_TOKEN=<YOUR_HUGGING_FACE_TOKEN>
      ```
@@ -86,7 +86,7 @@ By following this guide, you will learn how to:
      ```
 
 7. **Access the Application**:
-    
+
     To start processing video with live captioning:
 
     1. Open the dashboard at `http://<HOST_IP>:4173`.
@@ -94,6 +94,8 @@ By following this guide, you will learn how to:
     3. Select a VLM model from the dropdown.
     4. Customize the prompt and maximum tokens as needed.
     5. Click **Start** to begin captioning.
+
+    > **Note**: If running in a proxy network, ensure that your RTSP stream URLs or IPs are added to the `no_proxy` environment variable to allow direct connections to the stream source without going through the proxy.
 
 8. **Stop the Services**:
     Stop the sample application services using below:

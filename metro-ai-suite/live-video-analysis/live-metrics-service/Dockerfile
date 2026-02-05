@@ -11,12 +11,13 @@ RUN pip install --no-cache-dir uv==0.4.23
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies to a virtual environment
 RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN uv pip install --no-cache .
+ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Production stage
 FROM python:3.13-slim AS production
@@ -51,9 +52,6 @@ EXPOSE 9090
 # Environment variables with defaults
 ENV METRICS_PORT=9090
 ENV LOG_LEVEL=INFO
-ENV TARGET_SERVICE_URL=""
-ENV METRICS_ENDPOINT="/api/metrics/status"
-ENV POLL_INTERVAL_SECONDS=2
 ENV CORS_ORIGINS="*"
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9090"]

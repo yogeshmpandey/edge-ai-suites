@@ -25,10 +25,11 @@ async def lifespan(app: FastAPI):
         await get_mqtt_subscriber()
     except Exception as e:
         import logging
+
         logging.getLogger("app").warning(f"Failed to initialize MQTT subscriber: {e}")
-    
+
     yield
-    
+
     # Shutdown: Clean up MQTT subscriber
     await shutdown_mqtt_subscriber()
 

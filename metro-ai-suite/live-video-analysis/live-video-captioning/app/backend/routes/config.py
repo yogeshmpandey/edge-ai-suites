@@ -3,7 +3,15 @@
 
 import json
 from fastapi import APIRouter, Response
-from ..config import AGENT_MODE, DEFAULT_RTSP_URL, PEER_ID, SIGNALING_URL, ENABLE_DETECTION_PIPELINE, MQTT_TOPIC_PREFIX, METRICS_SERVICE_PORT
+from ..config import (
+    AGENT_MODE,
+    DEFAULT_RTSP_URL,
+    PEER_ID,
+    SIGNALING_URL,
+    ENABLE_DETECTION_PIPELINE,
+    MQTT_TOPIC_PREFIX,
+    METRICS_SERVICE_PORT,
+)
 from ..models.requests import DEFAULT_PROMPT
 
 router = APIRouter()

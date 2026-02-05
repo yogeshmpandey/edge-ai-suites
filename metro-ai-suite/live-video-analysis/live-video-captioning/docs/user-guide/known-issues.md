@@ -1,6 +1,6 @@
 # Known Issues
 
-## Pipeline server exits with 2 GPU streams 
+## Pipeline server exits with 2 GPU streams
 
 Symptoms:
 - When two GPU pipeline streams are started, the pipeline server exits from the container.
