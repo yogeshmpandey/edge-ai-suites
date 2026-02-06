@@ -49,6 +49,9 @@ class MQTTSubscriber:
         self._max_reconnect_delay = 30
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
+        if ENABLE_EMBEDDING:
+            self.embedding_service = CaptionEmbeddings()
+
     def _get_topic_for_run(self, run_id: str) -> str:
         """Generate MQTT topic for a specific run."""
         return f"{self.topic_prefix}/{run_id}"
@@ -192,17 +195,16 @@ class MQTTSubscriber:
 
                 if ENABLE_EMBEDDING:
                     # Process embedding
-                    embedding_service = CaptionEmbeddings()
                     image_data = raw_data.get("blob", None)
 
-                    # ids = embedding_service.process_embeddings(
+                    # ids = self.embedding_service.process_embeddings(
                     #     img_blob=image_data,
                     #     metadata=data
                     # )
 
 
                     ids = await asyncio.to_thread(
-                            embedding_service.process_embeddings,
+                            self.embedding_service.process_embeddings,
                             img_blob=image_data,
                             metadata=data
                         )

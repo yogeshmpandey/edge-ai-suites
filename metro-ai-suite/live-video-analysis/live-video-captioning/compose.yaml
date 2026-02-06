@@ -13,20 +13,19 @@ x-nginx-common: &nginx-common
   networks:
     - app_network
 
-x-chatqna-core-common:
-  #image: ${REGISTRY:-}chatqna:${BACKEND_TAG:-latest}
-  &chatqna-core-common
-  image: chatqna:vdms
+x-chatqna-core-common: &chatqna-core-common
+  image: ${REGISTRY:-}chatqna:${BACKEND_TAG:-latest}
   environment:
     http_proxy: ${http_proxy}
     https_proxy: ${https_proxy}
     no_proxy: ${no_proxy},mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,vdms-vector-db,multimodal-embedding-serving
     HF_ACCESS_TOKEN: ${HF_ACCESS_TOKEN}
-    EMBEDDING_OV_MODELS_DIR: ${EMBEDDING_OV_MODELS_DIR}
-    EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
-    EMBEDDING_SERVER_PORT: ${EMBEDDING_SERVER_PORT}
-    EMBEDDING_DEVICE: ${EMBEDDING_DEVICE}
-    EMBEDDING_USE_OV: ${EMBEDDING_USE_OV}
+    USE_VDMS: ${USE_VDMS:-false}
+    VDMS_HOST: ${VDMS_HOST:-vdms-vector-db}
+    VDMS_PORT: ${VDMS_PORT:-5555}
+    VDMS_EMBEDDING_MODEL: ${VDMS_EMBEDDING_MODEL:-}
+    VDMS_EMBEDDING_HOST: ${VDMS_EMBEDDING_HOST:-multimodal-embedding-serving}
+    VDMS_EMBEDDING_HOST_PORT: ${VDMS_EMBEDDING_HOST_PORT:-8000}
   ports:
     - "8888:8888"
   volumes:
@@ -270,7 +269,7 @@ services:
       - app_network
 
   multimodal-embedding-serving:
-    image: intel/multimodal-embedding-serving:latest
+    image: intel/multimodal-embedding-serving:1.3.4-rc1
     container_name: multimodal-embedding-serving
     ports:
       - '${EMBEDDING_SERVER_PORT:-9777}:8000'
@@ -287,7 +286,7 @@ services:
       DEFAULT_START_OFFSET_SEC: ${DEFAULT_START_OFFSET_SEC:-0}
       DEFAULT_CLIP_DURATION: ${DEFAULT_CLIP_DURATION:--1}
       DEFAULT_NUM_FRAMES: ${DEFAULT_NUM_FRAMES:-64}
-      OV_PERFORMANCE_MODE: ${OV_PERFORMANCE_MODE:-THROUGHPUT}
+      OV_PERFORMANCE_MODE: ${OV_PERFORMANCE_MODE:-LATENCY}
     devices:
       - /dev/dri:/dev/dri
     group_add:

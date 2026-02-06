@@ -1,17 +1,32 @@
-# Get Host IP Address
-host_ip=$(ip route get 1 | awk '{print $7}')
+#!/bin/bash
 
-export REGISTRY_URL=intel/
-export TAG=latest
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
-# Export current user and group IDs for container user
-export USER_ID=$(id -u)
-export USER_GROUP_ID=$(id -g)
-export VIDEO_GROUP_ID=$(getent group video | awk -F: '{printf "%s\n", $3}')
-export RENDER_GROUP_ID=$(getent group render | awk -F: '{printf "%s\n", $3}')
+export HOST_IP=$(hostname -I | awk '{print $1}')
 
-# Multimodal embedding serving
-export EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME:-"CLIP/clip-vit-b-32"}
+# Registry handling - ensure consistent formatting with trailing slashes
+# If REGISTRY_URL is set, ensure it ends with a trailing slash
+[[ -n "$REGISTRY_URL" ]] && REGISTRY_URL="${REGISTRY_URL%/}/"
+
+# If PROJECT_NAME is set, ensure it ends with a trailing slash
+[[ -n "$PROJECT_NAME" ]] && PROJECT_NAME="${PROJECT_NAME%/}/"
+
+export REGISTRY="${REGISTRY_URL}${PROJECT_NAME}"
+
+# Set default tag if not already set
+export TAG=${TAG:-latest}
+
+export APP_NAME="multimodal-embedding-serving"
+export APP_DISPLAY_NAME="Multimodal Embedding serving"
+export APP_DESC="Generates embeddings for text, images, and videos using pretrained models"
+
+# Video processing defaults
+export DEFAULT_START_OFFSET_SEC=0
+export DEFAULT_CLIP_DURATION=-1  # -1 means take the video till end
+export DEFAULT_NUM_FRAMES=64
+
+# OpenVINO configuration
 export EMBEDDING_USE_OV=false
 export EMBEDDING_DEVICE=${EMBEDDING_DEVICE:-CPU}
 export OV_PERFORMANCE_MODE=${OV_PERFORMANCE_MODE:-LATENCY}
@@ -22,7 +37,18 @@ if [ "$EMBEDDING_DEVICE" = "GPU" ]; then
 fi
 
 export EMBEDDING_SERVER_PORT=9777
-export EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME}
+
+# Model configuration - REQUIRED: User must set EMBEDDING_MODEL_NAME
+if [ -z "$EMBEDDING_MODEL_NAME" ]; then
+    echo "ERROR: EMBEDDING_MODEL_NAME environment variable is required."
+    echo ""
+    echo "Please set a model name before sourcing setup.sh:"
+    echo "  export EMBEDDING_MODEL_NAME=\"your-chosen-model\""
+    echo "  source setup.sh"
+    echo ""
+    echo "See docs/user-guide/supported-models.md for complete model specifications."
+    return 1
+fi
 
 # Model path configuration
 export EMBEDDING_OV_MODELS_DIR=${EMBEDDING_OV_MODELS_DIR:-"/app/ov_models"}
@@ -50,12 +76,24 @@ case "$EMBEDDING_MODEL_NAME" in
         ;;
 esac
 
-# env for vdms-vector-db
-export VDMS_VDB_HOST_PORT=55555
-export VDMS_VDB_HOST=vdms-vector-db
+# Fetch group IDs
+VIDEO_GROUP_ID=$(getent group video | awk -F: '{print $3}')
+RENDER_GROUP_ID=$(getent group render | awk -F: '{print $3}')
+export USER_ID=$(id -u)
+export USER_GROUP_ID=$(id -g)
+
+docker volume create data-prep
+docker volume create ov-models
 
 
-echo "All required environment variables set successfully."
+export EMBEDDING_SERVER_PORT=$EMBEDDING_SERVER_PORT
+export no_proxy_env=${no_proxy},$HOST_IP
+
+export VIDEO_GROUP_ID=$VIDEO_GROUP_ID
+export RENDER_GROUP_ID=$RENDER_GROUP_ID
+
+echo "Environment variables set successfully."
+echo "REGISTRY set to: ${REGISTRY}"
 echo "EMBEDDING_MODEL_NAME set to: ${EMBEDDING_MODEL_NAME}"
 echo "EMBEDDING_DEVICE set to: ${EMBEDDING_DEVICE}"
 echo "EMBEDDING_USE_OV set to: ${EMBEDDING_USE_OV}"
