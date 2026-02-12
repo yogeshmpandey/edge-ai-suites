@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.models.requests – StartRunRequest validation."""
+"""Tests for backend.models.requests, StartRunRequest validation."""
 
 import pytest
 from pydantic import ValidationError

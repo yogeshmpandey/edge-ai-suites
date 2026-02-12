@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for main – FastAPI application setup and root endpoint."""
+"""Tests for main, FastAPI application setup and root endpoint."""
 
 
 class TestRootEndpoint:

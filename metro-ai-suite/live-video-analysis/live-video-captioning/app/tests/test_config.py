@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.config – environment-driven configuration values."""
+"""Tests for backend.config, environment-driven configuration values."""
 
 import importlib
 

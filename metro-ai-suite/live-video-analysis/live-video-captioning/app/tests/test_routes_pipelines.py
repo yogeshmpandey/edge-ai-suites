@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.routes.pipelines – pipeline listing endpoint."""
+"""Tests for backend.routes.pipelines, pipeline listing endpoint."""
 
 from unittest.mock import patch
 

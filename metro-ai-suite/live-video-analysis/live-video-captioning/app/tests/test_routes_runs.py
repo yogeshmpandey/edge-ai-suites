@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.routes.runs – run lifecycle endpoints."""
+"""Tests for backend.routes.runs, run lifecycle endpoints."""
 
 from unittest.mock import patch
 
@@ -10,7 +10,7 @@ from backend.models.responses import RunInfo
 
 
 # ===================================================================
-# POST /api/runs – start a new run
+# POST /api/runs, start a new run
 # ===================================================================
 class TestStartRun:
     """POST /api/runs endpoint."""
@@ -100,7 +100,7 @@ class TestStartRun:
 
 
 # ===================================================================
-# GET /api/runs – list all runs
+# GET /api/runs, list all runs
 # ===================================================================
 class TestListRuns:
     """GET /api/runs endpoint."""
@@ -126,7 +126,7 @@ class TestListRuns:
 
 
 # ===================================================================
-# GET /api/runs/{run_id} – get single run
+# GET /api/runs/{run_id}, get single run
 # ===================================================================
 class TestGetRun:
     """GET /api/runs/{run_id} endpoint."""
@@ -147,7 +147,7 @@ class TestGetRun:
 
 
 # ===================================================================
-# DELETE /api/runs/{run_id} – stop a run
+# DELETE /api/runs/{run_id}, stop a run
 # ===================================================================
 class TestStopRun:
     """DELETE /api/runs/{run_id} endpoint."""

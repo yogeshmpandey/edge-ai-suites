@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.models.responses – Pydantic response models."""
+"""Tests for backend.models.responses, Pydantic response models."""
 
 import pytest
 from pydantic import ValidationError

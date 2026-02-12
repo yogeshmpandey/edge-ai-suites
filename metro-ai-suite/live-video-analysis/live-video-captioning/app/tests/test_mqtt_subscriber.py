@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.services.mqtt_subscriber – MQTT subscriber service."""
+"""Tests for backend.services.mqtt_subscriber, MQTT subscriber service."""
 
 import asyncio
 import json
@@ -141,7 +141,7 @@ class TestMQTTSubscriberOnMessage:
 
 
 class TestMQTTSubscriberProcessMessages:
-    """process_messages() – async message dispatcher."""
+    """process_messages(), async message dispatcher."""
 
     @pytest.mark.asyncio
     async def test_dispatches_to_callback(self):

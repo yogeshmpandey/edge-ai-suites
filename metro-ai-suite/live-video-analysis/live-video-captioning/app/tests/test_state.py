@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.state – in-memory run storage."""
+"""Tests for backend.state, in-memory run storage."""
 
 from backend.models.responses import RunInfo
 from backend.state import RUNS

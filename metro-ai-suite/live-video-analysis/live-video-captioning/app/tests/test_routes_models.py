@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.routes.models – VLM and detection model listing endpoints."""
+"""Tests for backend.routes.models, VLM and detection model listing endpoints."""
 
 from unittest.mock import patch
 

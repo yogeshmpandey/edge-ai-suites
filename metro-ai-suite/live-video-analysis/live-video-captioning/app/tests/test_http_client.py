@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.services.http_client – HTTP JSON helper."""
+"""Tests for backend.services.http_client, HTTP JSON helper."""
 
 from unittest.mock import patch, MagicMock
 from urllib.error import HTTPError, URLError

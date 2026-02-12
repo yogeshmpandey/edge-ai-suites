@@ -42,7 +42,7 @@ def _patch_config(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# MQTT subscriber stub – prevents real connections during testing
+# MQTT subscriber stub, prevents real connections during testing
 # ---------------------------------------------------------------------------
 @pytest.fixture(autouse=True)
 def mock_mqtt(monkeypatch):

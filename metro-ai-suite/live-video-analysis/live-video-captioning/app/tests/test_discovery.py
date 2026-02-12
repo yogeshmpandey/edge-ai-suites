@@ -1,7 +1,7 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for backend.services.discovery – model and pipeline discovery."""
+"""Tests for backend.services.discovery, model and pipeline discovery."""
 
 import json
 from unittest.mock import patch
@@ -19,7 +19,7 @@ from backend.services.discovery import (
 # discover_models
 # ===================================================================
 class TestDiscoverModels:
-    """Tests for discover_models() – VLM model directory scanning."""
+    """Tests for discover_models(), VLM model directory scanning."""
 
     def test_returns_empty_when_dir_missing(self, tmp_path):
         """Returns an empty list when the models directory does not exist."""
@@ -70,7 +70,7 @@ class TestDiscoverModels:
 # discover_detection_models
 # ===================================================================
 class TestDiscoverDetectionModels:
-    """Tests for discover_detection_models() – detection model scanning."""
+    """Tests for discover_detection_models(), detection model scanning."""
 
     def test_returns_empty_when_dir_missing(self, tmp_path):
         """Returns an empty list when the directory does not exist."""
@@ -140,7 +140,7 @@ class TestIsDetectionPipeline:
 # discover_pipelines_remote
 # ===================================================================
 class TestDiscoverPipelinesRemote:
-    """Tests for discover_pipelines_remote() – remote pipeline discovery."""
+    """Tests for discover_pipelines_remote(), remote pipeline discovery."""
 
     def _mock_http(self, payload):
         """Return a patcher that makes http_json return the given JSON payload."""
