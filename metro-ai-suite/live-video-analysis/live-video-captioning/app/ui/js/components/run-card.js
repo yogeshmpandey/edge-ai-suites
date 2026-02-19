@@ -76,6 +76,19 @@ const RunCardComponent = (function () {
             <div class="info-tooltip-row"><strong>RTSP URL:</strong> <span>${run.rtspUrl || 'N/A'}</span></div>
             <div class="info-tooltip-row"><strong>Max Tokens:</strong> <span>${run.maxTokens || 'N/A'}</span></div>
             <div class="info-tooltip-row"><strong>Prompt:</strong> <span class="info-tooltip-prompt">${run.prompt || 'N/A'}</span></div>
+            ${(run.frameRate != null)
+                ? `<div class="info-tooltip-row"><strong>Frame Rate:</strong> <span>${run.frameRate || 'N/A'}</span></div>`
+                : ''}
+            ${(run.chunkSize != null)
+                ? `<div class="info-tooltip-row"><strong>Chunk Size:</strong> <span>${run.chunkSize || 'N/A'}</span></div>`
+                : ''}
+            ${(run.frameQuality != null)
+                ? `<div class="info-tooltip-row"><strong>Frame Quality:</strong> <span>${
+                    run.frameQuality === 'custom'
+                        ? `Custom (${run.frameWidth ?? '?'}×${run.frameHeight ?? '?'})`
+                        : ({ best: 'Best (1280×720)', better: 'Better (640×480)', good: 'Good (480×360)' }[run.frameQuality] || run.frameQuality)
+                }</span></div>`
+                : ''}
             ${(run.isEnabledDetection && (run.detectionModelName ?? '') !== '')
                 ? `<div class="info-tooltip-row"><strong>Detection Model:</strong> <span>${run.detectionModelName}</span></div>`
                 : ''}

@@ -21,6 +21,12 @@
         detectionThresholdField: document.getElementById('detectionThresholdField'),
         detectionModelNameSelect: document.getElementById('detectionModelNameSelect'),
         detectionThresholdInput: document.getElementById('detectionThresholdInput'),
+        frameRateInput: document.getElementById('frameRateInput'),
+        chunkSizeInput: document.getElementById('chunkSizeInput'),
+        frameQualitySelect: document.getElementById('frameQualitySelect'),
+        customWidthInput: document.getElementById('customWidthInput'),
+        customHeightInput: document.getElementById('customHeightInput'),
+        customDimensionsRow: document.getElementById('customDimensionsRow'),
     };
 
     const state = { selectedRunId: null, runs: new Map() };
@@ -292,6 +298,11 @@
                     prompt: runData.prompt || 'N/A',
                     maxTokens: runData.maxTokens || 'N/A',
                     rtspUrl: runData.rtspUrl || 'N/A',
+                    frameRate: runData.frameRate ?? null,
+                    chunkSize: runData.chunkSize ?? null,
+                    frameWidth: runData.frameWidth ?? null,
+                    frameHeight: runData.frameHeight ?? null,
+                    frameQuality: runData.frameQuality ?? null,
                 };
 
                 const ui = RunCardComponent.createRunElement(run, stopRun);
@@ -346,6 +357,30 @@
                 : 0.5)
             : null;
 
+        // Frame rate, chunk size and frame dimensions
+        const frameRateRaw = (els.frameRateInput?.value || '').toString().trim();
+        const frameRateParsed = Number.parseInt(frameRateRaw, 10);
+        const frameRate = (frameRateRaw !== '' && Number.isFinite(frameRateParsed) && frameRateParsed >= 0) ? frameRateParsed : null;
+
+        const chunkSizeRaw = (els.chunkSizeInput?.value || '').toString().trim();
+        const chunkSizeParsed = Number.parseInt(chunkSizeRaw, 10);
+        const chunkSize = (chunkSizeRaw !== '' && Number.isFinite(chunkSizeParsed) && chunkSizeParsed >= 1) ? chunkSizeParsed : null;
+
+        const QUALITY_PRESETS = { best: [1280, 720], better: [640, 480], good: [480, 360] };
+        const qualityKey = (els.frameQualitySelect?.value || '').trim();
+        let frameWidth = null;
+        let frameHeight = null;
+        if (qualityKey === 'custom') {
+            const wRaw = Number.parseInt((els.customWidthInput?.value || '').trim(), 10);
+            const hRaw = Number.parseInt((els.customHeightInput?.value || '').trim(), 10);
+            frameWidth = Number.isFinite(wRaw) && wRaw > 0 ? wRaw : null;
+            frameHeight = Number.isFinite(hRaw) && hRaw > 0 ? hRaw : null;
+        } else {
+            const qualityPreset = QUALITY_PRESETS[qualityKey] || null;
+            frameWidth = qualityPreset ? qualityPreset[0] : null;
+            frameHeight = qualityPreset ? qualityPreset[1] : null;
+        }
+
         // Process optional run name
         const rawRunName = (els.runNameInput?.value || '').trim();
         let runName = RunCardComponent.validateAndPrepareRunName(rawRunName);
@@ -362,6 +397,10 @@
             if (runName) {
                 requestBody.runName = runName;
             }
+            if (frameRate !== null) requestBody.frameRate = frameRate;
+            if (chunkSize !== null) requestBody.chunkSize = chunkSize;
+            if (frameWidth !== null) requestBody.frameWidth = frameWidth;
+            if (frameHeight !== null) requestBody.frameHeight = frameHeight;
             const data = await ApiService.startRun(requestBody);
 
             const run = {
@@ -377,6 +416,11 @@
                 prompt: prompt,
                 maxTokens: maxTokens,
                 rtspUrl: rtspUrl,
+                frameRate: frameRate,
+                chunkSize: chunkSize,
+                frameWidth: frameWidth,
+                frameHeight: frameHeight,
+                frameQuality: qualityKey || null,
             };
 
             // Hide the hint when first pipeline starts
@@ -428,6 +472,17 @@
 
         if (els.pipelineSelect) {
             els.pipelineSelect.addEventListener('change', toggleDetectionFieldsByText);
+        }
+
+        function updateCustomDimensionsVisibility() {
+            const isCustom = els.frameQualitySelect?.value === 'custom';
+            if (els.customDimensionsRow) {
+                els.customDimensionsRow.style.display = isCustom ? '' : 'none';
+            }
+        }
+        if (els.frameQualitySelect) {
+            els.frameQualitySelect.addEventListener('change', updateCustomDimensionsVisibility);
+            updateCustomDimensionsVisibility();
         }
 
         loadModels();

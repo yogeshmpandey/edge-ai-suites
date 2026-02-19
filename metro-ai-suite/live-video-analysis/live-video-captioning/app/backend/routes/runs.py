@@ -68,6 +68,25 @@ async def start_run(req: StartRunRequest) -> RunInfo:
             "captioner_max_new_tokens": req.maxNewTokens,
             "detection_model_name": (req.detectionModelName or "").strip() or "yolov8s",
             "detection_threshold": req.detectionThreshold,
+            **(
+                {"captioner_frame_rate": req.frameRate}
+                if req.frameRate is not None
+                else {}
+            ),
+            **(
+                {"captioner_chunk_size": req.chunkSize}
+                if req.chunkSize is not None
+                else {}
+            ),
+            **({"frame_width": req.frameWidth} if req.frameWidth is not None else {}),
+            **(
+                {"frame_height": req.frameHeight} if req.frameHeight is not None else {}
+            ),
+            **(
+                {"captioner_queue_size": max(1, req.frameRate * req.chunkSize)}
+                if req.frameRate is not None and req.chunkSize is not None
+                else {}
+            ),
             "mqtt_publisher": {
                 "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
                 "publish_frame": False,
@@ -100,6 +119,10 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         prompt=(req.prompt or "").strip() or DEFAULT_PROMPT,
         maxTokens=req.maxNewTokens,
         rtspUrl=req.rtspUrl,
+        frameRate=req.frameRate,
+        chunkSize=req.chunkSize,
+        frameWidth=req.frameWidth,
+        frameHeight=req.frameHeight,
     )
     RUNS[info.runId] = info
     return info

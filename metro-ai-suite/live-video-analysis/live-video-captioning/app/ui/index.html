@@ -61,6 +61,85 @@
                     </div>
                     <div class="field-row">
                         <label class="field">
+                            <span class="label">
+                                Frame Rate
+                                <span class="tooltip-wrap">
+                                    <button type="button" class="tooltip-icon"
+                                        aria-label="More info about Frame Rate"
+                                        aria-describedby="frame-rate-tooltip">
+                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
+                                            aria-hidden="true" focusable="false">
+                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
+                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
+                                        </svg>
+                                    </button>
+                                    <div id="frame-rate-tooltip" role="tooltip" class="tooltip top-right" hidden>
+                                        Frames sampled per second for inference (0 = process all frames).
+                                    </div>
+                                </span>
+                            </span>
+                            <input id="frameRateInput" class="input" type="number" min="0" step="1" value="1" />
+                        </label>
+                        <label class="field">
+                            <span class="label">
+                                Chunk Size
+                                <span class="tooltip-wrap">
+                                    <button type="button" class="tooltip-icon"
+                                        aria-label="More info about Chunk Size"
+                                        aria-describedby="chunk-size-tooltip">
+                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
+                                            aria-hidden="true" focusable="false">
+                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
+                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
+                                        </svg>
+                                    </button>
+                                    <div id="chunk-size-tooltip" role="tooltip" class="tooltip top-right" hidden>
+                                        Number of frames per inference batch.
+                                    </div>
+                                </span>
+                            </span>
+                            <input id="chunkSizeInput" class="input" type="number" min="1" step="1" value="1" />
+                        </label>
+                    </div>
+                    <div class="field-row">
+                        <label class="field">
+                            <span class="label">
+                                Frame Quality
+                                <span class="tooltip-wrap">
+                                    <button type="button" class="tooltip-icon"
+                                        aria-label="More info about Frame Quality"
+                                        aria-describedby="frame-quality-tooltip">
+                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
+                                            aria-hidden="true" focusable="false">
+                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
+                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
+                                        </svg>
+                                    </button>
+                                    <div id="frame-quality-tooltip" role="tooltip" class="tooltip top-right" hidden>
+                                        Resolution of video frames fed to inference: Best (1280×720), Better (640×480), Good (480×360), or Custom.
+                                    </div>
+                                </span>
+                            </span>
+                            <select id="frameQualitySelect" class="input">
+                                <option value="best">Best (1280 × 720)</option>
+                                <option value="better" selected>Better (640 × 480)</option>
+                                <option value="good">Good (480 × 360)</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="field-row" id="customDimensionsRow" style="display: none;">
+                        <label class="field">
+                            <span class="label">Custom Width (px)</span>
+                            <input id="customWidthInput" class="input" type="number" min="1" step="1" placeholder="e.g. 1920" />
+                        </label>
+                        <label class="field">
+                            <span class="label">Custom Height (px)</span>
+                            <input id="customHeightInput" class="input" type="number" min="1" step="1" placeholder="e.g. 1080" />
+                        </label>
+                    </div>
+                    <div class="field-row">
+                        <label class="field">
                             <span class="label">Select Pipeline</span>
                             <select id="pipelineSelect" class="input"></select>
                         </label>

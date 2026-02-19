@@ -13,6 +13,11 @@ const SettingsManager = (function() {
                 pipelineName: els.pipelineSelect?.value || '',
                 maxTokens: els.maxTokensInput?.value || '70',
                 runName: els.runNameInput?.value || '',
+                frameRate: els.frameRateInput?.value || '',
+                chunkSize: els.chunkSizeInput?.value || '',
+                frameQuality: els.frameQualitySelect?.value || '',
+                customWidth: els.customWidthInput?.value || '',
+                customHeight: els.customHeightInput?.value || '',
             };
             localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         } catch (_err) {
@@ -57,6 +62,21 @@ const SettingsManager = (function() {
         if (settings.runName && els.runNameInput) {
             els.runNameInput.value = settings.runName;
         }
+        if (settings.frameRate !== undefined && settings.frameRate !== '' && els.frameRateInput) {
+            els.frameRateInput.value = settings.frameRate;
+        }
+        if (settings.chunkSize !== undefined && settings.chunkSize !== '' && els.chunkSizeInput) {
+            els.chunkSizeInput.value = settings.chunkSize;
+        }
+        if (settings.frameQuality !== undefined && settings.frameQuality !== '' && els.frameQualitySelect) {
+            els.frameQualitySelect.value = settings.frameQuality;
+        }
+        if (settings.customWidth !== undefined && settings.customWidth !== '' && els.customWidthInput) {
+            els.customWidthInput.value = settings.customWidth;
+        }
+        if (settings.customHeight !== undefined && settings.customHeight !== '' && els.customHeightInput) {
+            els.customHeightInput.value = settings.customHeight;
+        }
         // Model and pipeline will be restored after options are loaded
     }
 
@@ -80,7 +100,8 @@ const SettingsManager = (function() {
 
     function setupSettingsPersistence(els) {
         // Save settings on input changes
-        const inputs = [els.rtspInput, els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect, els.runNameInput];
+        const inputs = [els.rtspInput, els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect, els.runNameInput,
+            els.frameRateInput, els.chunkSizeInput, els.frameQualitySelect, els.customWidthInput, els.customHeightInput];
         inputs.forEach(el => {
             if (el) {
                 el.addEventListener('change', () => saveSettings(els));
