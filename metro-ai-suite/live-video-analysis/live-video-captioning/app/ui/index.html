@@ -234,24 +234,18 @@
                     </div>
                 </form>
                 <div class="card system-stats-card" style="margin-top:2px; background: var(--panel-strong);">
-                    <div class="chart-grid">
-                        <div class="chart-card">
-                            <div class="chart-header"><span>CPU</span><span class="chart-value" id="cpuVal">—</span>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <span>System Metrics</span>
+                            <div class="chart-values">
+                                <span class="chart-value" style="color:#1ad0ff">CPU <span id="cpuVal">—</span></span>
+                                <span class="chart-value" style="color:#8ca0c2">RAM <span id="ramVal">—</span></span>
+                                <span class="chart-value" style="color:#ffb347">GPU <span id="gpuVal">—</span></span>
                             </div>
-                            <div class="chart-wrap"><canvas id="cpuChart"></canvas></div>
                         </div>
-                        <div class="chart-card">
-                            <div class="chart-header"><span>RAM</span><span class="chart-value" id="ramVal">—</span>
-                            </div>
-                            <div class="chart-wrap"><canvas id="ramChart"></canvas></div>
-                        </div>
-                        <div class="chart-card">
-                            <div class="chart-header"><span>GPU</span><span class="chart-value" id="gpuVal">—</span>
-                            </div>
-                            <div class="gpu-error" id="gpuError"
-                                style="font-size: 0.7rem; color: var(--text-muted); display: none;"></div>
-                            <div class="chart-wrap"><canvas id="gpuChart"></canvas></div>
-                        </div>
+                        <div class="gpu-error" id="gpuError"
+                            style="font-size: 0.7rem; color: var(--text-muted); display: none;"></div>
+                        <div class="chart-wrap"><canvas id="statsChart"></canvas></div>
                     </div>
                 </div>
             </article>

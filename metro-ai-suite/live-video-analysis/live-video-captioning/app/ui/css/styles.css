@@ -133,13 +133,6 @@ main {
     min-height: 0;
 }
 
-.panels>.card:first-child>.card .chart-grid {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
 .panels>.card:first-child>.card .chart-card {
     flex: 1;
     display: flex;
@@ -553,13 +546,10 @@ iframe {
     gap: 12px;
 }
 
-.chart-grid {
+.chart-values {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-    min-height: 0;
-    padding-bottom: 16px;
+    gap: 12px;
+    font-size: 0.8rem;
 }
 
 .chart-card {
