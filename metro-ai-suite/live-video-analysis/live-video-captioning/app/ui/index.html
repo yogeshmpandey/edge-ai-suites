@@ -61,65 +61,17 @@
                     </div>
                     <div class="field-row">
                         <label class="field">
-                            <span class="label">
-                                Frame Rate
-                                <span class="tooltip-wrap">
-                                    <button type="button" class="tooltip-icon"
-                                        aria-label="More info about Frame Rate"
-                                        aria-describedby="frame-rate-tooltip">
-                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
-                                            aria-hidden="true" focusable="false">
-                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
-                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                        </svg>
-                                    </button>
-                                    <div id="frame-rate-tooltip" role="tooltip" class="tooltip top-right" hidden>
-                                        Frames sampled per second for inference (0 = process all frames).
-                                    </div>
-                                </span>
-                            </span>
+                            <span class="label">Frame Rate</span>
                             <input id="frameRateInput" class="input" type="number" min="0" step="1" value="1" />
                         </label>
                         <label class="field">
-                            <span class="label">
-                                Chunk Size
-                                <span class="tooltip-wrap">
-                                    <button type="button" class="tooltip-icon"
-                                        aria-label="More info about Chunk Size"
-                                        aria-describedby="chunk-size-tooltip">
-                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
-                                            aria-hidden="true" focusable="false">
-                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
-                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                        </svg>
-                                    </button>
-                                    <div id="chunk-size-tooltip" role="tooltip" class="tooltip top-right" hidden>
-                                        Number of frames per inference batch.
-                                    </div>
-                                </span>
-                            </span>
+                            <span class="label">Chunk Size</span>
                             <input id="chunkSizeInput" class="input" type="number" min="1" step="1" value="1" />
                         </label>
                     </div>
                     <div class="field-row">
                         <label class="field">
-                            <span class="label">
-                                Frame Quality
-                                <span class="tooltip-wrap">
-                                    <button type="button" class="tooltip-icon"
-                                        aria-label="More info about Frame Quality"
-                                        aria-describedby="frame-quality-tooltip">
-                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
-                                            aria-hidden="true" focusable="false">
-                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
-                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                        </svg>
-                                    </button>
-                                    <div id="frame-quality-tooltip" role="tooltip" class="tooltip top-right" hidden>
-                                        Resolution of video frames fed to inference: Best (1280×720), Better (640×480), Good (480×360), or Custom.
-                                    </div>
-                                </span>
-                            </span>
+                            <span class="label">Frame Quality</span>
                             <select id="frameQualitySelect" class="input">
                                 <option value="best">Best (1280 × 720)</option>
                                 <option value="better" selected>Better (640 × 480)</option>
@@ -153,70 +105,30 @@
                         <div class="field">
                             <span class="label">
                                 <label class="text-label">Detection Properties</label>
-                                <span class="tooltip-wrap">
-                                    <button type="button" class="tooltip-icon"
-                                        aria-label="More info about Detection Properties"
-                                        aria-describedby="detection-tooltip">
-                                        <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
-                                            aria-hidden="true" focusable="false">
-                                            <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15"></circle>
-                                            <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                        </svg>
-                                    </button>
-                                    <div id="detection-tooltip" role="tooltip" class="tooltip top-right-float" hidden>
-                                        Configuration for gvadetect detection element.
-                                    </div>
-                                </span>
                             </span>
                         </div>
 
                         <div class="field-row">
                             <label class="field" id="detectionModelField">
-                                <span class="label">
-                                    Detection Model
-                                    <span class="tooltip-wrap">
-                                        <button type="button" class="tooltip-icon"
-                                            aria-label="More info about Detection Model"
-                                            aria-describedby="detection-model-tooltip">
-                                            <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
-                                                aria-hidden="true" focusable="false">
-                                                <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15">
-                                                </circle>
-                                                <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                            </svg>
-                                        </button>
-                                        <div id="detection-model-tooltip" role="tooltip" class="tooltip top-right-float"
-                                            hidden>
-                                            Model used for object detection.
-                                        </div>
-                                    </span>
-                                </span>
+                                <span class="label">Detection Model</span>
                                 <select id="detectionModelNameSelect" class="input"></select>
                             </label>
 
                             <label class="field" id="detectionThresholdField">
-                                <span class="label">
-                                    Detection Threshold
-                                    <span class="tooltip-wrap">
-                                        <button type="button" class="tooltip-icon"
-                                            aria-label="More info about Detection Threshold"
-                                            aria-describedby="detection-threshold-tooltip">
-                                            <svg class="info-svg" width="16" height="16" viewBox="0 0 24 24"
-                                                aria-hidden="true" focusable="false">
-                                                <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15">
-                                                </circle>
-                                                <path d="M11 10h2v7h-2zM11 7h2v2h-2z" fill="currentColor"></path>
-                                            </svg>
-                                        </button>
-                                        <div id="detection-threshold-tooltip" role="tooltip" class="tooltip top-right"
-                                            hidden>
-                                            Threshold for detection results. Value between 0 and 1.
-                                        </div>
-                                    </span>
-                                </span>
+                                <span class="label">Detection Threshold</span>
                                 <input id="detectionThresholdInput" class="input" type="number" min="0" max="1"
                                     step="0.1" value="0.5" />
                             </label>
+                        </div>
+                    </div>
+
+                    <div id="alertRulesSection" class="field-group" style="display: none;">
+                        <div class="alert-rules-box">
+                            <div class="alert-rules-box-header">
+                                🔔 Alert Rules
+                            </div>
+                            <div id="alertRulesList"></div>
+                                <button id="addAlertRuleBtn" type="button" class="btn btn-secondary btn-sm">+ Add Rule</button>
                         </div>
                     </div>
 
@@ -265,6 +177,7 @@
     <script src="/js/services/metrics-collector.js"></script>
     <script src="/js/components/run-card.js"></script>
     <script src="/js/app.js"></script>
+
 </body>
 
 </html>

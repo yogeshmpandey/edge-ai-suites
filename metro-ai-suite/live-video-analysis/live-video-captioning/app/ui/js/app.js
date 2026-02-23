@@ -27,6 +27,9 @@
         customWidthInput: document.getElementById('customWidthInput'),
         customHeightInput: document.getElementById('customHeightInput'),
         customDimensionsRow: document.getElementById('customDimensionsRow'),
+        alertRulesSection: document.getElementById('alertRulesSection'),
+        alertRulesList: document.getElementById('alertRulesList'),
+        addAlertRuleBtn: document.getElementById('addAlertRuleBtn'),
     };
 
     const state = { selectedRunId: null, runs: new Map() };
@@ -42,6 +45,129 @@
     function setSectionVisible(el, show) {
         if (!el) return;
         el.style.display = show ? '' : 'none';
+    }
+
+    const ALERT_RULE_DEFAULTS = [];
+    const ALERT_RULES_STORAGE_KEY = 'lvc_alert_rules';
+    const MAX_ALERT_RULES = 3;
+
+    function createAlertRuleRow(substring, color) {
+        const row = document.createElement('div');
+        row.className = 'alert-rule-row';
+
+        // Hidden native color input
+        const colorPicker = document.createElement('input');
+        colorPicker.type = 'color';
+        colorPicker.className = 'alert-rule-color-picker';
+        colorPicker.value = color || '#ff4444';
+        colorPicker.title = 'Pick highlight color';
+        colorPicker.setAttribute('aria-label', 'Highlight color');
+
+        // Visible color swatch that triggers the picker
+        const swatch = document.createElement('button');
+        swatch.type = 'button';
+        swatch.className = 'alert-rule-swatch';
+        swatch.title = 'Click to change color';
+        swatch.style.background = color || '#ff4444';
+        swatch.appendChild(colorPicker);
+        colorPicker.addEventListener('input', () => {
+            swatch.style.background = colorPicker.value;
+            saveAlertRulesToStorage();
+        });
+
+        const substringInput = document.createElement('input');
+        substringInput.type = 'text';
+        substringInput.className = 'alert-rule-substring';
+        substringInput.placeholder = 'Keyword to match…';
+        substringInput.value = substring || '';
+        substringInput.addEventListener('input', () => { saveAlertRulesToStorage(); });
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'alert-rule-remove';
+        removeBtn.title = 'Remove rule';
+        removeBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        removeBtn.addEventListener('click', () => {
+            row.remove();
+            refreshAlertRulesUI();
+            saveAlertRulesToStorage();
+        });
+
+        row.appendChild(swatch);
+        row.appendChild(substringInput);
+        row.appendChild(removeBtn);
+        return row;
+    }
+
+    function refreshAlertRulesUI() {
+        if (!els.alertRulesList || !els.addAlertRuleBtn) return;
+        const rows = els.alertRulesList.querySelectorAll('.alert-rule-row');
+        const count = rows.length;
+        // Show/hide empty state hint
+        let emptyHint = els.alertRulesList.querySelector('.alert-rules-empty');
+        if (count === 0) {
+            if (!emptyHint) {
+                emptyHint = document.createElement('p');
+                emptyHint.className = 'alert-rules-empty';
+                els.alertRulesList.appendChild(emptyHint);
+            }
+        } else if (emptyHint) {
+            emptyHint.remove();
+        }
+        // Show/hide Add Rule button
+        els.addAlertRuleBtn.style.display = count >= MAX_ALERT_RULES ? 'none' : '';
+    }
+
+    function loadAlertRulesFromStorage() {
+        try {
+            const raw = localStorage.getItem(ALERT_RULES_STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            }
+        } catch (_e) { /* ignore corrupt data */ }
+        return null;
+    }
+
+    function saveAlertRulesToStorage() {
+        const rules = readAlertRules();
+        try {
+            localStorage.setItem(ALERT_RULES_STORAGE_KEY, JSON.stringify(rules));
+        } catch (_e) { /* storage full or unavailable */ }
+    }
+
+    function initAlertRulesUI() {
+        if (!els.alertRulesList || !els.addAlertRuleBtn) return;
+        els.alertRulesList.innerHTML = '';
+
+        // Load from localStorage, fall back to defaults (empty)
+        const saved = loadAlertRulesFromStorage();
+        const initial = saved !== null ? saved : ALERT_RULE_DEFAULTS;
+        for (const def of initial) {
+            els.alertRulesList.appendChild(createAlertRuleRow(def.substring, def.color));
+        }
+        refreshAlertRulesUI();
+
+        els.addAlertRuleBtn.addEventListener('click', () => {
+            const count = els.alertRulesList.querySelectorAll('.alert-rule-row').length;
+            if (count >= MAX_ALERT_RULES) return;
+            const randomColor = '#' + Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, '0');
+            els.alertRulesList.appendChild(createAlertRuleRow('', randomColor));
+            refreshAlertRulesUI();
+            saveAlertRulesToStorage();
+        });
+    }
+
+    function readAlertRules() {
+        if (!els.alertRulesList) return [];
+        const rows = els.alertRulesList.querySelectorAll('.alert-rule-row');
+        const rules = [];
+        for (const row of rows) {
+            const substring = (row.querySelector('.alert-rule-substring')?.value || '').trim();
+            const color = row.querySelector('.alert-rule-color-picker')?.value || '#ff4444';
+            if (substring) rules.push({ substring, color });
+        }
+        return rules;
     }
 
     function showDetectionFields(show) {
@@ -306,6 +432,10 @@
                 };
 
                 const ui = RunCardComponent.createRunElement(run, stopRun);
+                // Restored runs don't have saved alert rules; use defaults
+                ui.alertRules = runData.alertRules ?? [
+                    { substring: 'yes', color: '#ff4444' },
+                ];
                 els.runsContainer.appendChild(ui.wrap);
                 attachRunStreams(run, ui);
                 state.selectedRunId = run.runId;
@@ -381,6 +511,9 @@
             frameHeight = qualityPreset ? qualityPreset[1] : null;
         }
 
+        // Alert color rules (alert mode only, per-run)
+        const alertRules = cfg.alertMode ? readAlertRules() : [];
+
         // Process optional run name
         const rawRunName = (els.runNameInput?.value || '').trim();
         let runName = RunCardComponent.validateAndPrepareRunName(rawRunName);
@@ -421,12 +554,14 @@
                 frameWidth: frameWidth,
                 frameHeight: frameHeight,
                 frameQuality: qualityKey || null,
+                alertRules: alertRules,
             };
 
             // Hide the hint when first pipeline starts
             if (els.hintEl) els.hintEl.style.display = 'none';
 
             const ui = RunCardComponent.createRunElement(run, stopRun);
+            ui.alertRules = run.alertRules;
             els.runsContainer.appendChild(ui.wrap);
             attachRunStreams(run, ui);
             updatePipelineInfo(`Latest Run: (${run.runId})`);
@@ -443,6 +578,12 @@
         const appTitleEl = document.getElementById('appTitle');
         if (appTitleEl && cfg.alertMode) {
             appTitleEl.textContent = 'Live Video Captioning and Alerts';
+        }
+
+        // Show alert color rules section only in alert mode
+        if (cfg.alertMode) {
+            setSectionVisible(els.alertRulesSection, true);
+            initAlertRulesUI();
         }
 
         // Set default RTSP URL from runtime config (before restoring localStorage)

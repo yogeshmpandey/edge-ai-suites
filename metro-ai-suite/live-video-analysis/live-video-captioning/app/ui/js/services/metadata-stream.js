@@ -49,41 +49,38 @@ const MetadataStreamService = (function() {
                 const captionText = typeof data === 'object' && data.result ? data.result : (typeof data === 'string' ? data : JSON.stringify(data));
                 ui.caption.textContent = captionText;
 
-                // Alert Mode: Check for "Yes" or "No" in caption and apply alert styling
+                // Alert Mode: Apply per-run configurable substring-to-color rules
                 if (cfg && cfg.alertMode) {
                     const runCard = ui.wrap;
                     const captionPanel = ui.captionPanel;
                     const lowerCaption = captionText ? captionText.toLowerCase() : '';
 
-                    if (lowerCaption.includes('yes')) {
-                        // Red alert for "yes"
-                        if (runCard) {
-                            runCard.classList.add('alert-active');
-                            runCard.classList.remove('safe-active');
-                        }
-                        if (captionPanel) {
-                            captionPanel.classList.add('alert-active');
-                            captionPanel.classList.remove('safe-active');
-                        }
-                    } else if (lowerCaption.includes('no')) {
-                        // Green indicator for "no"
-                        if (runCard) {
-                            runCard.classList.add('safe-active');
-                            runCard.classList.remove('alert-active');
-                        }
-                        if (captionPanel) {
-                            captionPanel.classList.add('safe-active');
-                            captionPanel.classList.remove('alert-active');
-                        }
-                    } else {
-                        // No keyword detected - remove both states
-                        if (runCard) {
-                            runCard.classList.remove('alert-active');
-                            runCard.classList.remove('safe-active');
-                        }
-                        if (captionPanel) {
-                            captionPanel.classList.remove('alert-active');
-                            captionPanel.classList.remove('safe-active');
+                    // Clear inline color state
+                    for (const el of [runCard, captionPanel]) {
+                        if (!el) continue;
+                        el.classList.remove('alert-1', 'alert-2', 'alert-3');
+                        el.style.removeProperty('--alert-color');
+                        el.style.removeProperty('--alert-color-rgb');
+                    }
+
+                    // Use per-run configured rules (no defaults — empty means no alerts)
+                    const rules = (ui.alertRules && ui.alertRules.length > 0) ? ui.alertRules : [];
+
+                    // Apply first matching rule (alert-1, alert-2, alert-3 based on rule index)
+                    for (let i = 0; i < rules.length; i++) {
+                        const rule = rules[i];
+                        if (!rule.substring) continue;
+                        if (lowerCaption.includes(rule.substring.toLowerCase())) {
+                            const hex = rule.color || '#ff4444';
+                            const rgb = hexToRgb(hex);
+                            const alertClass = 'alert-' + (i + 1);
+                            for (const el of [runCard, captionPanel]) {
+                                if (!el) continue;
+                                el.style.setProperty('--alert-color', hex);
+                                if (rgb) el.style.setProperty('--alert-color-rgb', rgb);
+                                el.classList.add(alertClass);
+                            }
+                            break;
                         }
                     }
                 }
@@ -146,6 +143,15 @@ const MetadataStreamService = (function() {
 
     function getLastCaptionTime(runId) {
         return lastCaptionTime.get(runId);
+    }
+
+    function hexToRgb(hex) {
+        const m = /^#([0-9a-f]{3,6})$/i.exec(hex.trim());
+        if (!m) return null;
+        let h = m[1];
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        const n = parseInt(h, 16);
+        return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
     }
 
     function getRunUIs() {

@@ -97,13 +97,29 @@ const RunCardComponent = (function () {
                 : ''}
         `;
         tooltip.style.display = 'none';
+        document.body.appendChild(tooltip);
+
+        function positionTooltip() {
+            const rect = infoBtn.getBoundingClientRect();
+            const tooltipWidth = 360;
+            let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+            // Clamp to viewport with 8px margin
+            left = Math.max(8, Math.min(left, window.innerWidth - tooltipWidth - 8));
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = (rect.bottom + 8) + 'px';
+        }
 
         // Toggle tooltip on click
         infoBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             const isVisible = tooltip.style.display === 'block';
-            tooltip.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                tooltip.style.display = 'block';
+                positionTooltip();
+            } else {
+                tooltip.style.display = 'none';
+            }
         });
 
         // Close tooltip when clicking outside
@@ -113,11 +129,18 @@ const RunCardComponent = (function () {
             }
         });
 
+        // Reposition on scroll/resize
+        window.addEventListener('scroll', () => {
+            if (tooltip.style.display === 'block') positionTooltip();
+        }, true);
+        window.addEventListener('resize', () => {
+            if (tooltip.style.display === 'block') positionTooltip();
+        });
+
         // Wrapper for info button and tooltip
         const infoBtnWrapper = document.createElement('div');
         infoBtnWrapper.className = 'info-btn-wrapper';
         infoBtnWrapper.appendChild(infoBtn);
-        infoBtnWrapper.appendChild(tooltip);
         headerLeft.appendChild(infoBtnWrapper);
 
         const grid = document.createElement('div');
