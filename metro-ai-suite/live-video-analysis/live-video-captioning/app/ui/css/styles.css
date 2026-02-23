@@ -91,7 +91,7 @@ main {
 .panels {
     display: grid;
     gap: 6px;
-    grid-template-columns: minmax(300px, 25%) minmax(0, 1fr);
+    grid-template-columns: minmax(300px, 27%) minmax(0, 1fr);
     align-items: stretch;
     flex: 1;
     overflow: hidden;

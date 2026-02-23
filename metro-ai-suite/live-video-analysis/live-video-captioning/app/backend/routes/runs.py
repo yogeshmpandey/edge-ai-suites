@@ -83,8 +83,8 @@ async def start_run(req: StartRunRequest) -> RunInfo:
                 {"frame_height": req.frameHeight} if req.frameHeight is not None else {}
             ),
             **(
-                {"captioner_queue_size": max(1, req.frameRate * req.chunkSize)}
-                if req.frameRate is not None and req.chunkSize is not None
+                {"captioner_queue_size": max(1, req.chunkSize)}
+                if req.chunkSize is not None
                 else {}
             ),
             "mqtt_publisher": {
@@ -93,6 +93,9 @@ async def start_run(req: StartRunRequest) -> RunInfo:
             },
         },
     }
+
+    logger.debug(f"Starting pipeline {pipeline_name} with URL: {start_url}")
+    logger.debug(f"Pipeline payload: {json.dumps(payload, indent=2)}")
 
     raw = http_json("POST", start_url, payload=payload)
     pipeline_id = raw.replace('"', "").strip()
