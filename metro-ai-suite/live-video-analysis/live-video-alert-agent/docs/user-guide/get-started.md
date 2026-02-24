@@ -11,12 +11,8 @@ This guide covers the rapid deployment of the Live Video Alert Agent system usin
 
 1. **Clone the repository**:
      ```bash
-     # Clone the latest on mainline
-     git clone https://github.com/open-edge-platform/edge-ai-suites.git edge-ai-suites
-     # Alternatively, clone a specific release branch
-     git clone https://github.com/open-edge-platform/edge-ai-suites.git edge-ai-suites -b <release-tag>
-     ```
-    Note: Adjust the repo link appropriately in case of forked repo.
+     # Clone the release branch
+     git clone https://github.com/open-edge-platform/edge-ai-suites.git edges-ai-suites -b release-2026.0.0
 
 2. **Navigate to the Directory**:
      ```bash
@@ -26,7 +22,7 @@ This guide covers the rapid deployment of the Live Video Alert Agent system usin
 3. **Configure Image Registry and Tag**:
      ```bash
      export REGISTRY="intel/"
-     export TAG="latest"
+     export TAG="1.0.0-rc.0"
      ```
     Skip this step if you prefer to build the sample application from source. For detailed instructions, refer to [How to Build from Source](./how-to-build-source.md) guide for details.
 

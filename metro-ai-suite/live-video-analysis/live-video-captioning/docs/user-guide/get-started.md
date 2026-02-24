@@ -21,10 +21,8 @@ when object detection in the pipeline is enabled. Please refer to the [Object De
 
 1. **Clone the repository**:
      ```bash
-     # Clone the latest on mainline
-     git clone https://github.com/open-edge-platform/edge-ai-suites.git edge-ai-suites
-     # Alternatively, clone a specific release branch
-     git clone https://github.com/open-edge-platform/edge-ai-suites.git edges-ai-suites -b <release-tag>
+     # Clone the release branch
+     git clone https://github.com/open-edge-platform/edge-ai-suites.git edges-ai-suites -b release-2026.0.0
      ```
 
 > **Note:** Adjust the repo link appropriately in case of forked repo.
@@ -37,7 +35,7 @@ when object detection in the pipeline is enabled. Please refer to the [Object De
 3. **Configure Image Registry and Tag**:
      ```bash
         export REGISTRY="intel/"
-        export TAG="latest"
+        export TAG="1.0.0-rc.1"
      ```
     Skip this step if you prefer to build the sample applciation from source. For detailed instructions, refer to the [Build from Source](./get-started/build-from-source.md) guide for details.
 

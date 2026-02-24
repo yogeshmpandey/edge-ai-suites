@@ -8,8 +8,19 @@ This guide will help you quickly get the Metrics Service up and running.
 
 Clone and navigate to the live-metrics-service directory:
 
+**Clone the repository**:
+
 ```bash
-cd live-metrics-service
+# Clone the release branch
+git clone https://github.com/open-edge-platform/edge-ai-suites.git edges-ai-suites -b release-2026.0.0
+```
+
+> **Note:** Adjust the repo link appropriately in case of forked repo.
+
+**Navigate to the Directory**:
+
+```bash
+cd edge-ai-suites/metro-ai-suite/live-video-analysis/live-metrics-service
 ```
 
 ### Step 2: Start the Service with Collector
@@ -29,7 +40,7 @@ Edit `.env` to configure:
 
 ```bash
 export REGISTRY="intel/"
-export TAG="latest"
+export TAG="1.0.0-rc.1"
 docker compose up
 ```
 
