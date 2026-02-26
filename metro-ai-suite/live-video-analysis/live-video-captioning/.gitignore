@@ -6,3 +6,6 @@ ov_detection_models
 shared/
 *__pycache__*
 app/live_video_captioning.egg-info/*
+*.venv-benchmark
+*results
+*configs/
