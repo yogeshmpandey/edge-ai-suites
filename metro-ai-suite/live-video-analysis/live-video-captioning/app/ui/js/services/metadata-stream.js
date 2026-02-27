@@ -6,7 +6,7 @@ const MetadataStreamService = (function() {
     const runUIs = new Map();
     const lastCaptionTime = new Map();
     const captionHistoryByRun = new Map();
-    const MAX_CAPTION_BUFFER = 100;
+    const MAX_CAPTION_BUFFER = 20;
     let captionHistoryCount = null;
 
     function normalizeCaptionHistory(value, fallback = 3) {
