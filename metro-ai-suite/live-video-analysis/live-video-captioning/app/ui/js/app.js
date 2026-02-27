@@ -31,6 +31,7 @@
         alertRulesSection: document.getElementById('alertRulesSection'),
         alertRulesList: document.getElementById('alertRulesList'),
         addAlertRuleBtn: document.getElementById('addAlertRuleBtn'),
+        pipelineServerError: document.getElementById('pipelineServerError'),
     };
 
     const state = { selectedRunId: null, runs: new Map() };
@@ -376,9 +377,10 @@
             SettingsManager.restoreSelectValues(els);
             toggleDetectionFieldsByText();
         } catch (_err) {
-            setPipelineOptions([ApiService.DEFAULT_PIPELINE]);
-            SettingsManager.restoreSelectValues(els);
-            toggleDetectionFieldsByText();
+            if (els.pipelineServerError) {
+                els.pipelineServerError.textContent = 'Pipeline server not reachable. Please check the logs.';
+                els.pipelineServerError.style.display = '';
+            }
         }
     }
 
