@@ -496,7 +496,7 @@
         const chunkSizeParsed = Number.parseInt(chunkSizeRaw, 10);
         const chunkSize = (chunkSizeRaw !== '' && Number.isFinite(chunkSizeParsed) && chunkSizeParsed >= 1) ? chunkSizeParsed : null;
 
-        const QUALITY_PRESETS = { best: [1280, 720], better: [640, 480], good: [480, 360] };
+        const QUALITY_PRESETS = { '1280x720': [1280, 720], '640x480': [640, 480], '480x360': [480, 360] };
         const qualityKey = (els.frameQualitySelect?.value || '').trim();
         let frameWidth = null;
         let frameHeight = null;
@@ -510,6 +510,15 @@
             frameWidth = qualityPreset ? qualityPreset[0] : null;
             frameHeight = qualityPreset ? qualityPreset[1] : null;
         }
+
+        // Route to proxy pipeline when Default resolution is selected
+        const PROXY_PIPELINE_MAP = {
+            'GenAI_Pipeline_on_CPU': 'GenAI_Pipeline_on_CPU_Default_Resolution',
+            'GenAI_Pipeline_on_GPU': 'GenAI_Pipeline_on_GPU_Default_Resolution',
+        };
+        const effectivePipelineName = (qualityKey === 'default' && PROXY_PIPELINE_MAP[pipelineName])
+            ? PROXY_PIPELINE_MAP[pipelineName]
+            : pipelineName;
 
         // Alert color rules (alert mode only, per-run)
         const alertRules = cfg.alertMode ? readAlertRules() : [];
@@ -526,7 +535,7 @@
         els.startBtn.disabled = true;
         updatePipelineInfo('Starting pipeline...');
         try {
-            const requestBody = { rtspUrl, prompt, detectionModelName, detectionThreshold, modelName, maxNewTokens: maxTokens, pipelineName };
+            const requestBody = { rtspUrl, prompt, detectionModelName, detectionThreshold, modelName, maxNewTokens: maxTokens, pipelineName: effectivePipelineName };
             if (runName) {
                 requestBody.runName = runName;
             }

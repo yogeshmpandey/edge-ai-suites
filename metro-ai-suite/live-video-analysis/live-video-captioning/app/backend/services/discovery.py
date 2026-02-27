@@ -125,6 +125,9 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
         if not ENABLE_DETECTION_PIPELINE:
             results = [r for r in results if r["pipeline_type"] != "detection"]
 
+        # Filter out proxy pipelines (hidden from UI, used internally for default resolution)
+        results = [r for r in results if not r["pipeline_name"].endswith("_Default_Resolution")]
+
         # Fallback if nothing usable left
         if not results:
             return [{"pipeline_name": PIPELINE_NAME, "pipeline_type": "non-detection"}]
