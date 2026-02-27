@@ -25,7 +25,7 @@ Per-run outputs include:
 
 How many permutations (runs) you can execute:
 - Total runs = `(#RTSP URLs) × (#rest_request_* blocks) × (#models)`
-- Example: 2 RTSP URLs, 3 `rest_request_*` profiles, 7 models = `2 × 3 × 7 = 42` runs
+- Example: 2 RTSP URLs, 3 rest_request_* profiles, 7 models = `2 × 3 × 7 = 42` runs
 - Runtime estimate = `Total runs × (run_duration_sec + inter_run_cooldown_sec)`
 
 ## Files in this folder
