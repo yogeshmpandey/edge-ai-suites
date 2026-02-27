@@ -7,16 +7,17 @@ const MetadataStreamService = (function() {
     const lastCaptionTime = new Map();
     const captionHistoryByRun = new Map();
     const MAX_CAPTION_BUFFER = 100;
-    let chatHistoryCount = 3;
+    let captionHistoryCount = null;
 
-    function normalizeChatHistory(value, fallback = 3) {
+    function normalizeCaptionHistory(value, fallback = 3) {
         const parsed = Number.parseInt(value, 10);
         if (!Number.isFinite(parsed)) return fallback;
         return Math.max(0, parsed);
     }
 
     function getVisibleCaptionLimit() {
-        return chatHistoryCount + 1;
+        const effectiveCount = captionHistoryCount === null ? 3 : captionHistoryCount;
+        return effectiveCount + 1;
     }
 
     function shouldAutoScroll(timelineEl) {
@@ -118,7 +119,11 @@ const MetadataStreamService = (function() {
             return; // Already initialized
         }
 
-        chatHistoryCount = normalizeChatHistory(cfg?.chatHistory, chatHistoryCount);
+        // Respect value already chosen by UI/localStorage. Backend default is fallback only.
+        if (captionHistoryCount === null) {
+            const runtimeCaptionHistory = cfg?.captionHistory;
+            captionHistoryCount = normalizeCaptionHistory(runtimeCaptionHistory, 3);
+        }
 
         console.log('Initializing multiplexed metadata stream...');
         metadataSource = new EventSource('/api/runs/metadata-stream');
@@ -269,13 +274,14 @@ const MetadataStreamService = (function() {
         return runUIs;
     }
 
-    function setChatHistoryLimit(value) {
-        chatHistoryCount = normalizeChatHistory(value, chatHistoryCount);
+    function setCaptionHistoryLimit(value) {
+        const fallback = captionHistoryCount === null ? 3 : captionHistoryCount;
+        captionHistoryCount = normalizeCaptionHistory(value, fallback);
         rerenderAllCaptionHistories();
     }
 
-    function getChatHistoryLimit() {
-        return chatHistoryCount;
+    function getCaptionHistoryLimit() {
+        return captionHistoryCount === null ? 3 : captionHistoryCount;
     }
 
     function close() {
@@ -292,8 +298,8 @@ const MetadataStreamService = (function() {
         unregisterRunUI,
         getLastCaptionTime,
         getRunUIs,
-        setChatHistoryLimit,
-        getChatHistoryLimit,
+        setCaptionHistoryLimit,
+        getCaptionHistoryLimit,
         close
     };
 })();

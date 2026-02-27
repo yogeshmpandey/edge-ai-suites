@@ -11,7 +11,7 @@
         modelNameSelect: document.getElementById('modelNameSelect'),
         pipelineSelect: document.getElementById('pipelineSelect'),
         maxTokensInput: document.getElementById('maxTokensInput'),
-        chatHistoryInput: document.getElementById('chatHistoryInput'),
+        captionHistoryInput: document.getElementById('captionHistoryInput'),
         rtspInput: document.getElementById('rtspInput'),
         runNameInput: document.getElementById('runNameInput'),
         startBtn: document.getElementById('startBtn'),
@@ -48,59 +48,46 @@
         el.style.display = show ? '' : 'none';
     }
 
-    function normalizeChatHistory(rawValue, fallback = 3) {
+    function normalizeCaptionHistory(rawValue, fallback = 3) {
         const parsed = Number.parseInt(rawValue, 10);
         if (!Number.isFinite(parsed)) return fallback;
         return Math.max(0, parsed);
     }
 
-    function getDefaultChatHistory() {
-        return normalizeChatHistory(cfg.chatHistory, 3);
+    function getDefaultCaptionHistory() {
+        return normalizeCaptionHistory(cfg.captionHistory, 3);
     }
 
-    function getPreferredChatHistoryOnLoad() {
+    function getPreferredCaptionHistoryOnLoad() {
         const settings = SettingsManager.loadSettings();
-        if (settings && settings.chatHistory !== undefined && settings.chatHistory !== '') {
-            return normalizeChatHistory(settings.chatHistory, getDefaultChatHistory());
-        }
-        return getDefaultChatHistory();
-    }
-
-    function getAppliedChatHistory() {
-        const fromService = MetadataStreamService.getChatHistoryLimit?.();
-        if (Number.isFinite(fromService)) {
-            return Math.max(0, fromService);
-        }
-
-        if (els.chatHistoryInput) {
-            const fromInput = Number.parseInt(els.chatHistoryInput.value, 10);
-            if (Number.isFinite(fromInput)) {
-                return Math.max(0, fromInput);
+        if (settings) {
+            const savedCaptionHistory = settings.captionHistory;
+            if (savedCaptionHistory !== undefined && savedCaptionHistory !== '') {
+                return normalizeCaptionHistory(savedCaptionHistory, getDefaultCaptionHistory());
             }
         }
-
-        return getPreferredChatHistoryOnLoad();
+        return getDefaultCaptionHistory();
     }
 
-    function applyChatHistorySetting() {
-        if (!els.chatHistoryInput) return;
-        const resolved = normalizeChatHistory(els.chatHistoryInput.value, getAppliedChatHistory());
-        if (els.chatHistoryInput.value !== String(resolved)) {
-            els.chatHistoryInput.value = String(resolved);
+    function applyCaptionHistorySetting() {
+        if (!els.captionHistoryInput) return;
+        const resolved = normalizeCaptionHistory(els.captionHistoryInput.value, getDefaultCaptionHistory());
+        if (els.captionHistoryInput.value !== String(resolved)) {
+            els.captionHistoryInput.value = String(resolved);
         }
-        MetadataStreamService.setChatHistoryLimit(resolved);
+        MetadataStreamService.setCaptionHistoryLimit(resolved);
     }
 
-    function handleChatHistoryInput() {
-        if (!els.chatHistoryInput) return;
-        const raw = els.chatHistoryInput.value;
+    function handleCaptionHistoryInput() {
+        if (!els.captionHistoryInput) return;
+        const raw = els.captionHistoryInput.value;
         // Allow transient empty value while user is editing with backspace/delete.
         if (raw === '') return;
 
         const parsed = Number.parseInt(raw, 10);
         if (!Number.isFinite(parsed)) return;
 
-        MetadataStreamService.setChatHistoryLimit(Math.max(0, parsed));
+        MetadataStreamService.setCaptionHistoryLimit(Math.max(0, parsed));
     }
 
     const ALERT_RULE_DEFAULTS = [];
@@ -664,9 +651,9 @@
             }
         }
 
-        // Resolve chat history for reload: prefer saved UI value, then runtime config default
-        if (els.chatHistoryInput) {
-            els.chatHistoryInput.value = String(getPreferredChatHistoryOnLoad());
+        // Resolve caption history for reload: prefer saved UI value, then runtime config default
+        if (els.captionHistoryInput) {
+            els.captionHistoryInput.value = String(getPreferredCaptionHistoryOnLoad());
         }
 
         ThemeManager.applyTheme(ThemeManager.detectInitialTheme(), els.themeToggle);
@@ -680,13 +667,13 @@
         // Restore settings from localStorage before loading options
         SettingsManager.restoreSettings(els, cfg);
         SettingsManager.setupSettingsPersistence(els);
-        applyChatHistorySetting();
+        applyCaptionHistorySetting();
         SettingsManager.saveSettings(els);
 
-        if (els.chatHistoryInput) {
-            els.chatHistoryInput.addEventListener('change', applyChatHistorySetting);
-            els.chatHistoryInput.addEventListener('input', handleChatHistoryInput);
-            els.chatHistoryInput.addEventListener('blur', applyChatHistorySetting);
+        if (els.captionHistoryInput) {
+            els.captionHistoryInput.addEventListener('change', applyCaptionHistorySetting);
+            els.captionHistoryInput.addEventListener('input', handleCaptionHistoryInput);
+            els.captionHistoryInput.addEventListener('blur', applyCaptionHistorySetting);
         }
 
         if (els.pipelineSelect) {

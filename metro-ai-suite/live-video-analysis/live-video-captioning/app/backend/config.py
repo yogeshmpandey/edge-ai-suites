@@ -23,7 +23,7 @@ DEFAULT_RTSP_URL = os.environ.get("DEFAULT_RTSP_URL", "")
 ENABLE_DETECTION_PIPELINE = os.environ.get(
     "ENABLE_DETECTION_PIPELINE", "false"
 ).lower() in ("true", "1", "yes")
-CHAT_HISTORY = _read_non_negative_int("CHAT_HISTORY", 3)
+CAPTION_HISTORY = _read_non_negative_int("CAPTION_HISTORY", 3)
 
 # Metrics Service Configuration
 METRICS_SERVICE_PORT = os.environ.get("METRICS_SERVICE_PORT", "9090")

@@ -12,7 +12,7 @@ const SettingsManager = (function() {
                 modelName: els.modelNameSelect?.value || '',
                 pipelineName: els.pipelineSelect?.value || '',
                 maxTokens: els.maxTokensInput?.value || '70',
-                chatHistory: els.chatHistoryInput?.value || '3',
+                captionHistory: els.captionHistoryInput?.value || '3',
                 runName: els.runNameInput?.value || '',
                 frameRate: els.frameRateInput?.value || '',
                 chunkSize: els.chunkSizeInput?.value || '',
@@ -60,8 +60,9 @@ const SettingsManager = (function() {
         if (settings.maxTokens && els.maxTokensInput) {
             els.maxTokensInput.value = settings.maxTokens;
         }
-        if (settings.chatHistory !== undefined && settings.chatHistory !== '' && els.chatHistoryInput) {
-            els.chatHistoryInput.value = settings.chatHistory;
+        const savedCaptionHistory = settings.captionHistory;
+        if (savedCaptionHistory !== undefined && savedCaptionHistory !== '' && els.captionHistoryInput) {
+            els.captionHistoryInput.value = savedCaptionHistory;
         }
         if (settings.runName && els.runNameInput) {
             els.runNameInput.value = settings.runName;
@@ -106,7 +107,7 @@ const SettingsManager = (function() {
         // Save settings on input changes
         const inputs = [els.rtspInput, els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect, els.runNameInput,
             els.frameRateInput, els.chunkSizeInput, els.frameQualitySelect, els.customWidthInput, els.customHeightInput,
-            els.chatHistoryInput];
+            els.captionHistoryInput];
         inputs.forEach(el => {
             if (el) {
                 el.addEventListener('change', () => saveSettings(els));
