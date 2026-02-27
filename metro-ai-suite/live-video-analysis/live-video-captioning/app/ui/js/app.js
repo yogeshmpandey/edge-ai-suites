@@ -66,13 +66,41 @@
         return getDefaultChatHistory();
     }
 
+    function getAppliedChatHistory() {
+        const fromService = MetadataStreamService.getChatHistoryLimit?.();
+        if (Number.isFinite(fromService)) {
+            return Math.max(0, fromService);
+        }
+
+        if (els.chatHistoryInput) {
+            const fromInput = Number.parseInt(els.chatHistoryInput.value, 10);
+            if (Number.isFinite(fromInput)) {
+                return Math.max(0, fromInput);
+            }
+        }
+
+        return getPreferredChatHistoryOnLoad();
+    }
+
     function applyChatHistorySetting() {
         if (!els.chatHistoryInput) return;
-        const resolved = normalizeChatHistory(els.chatHistoryInput.value, getDefaultChatHistory());
+        const resolved = normalizeChatHistory(els.chatHistoryInput.value, getAppliedChatHistory());
         if (els.chatHistoryInput.value !== String(resolved)) {
             els.chatHistoryInput.value = String(resolved);
         }
         MetadataStreamService.setChatHistoryLimit(resolved);
+    }
+
+    function handleChatHistoryInput() {
+        if (!els.chatHistoryInput) return;
+        const raw = els.chatHistoryInput.value;
+        // Allow transient empty value while user is editing with backspace/delete.
+        if (raw === '') return;
+
+        const parsed = Number.parseInt(raw, 10);
+        if (!Number.isFinite(parsed)) return;
+
+        MetadataStreamService.setChatHistoryLimit(Math.max(0, parsed));
     }
 
     const ALERT_RULE_DEFAULTS = [];
@@ -657,7 +685,8 @@
 
         if (els.chatHistoryInput) {
             els.chatHistoryInput.addEventListener('change', applyChatHistorySetting);
-            els.chatHistoryInput.addEventListener('input', applyChatHistorySetting);
+            els.chatHistoryInput.addEventListener('input', handleChatHistoryInput);
+            els.chatHistoryInput.addEventListener('blur', applyChatHistorySetting);
         }
 
         if (els.pipelineSelect) {
