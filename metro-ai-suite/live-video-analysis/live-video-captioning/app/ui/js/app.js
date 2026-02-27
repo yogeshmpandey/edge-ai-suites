@@ -11,6 +11,7 @@
         modelNameSelect: document.getElementById('modelNameSelect'),
         pipelineSelect: document.getElementById('pipelineSelect'),
         maxTokensInput: document.getElementById('maxTokensInput'),
+        chatHistoryInput: document.getElementById('chatHistoryInput'),
         rtspInput: document.getElementById('rtspInput'),
         runNameInput: document.getElementById('runNameInput'),
         startBtn: document.getElementById('startBtn'),
@@ -45,6 +46,33 @@
     function setSectionVisible(el, show) {
         if (!el) return;
         el.style.display = show ? '' : 'none';
+    }
+
+    function normalizeChatHistory(rawValue, fallback = 3) {
+        const parsed = Number.parseInt(rawValue, 10);
+        if (!Number.isFinite(parsed)) return fallback;
+        return Math.max(0, parsed);
+    }
+
+    function getDefaultChatHistory() {
+        return normalizeChatHistory(cfg.chatHistory, 3);
+    }
+
+    function getPreferredChatHistoryOnLoad() {
+        const settings = SettingsManager.loadSettings();
+        if (settings && settings.chatHistory !== undefined && settings.chatHistory !== '') {
+            return normalizeChatHistory(settings.chatHistory, getDefaultChatHistory());
+        }
+        return getDefaultChatHistory();
+    }
+
+    function applyChatHistorySetting() {
+        if (!els.chatHistoryInput) return;
+        const resolved = normalizeChatHistory(els.chatHistoryInput.value, getDefaultChatHistory());
+        if (els.chatHistoryInput.value !== String(resolved)) {
+            els.chatHistoryInput.value = String(resolved);
+        }
+        MetadataStreamService.setChatHistoryLimit(resolved);
     }
 
     const ALERT_RULE_DEFAULTS = [];
@@ -608,6 +636,11 @@
             }
         }
 
+        // Resolve chat history for reload: prefer saved UI value, then runtime config default
+        if (els.chatHistoryInput) {
+            els.chatHistoryInput.value = String(getPreferredChatHistoryOnLoad());
+        }
+
         ThemeManager.applyTheme(ThemeManager.detectInitialTheme(), els.themeToggle);
         if (els.themeToggle) {
             els.themeToggle.addEventListener('click', () => {
@@ -619,6 +652,13 @@
         // Restore settings from localStorage before loading options
         SettingsManager.restoreSettings(els, cfg);
         SettingsManager.setupSettingsPersistence(els);
+        applyChatHistorySetting();
+        SettingsManager.saveSettings(els);
+
+        if (els.chatHistoryInput) {
+            els.chatHistoryInput.addEventListener('change', applyChatHistorySetting);
+            els.chatHistoryInput.addEventListener('input', applyChatHistorySetting);
+        }
 
         if (els.pipelineSelect) {
             els.pipelineSelect.addEventListener('change', toggleDetectionFieldsByText);

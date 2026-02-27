@@ -190,11 +190,15 @@ const RunCardComponent = (function () {
         const captionContent = document.createElement('div');
         captionContent.className = 'caption-content';
 
-        const caption = document.createElement('p');
-        caption.className = 'caption-text';
-        caption.textContent = 'Waiting for metadata...';
+        const captionTimeline = document.createElement('div');
+        captionTimeline.className = 'caption-timeline';
 
-        captionContent.appendChild(caption);
+        const initialEntry = document.createElement('div');
+        initialEntry.className = 'caption-entry caption-entry-placeholder';
+        initialEntry.textContent = 'Waiting for live captions...';
+        captionTimeline.appendChild(initialEntry);
+
+        captionContent.appendChild(captionTimeline);
 
         const stopBtn = document.createElement('button');
         stopBtn.className = 'btn btn-danger';
@@ -226,7 +230,7 @@ const RunCardComponent = (function () {
         wrap.appendChild(header);
         wrap.appendChild(grid);
 
-        return { wrap, video, caption, captionPanel, watcher, timestamp, chips, stopBtn };
+        return { wrap, video, captionTimeline, captionPanel, watcher, timestamp, chips, stopBtn };
     }
 
     function validateAndPrepareRunName(rawName) {

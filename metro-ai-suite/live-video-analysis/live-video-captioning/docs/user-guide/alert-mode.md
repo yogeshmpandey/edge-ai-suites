@@ -36,6 +36,7 @@ EVAM_PORT=8080
 DASHBOARD_PORT=4173
 WEBRTC_PEER_ID=stream
 ALERT_MODE=True   # Enable Alert Mode
+CHAT_HISTORY=3
 ```
 
 ## Visual Indicators

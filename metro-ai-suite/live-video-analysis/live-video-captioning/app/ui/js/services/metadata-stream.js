@@ -5,12 +5,120 @@ const MetadataStreamService = (function() {
     let metadataSource = null;
     const runUIs = new Map();
     const lastCaptionTime = new Map();
+    const captionHistoryByRun = new Map();
+    const MAX_CAPTION_BUFFER = 100;
+    let chatHistoryCount = 3;
+
+    function normalizeChatHistory(value, fallback = 3) {
+        const parsed = Number.parseInt(value, 10);
+        if (!Number.isFinite(parsed)) return fallback;
+        return Math.max(0, parsed);
+    }
+
+    function getVisibleCaptionLimit() {
+        return chatHistoryCount + 1;
+    }
+
+    function shouldAutoScroll(timelineEl) {
+        if (!timelineEl) return true;
+        if (timelineEl.scrollHeight <= timelineEl.clientHeight) return true;
+        return timelineEl.scrollTop <= 12;
+    }
+
+    function formatStreamSeconds(seconds) {
+        if (!Number.isFinite(seconds)) return '—';
+        const safeSeconds = Math.max(0, seconds);
+        const minutes = Math.floor(safeSeconds / 60);
+        const remaining = safeSeconds - (minutes * 60);
+        const secondsText = remaining.toFixed(2).padStart(5, '0');
+        return `${String(minutes).padStart(2, '0')}:${secondsText}`;
+    }
+
+    function formatTimelinePositionLabel(index) {
+        if (index === 0) return 'Latest';
+        if (index === 1) return '1 back';
+        return `${index} back`;
+    }
+
+    function formatCaptionTimestamp(data) {
+        if (data && data.timestamp_seconds !== undefined) {
+            return `${formatStreamSeconds(data.timestamp_seconds)} stream`;
+        }
+        if (data && data.timestamp) {
+            return `at ${new Date(data.timestamp).toLocaleTimeString()}`;
+        }
+        return `at ${new Date().toLocaleTimeString()}`;
+    }
+
+    function renderCaptionTimeline(ui, entries) {
+        const timelineEl = ui?.captionTimeline;
+        if (!timelineEl) return;
+
+        const keepPinnedToLatest = shouldAutoScroll(timelineEl);
+        timelineEl.innerHTML = '';
+
+        if (!entries || entries.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'caption-entry caption-entry-placeholder';
+            empty.textContent = 'Waiting for live captions...';
+            timelineEl.appendChild(empty);
+            return;
+        }
+
+        for (let index = 0; index < entries.length; index++) {
+            const item = entries[index];
+            const row = document.createElement('article');
+            row.className = 'caption-entry';
+
+            const meta = document.createElement('div');
+            meta.className = 'caption-entry-meta';
+            const timelineLabel = formatTimelinePositionLabel(index);
+            meta.textContent = `${timelineLabel} • ${item.timestampLabel}`;
+
+            const text = document.createElement('p');
+            text.className = 'caption-entry-text';
+            text.textContent = item.captionText;
+
+            row.appendChild(meta);
+            row.appendChild(text);
+            timelineEl.appendChild(row);
+        }
+
+        if (keepPinnedToLatest) {
+            timelineEl.scrollTop = 0;
+        }
+    }
+
+    function updateRunCaptionHistory(runId, ui, data, captionText) {
+        const history = captionHistoryByRun.get(runId) || [];
+        history.unshift({
+            captionText,
+            timestampLabel: formatCaptionTimestamp(data),
+        });
+
+        if (history.length > MAX_CAPTION_BUFFER) {
+            history.length = MAX_CAPTION_BUFFER;
+        }
+
+        captionHistoryByRun.set(runId, history);
+        renderCaptionTimeline(ui, history.slice(0, getVisibleCaptionLimit()));
+    }
+
+    function rerenderAllCaptionHistories() {
+        const visibleLimit = getVisibleCaptionLimit();
+        for (const [runId, ui] of runUIs) {
+            const history = captionHistoryByRun.get(runId) || [];
+            renderCaptionTimeline(ui, history.slice(0, visibleLimit));
+        }
+    }
 
     function initMultiplexedMetadataStream(cfg) {
         // Single SSE connection for all run metadata to avoid browser connection limits
         if (metadataSource) {
             return; // Already initialized
         }
+
+        chatHistoryCount = normalizeChatHistory(cfg?.chatHistory, chatHistoryCount);
 
         console.log('Initializing multiplexed metadata stream...');
         metadataSource = new EventSource('/api/runs/metadata-stream');
@@ -47,7 +155,7 @@ const MetadataStreamService = (function() {
                 // msg.data is already parsed; extract caption and metrics directly
                 const data = msg.data;
                 const captionText = typeof data === 'object' && data.result ? data.result : (typeof data === 'string' ? data : JSON.stringify(data));
-                ui.caption.textContent = captionText;
+                updateRunCaptionHistory(runId, ui, data, captionText);
 
                 // Alert Mode: Apply per-run configurable substring-to-color rules
                 if (cfg && cfg.alertMode) {
@@ -134,11 +242,14 @@ const MetadataStreamService = (function() {
 
     function registerRunUI(runId, ui) {
         runUIs.set(runId, ui);
+        const history = captionHistoryByRun.get(runId) || [];
+        renderCaptionTimeline(ui, history.slice(0, getVisibleCaptionLimit()));
     }
 
     function unregisterRunUI(runId) {
         runUIs.delete(runId);
         lastCaptionTime.delete(runId);
+        captionHistoryByRun.delete(runId);
     }
 
     function getLastCaptionTime(runId) {
@@ -158,6 +269,15 @@ const MetadataStreamService = (function() {
         return runUIs;
     }
 
+    function setChatHistoryLimit(value) {
+        chatHistoryCount = normalizeChatHistory(value, chatHistoryCount);
+        rerenderAllCaptionHistories();
+    }
+
+    function getChatHistoryLimit() {
+        return chatHistoryCount;
+    }
+
     function close() {
         if (metadataSource) {
             console.log('Closing metadata stream');
@@ -172,6 +292,8 @@ const MetadataStreamService = (function() {
         unregisterRunUI,
         getLastCaptionTime,
         getRunUIs,
+        setChatHistoryLimit,
+        getChatHistoryLimit,
         close
     };
 })();
