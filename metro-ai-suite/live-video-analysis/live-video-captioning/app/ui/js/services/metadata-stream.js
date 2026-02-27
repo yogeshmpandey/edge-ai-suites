@@ -43,7 +43,7 @@ const MetadataStreamService = (function() {
 
     function formatCaptionTimestamp(data) {
         if (data && data.timestamp_seconds !== undefined) {
-            return `${formatStreamSeconds(data.timestamp_seconds)} stream`;
+            return `${formatStreamSeconds(data.timestamp_seconds)}`;
         }
         if (data && data.timestamp) {
             return `at ${new Date(data.timestamp).toLocaleTimeString()}`;
