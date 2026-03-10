@@ -56,7 +56,7 @@ when object detection in the pipeline is enabled. Please refer to the [Object De
      WEBRTC_BITRATE=5000
      ALERT_MODE=False
      ENABLE_DETECTION_PIPELINE=False
-    CAPTION_HISTORY=3
+     CAPTION_HISTORY=3
      ```
     Notes:
     - `HOST_IP` must be reachable by the browser client for WebRTC signaling.
