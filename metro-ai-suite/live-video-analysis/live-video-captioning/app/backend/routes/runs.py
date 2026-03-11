@@ -24,6 +24,59 @@ router = APIRouter(prefix="/api", tags=["runs"])
 logger = logging.getLogger("app.runs")
 
 
+def _build_pipeline_parameters(req: StartRunRequest, run_id: str) -> dict:
+    parameters = {
+        "captioner-prompt": (req.prompt or "").strip() or DEFAULT_PROMPT,
+        "captioner_model_name": (req.modelName or "").strip()
+        or "OpenGVLab/InternVL2-2B",
+        "captioner_max_new_tokens": req.maxNewTokens,
+        "detection_model_name": (req.detectionModelName or "").strip() or "yolov8s",
+        "detection_threshold": req.detectionThreshold,
+        "mqtt_publisher": {
+            "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
+            "publish_frame": False,
+        },
+    }
+
+    optional_parameters = {
+        "captioner_frame_rate": req.frameRate,
+        "captioner_chunk_size": req.chunkSize,
+        "frame_width": req.frameWidth,
+        "frame_height": req.frameHeight,
+    }
+    parameters.update(
+        {key: value for key, value in optional_parameters.items() if value is not None}
+    )
+
+    if req.chunkSize is not None:
+        parameters["captioner_queue_size"] = max(1, req.chunkSize)
+
+    return parameters
+
+
+def _build_start_payload(req: StartRunRequest, run_id: str, peer_id: str) -> dict:
+    return {
+        "source": {"uri": req.rtspUrl, "type": "uri"},
+        "destination": {
+            "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": WEBRTC_BITRATE},
+        },
+        "parameters": _build_pipeline_parameters(req, run_id),
+    }
+
+
+def _extract_pipeline_id(raw: str) -> str:
+    pipeline_id = raw.replace('"', "").strip()
+    if not pipeline_id:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "Pipeline server returned empty pipeline id",
+                "body": raw,
+            },
+        )
+    return pipeline_id
+
+
 @router.post("/runs")
 async def start_run(req: StartRunRequest) -> RunInfo:
     """Start a new video captioning run."""
@@ -56,57 +109,13 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     pipeline_name = (req.pipelineName or PIPELINE_NAME).strip() or PIPELINE_NAME
 
     start_url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines/user_defined_pipelines/{pipeline_name}"
-    payload = {
-        "source": {"uri": req.rtspUrl, "type": "uri"},
-        "destination": {
-            "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": WEBRTC_BITRATE},
-        },
-        "parameters": {
-            "captioner-prompt": (req.prompt or "").strip() or DEFAULT_PROMPT,
-            "captioner_model_name": (req.modelName or "").strip()
-            or "OpenGVLab/InternVL2-2B",
-            "captioner_max_new_tokens": req.maxNewTokens,
-            "detection_model_name": (req.detectionModelName or "").strip() or "yolov8s",
-            "detection_threshold": req.detectionThreshold,
-            **(
-                {"captioner_frame_rate": req.frameRate}
-                if req.frameRate is not None
-                else {}
-            ),
-            **(
-                {"captioner_chunk_size": req.chunkSize}
-                if req.chunkSize is not None
-                else {}
-            ),
-            **({"frame_width": req.frameWidth} if req.frameWidth is not None else {}),
-            **(
-                {"frame_height": req.frameHeight} if req.frameHeight is not None else {}
-            ),
-            **(
-                {"captioner_queue_size": max(1, req.chunkSize)}
-                if req.chunkSize is not None
-                else {}
-            ),
-            "mqtt_publisher": {
-                "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
-                "publish_frame": False,
-            },
-        },
-    }
+    payload = _build_start_payload(req, run_id, peer_id)
 
     logger.debug(f"Starting pipeline {pipeline_name} with URL: {start_url}")
     logger.debug(f"Pipeline payload: {json.dumps(payload, indent=2)}")
 
     raw = http_json("POST", start_url, payload=payload)
-    pipeline_id = raw.replace('"', "").strip()
-    if not pipeline_id:
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "message": "Pipeline server returned empty pipeline id",
-                "body": raw,
-            },
-        )
+    pipeline_id = _extract_pipeline_id(raw)
 
     model_name = (req.modelName or "").strip() or "InternVL2-2B"
     # Use full run_id for custom names, truncated for UUID-based

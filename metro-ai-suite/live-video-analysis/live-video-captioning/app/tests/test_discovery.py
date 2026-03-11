@@ -230,3 +230,13 @@ class TestDiscoverPipelinesRemote:
             result = discover_pipelines_remote()
         # All detection pipelines filtered out; fallback returned
         assert all(r["pipeline_type"] == "non-detection" for r in result)
+
+    def test_proxy_pipelines_are_hidden_from_results(self):
+        """Proxy pipelines for default resolution are not exposed to the UI."""
+        payload = [
+            {"version": "captioner_Default_Resolution", "parameters": {"properties": {}}},
+            {"version": "captioner_Custom", "parameters": {"properties": {}}},
+        ]
+        with self._mock_http(payload):
+            result = discover_pipelines_remote()
+        assert [item["pipeline_name"] for item in result] == ["captioner_Custom"]

@@ -80,6 +80,27 @@ class TestStartRun:
             )
         assert resp.status_code == 502
 
+    def test_start_run_includes_optional_pipeline_parameters(self, client):
+        """Optional frame and chunk settings are forwarded to the pipeline server."""
+        with patch("backend.routes.runs.http_json", return_value='"p1"') as mock_http:
+            resp = client.post(
+                "/api/runs",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "frameRate": 3,
+                    "chunkSize": 4,
+                    "frameWidth": 1280,
+                    "frameHeight": 720,
+                },
+            )
+        assert resp.status_code == 200
+        payload = mock_http.call_args.kwargs["payload"]
+        assert payload["parameters"]["captioner_frame_rate"] == 3
+        assert payload["parameters"]["captioner_chunk_size"] == 4
+        assert payload["parameters"]["frame_width"] == 1280
+        assert payload["parameters"]["frame_height"] == 720
+        assert payload["parameters"]["captioner_queue_size"] == 4
+
     def test_start_run_invalid_rtsp_url(self, client):
         """An invalid RTSP URL returns 422 (validation error)."""
         resp = client.post(
