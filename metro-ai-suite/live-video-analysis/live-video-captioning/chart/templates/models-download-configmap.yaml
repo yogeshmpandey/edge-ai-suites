@@ -1,0 +1,81 @@
+{{/*
+Copyright (C) 2025 Intel Corporation
+SPDX-License-Identifier: Apache-2.0
+
+ConfigMap holding the model-download shell script.
+The Job mounts this ConfigMap and executes the script.
+Each model is passed as indexed environment variables so the bash script
+can iterate without Helm template directives inside the shell string.
+
+Hook weight -10 ensures this ConfigMap exists before the Job (weight -5).
+*/}}
+{{- if .Values.modelsDownload.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "live-video-captioning.fullname" . }}-models-download-script
+  labels:
+    {{- include "live-video-captioning.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  download.sh: |
+    #!/bin/bash
+    set -e
+
+    echo "=== Model Download Job ==="
+    echo "Requirements URL: ${REQUIREMENTS_URL}"
+    echo "Model count     : ${MODEL_COUNT}"
+    echo ""
+
+    echo "--- Installing model export toolchain ---"
+    pip install --quiet -r "${REQUIREMENTS_URL}"
+    echo "Toolchain installed."
+    echo ""
+
+    FAILED=0
+    i=0
+    while [ "${i}" -lt "${MODEL_COUNT}" ]; do
+      # Bash indirect variable expansion to read model_N_* env vars
+      id_var="MODEL_${i}_ID"
+      name_var="MODEL_${i}_NAME"
+      fmt_var="MODEL_${i}_FORMAT"
+      MODEL_ID="${!id_var}"
+      OUTPUT_NAME="${!name_var}"
+      WEIGHT_FORMAT="${!fmt_var}"
+      OUTPUT_PATH="/models/${OUTPUT_NAME}"
+
+      echo "[$(( i + 1 ))/${MODEL_COUNT}] Processing: ${MODEL_ID} -> ${OUTPUT_PATH}"
+
+      if [ -d "${OUTPUT_PATH}" ]; then
+        echo "  Already exists — skipping."
+      else
+        echo "  Downloading ..."
+        if [ -n "${WEIGHT_FORMAT}" ]; then
+          optimum-cli export openvino \
+            --model "${MODEL_ID}" \
+            --weight-format "${WEIGHT_FORMAT}" \
+            "${OUTPUT_PATH}" \
+            --trust-remote-code
+        else
+          optimum-cli export openvino \
+            --model "${MODEL_ID}" \
+            "${OUTPUT_PATH}" \
+            --trust-remote-code
+        fi
+        echo "  Done."
+      fi
+
+      i=$(( i + 1 ))
+    done
+
+    if [ "${FAILED}" -ne 0 ]; then
+      echo "ERROR: ${FAILED} model(s) failed to download." >&2
+      exit 1
+    fi
+
+    echo ""
+    echo "=== All models processed successfully. ==="
+{{- end }}

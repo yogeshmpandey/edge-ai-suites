@@ -1,0 +1,23 @@
+{{/*
+Copyright (C) 2025 Intel Corporation
+SPDX-License-Identifier: Apache-2.0
+
+PVC for OpenVINO VLM models (ov_models/).
+Mounted read-only by dlstreamer-pipeline-server and video-caption-service.
+*/}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "live-video-captioning.fullname" . }}-models
+  labels:
+    {{- include "live-video-captioning.labels" . | nindent 4 }}
+    app.kubernetes.io/component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.global.storageClassName }}
+  storageClassName: {{ .Values.global.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.modelsPvc.size | quote }}
