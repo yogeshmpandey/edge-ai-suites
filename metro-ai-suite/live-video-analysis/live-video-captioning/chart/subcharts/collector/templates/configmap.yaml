@@ -72,3 +72,5 @@ data:
 
     [[outputs.websocket]]
       url = "${WEBSOCKET_URL}"
+      data_format = "json"
+      read_timeout = "0s"

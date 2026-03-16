@@ -23,8 +23,16 @@
 # ─────────────────────────────────────────────────────────────────────────────
 global:
   # ------- Node Affinity -------------------------------------------------------
-  # All workloads (DL Streamer, caption service, collector …) are pinned to the
-  # node(s) carrying this label.  Label your target node with:
+  # Set nodeName to pin all workloads to one specific Kubernetes node without
+  # adding a custom node label. The chart matches against the built-in
+  # kubernetes.io/hostname label.
+  #
+  # Type: string
+  nodeName: ""
+
+  # If nodeName is left empty, all workloads (DL Streamer, caption service,
+  # collector …) are pinned to the node(s) carrying this label. Label your
+  # target node with:
   #   kubectl label node <node-name> intel.com/lvc-node=true
   #
   # Type: string
@@ -69,12 +77,21 @@ global:
 modelsPvc:
   # Type: string  (valid Kubernetes storage size)
   size: "50Gi"
+  # Preserve the PVC (and downloaded models) across helm upgrade and helm uninstall.
+  # When true, adds helm.sh/resource-policy: keep so the PVC is never deleted by Helm,
+  # preventing costly model re-downloads.  Set to false only when you explicitly want
+  # Helm to delete and reprovision the PVC (e.g. to change storageClass or size).
+  # Type: boolean
+  keepPvc: true
 
 # PVC for OpenVINO object-detection models (ov_detection_models/).
 # Only needed when ENABLE_DETECTION_PIPELINE=true.
 detectionModelsPvc:
   # Type: string
   size: "5Gi"
+  # Same keep behaviour as modelsPvc.keepPvc above.
+  # Type: boolean
+  keepPvc: true
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. MODEL DOWNLOAD JOB
@@ -136,6 +153,17 @@ modelsDownload:
     limits:
       cpu: "4"
       memory: "16Gi"
+
+  # Seconds after the Job finishes (success or failure) before Kubernetes
+  # deletes the Job and its pod.  0 = destroy immediately.
+  # Type: integer
+  ttlSecondsAfterFinished: 0
+
+  # Maximum seconds the Job may run before Kubernetes kills it.
+  # Guards against a download that hangs indefinitely.
+  # Set to 0 or remove to disable the deadline.
+  # Type: integer
+  activeDeadlineSeconds: 7200
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. SUBCHART OVERRIDES

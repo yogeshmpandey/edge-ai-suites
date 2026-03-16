@@ -17,7 +17,7 @@ image:
 
 service:
   # Type: string
-  type: NodePort
+  type: ClusterIP
   # Internal container port for the REST API.
   # Type: integer
   port: 8080

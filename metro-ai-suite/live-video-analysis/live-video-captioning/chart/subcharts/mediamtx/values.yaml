@@ -14,7 +14,7 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: NodePort
+  type: ClusterIP
   # WHIP/WebRTC signaling port.  Browsers connect here.
   # Type: integer
   whipContainerPort: 8889
@@ -40,6 +40,8 @@ webrtcIcePassword: "lvcpass"
 # MediaMTX application settings.
 env:
   logLevel: "info"
+  # Enable the HTTP API (used by liveness/readiness probes on port 9997).
+  api: "yes"
   # Disable unused protocol servers to reduce attack surface.
   rtsp: "no"
   rtmp: "no"

@@ -2,8 +2,11 @@
 Copyright (C) 2025 Intel Corporation
 SPDX-License-Identifier: Apache-2.0
 
-Pre-install/pre-upgrade hook Job that downloads OpenVINO VLM models into the
-models PVC.  The Job runs BEFORE any other chart resources are created.
+Job that downloads OpenVINO VLM models into the models PVC.
+Runs concurrently with other chart resources so that `helm install` returns
+immediately.  Pods that need the models (dlstreamer-pipeline-server,
+video-caption-service) use a wait-for-models init container to block until
+the PVC is populated.
 
 Node affinity is applied so the Job pod lands on the same node as all
 other workloads (ensuring the ReadWriteOnce PVC can be mounted by all pods
@@ -21,13 +24,15 @@ metadata:
   labels:
     {{- include "live-video-captioning.labels" . | nindent 4 }}
     app.kubernetes.io/component: model-downloader
-  annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-5"
-    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
-  # Do not retry on failure so an error surface immediately.
+  # Do not retry on failure so an error surfaces immediately.
   backoffLimit: 0
+  # Delete the Job (and its pod) immediately after it finishes (success or failure).
+  ttlSecondsAfterFinished: {{ .Values.modelsDownload.ttlSecondsAfterFinished }}
+  # Kill the Job if it runs longer than this many seconds (guards against hangs).
+  {{- if .Values.modelsDownload.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ .Values.modelsDownload.activeDeadlineSeconds }}
+  {{- end }}
   template:
     metadata:
       labels:

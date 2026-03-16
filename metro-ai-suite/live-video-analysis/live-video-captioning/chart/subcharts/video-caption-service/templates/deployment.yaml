@@ -11,6 +11,9 @@ metadata:
     app.kubernetes.io/component: video-caption-service
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+    rollingUpdate: null
   selector:
     matchLabels:
       {{- include "video-caption-service.selectorLabels" . | nindent 6 }}
@@ -30,6 +33,26 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      # initContainer waits until at least one model directory is present in the
+      # PVC, ensuring the download Job has completed before the service starts.
+      initContainers:
+        - name: wait-for-models
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for models PVC to be populated..."
+              until [ "$(ls -A /models)" ]; do
+                echo "Models directory is empty — download Job still running. Retrying in 10s..."
+                sleep 10
+              done
+              echo "Models PVC is populated. Proceeding."
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
       containers:
         - name: video-caption-service
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -41,6 +64,7 @@ spec:
           ports:
             - name: dashboard
               containerPort: {{ .Values.service.port }}
+              hostPort: {{ .Values.service.nodePort }}
               protocol: TCP
           env:
             - name: DASHBOARD_PORT

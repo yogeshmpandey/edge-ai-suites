@@ -14,7 +14,7 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: NodePort
+  type: ClusterIP
   # Container port.
   # Type: integer
   port: 9090

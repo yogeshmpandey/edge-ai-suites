@@ -11,6 +11,9 @@ metadata:
     app.kubernetes.io/component: mediamtx
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+    rollingUpdate: null
   selector:
     matchLabels:
       {{- include "mediamtx.selectorLabels" . | nindent 6 }}
@@ -41,6 +44,7 @@ spec:
           ports:
             - name: whip
               containerPort: {{ .Values.service.whipContainerPort }}
+              hostPort: {{ .Values.service.whipNodePort }}
               protocol: TCP
             - name: media-udp
               containerPort: {{ .Values.service.mediaUdpPort }}
@@ -51,6 +55,8 @@ spec:
           env:
             - name: MTX_LOGLEVEL
               value: {{ .Values.env.logLevel | quote }}
+            - name: MTX_API
+              value: {{ .Values.env.api | quote }}
             - name: MTX_RTSP
               value: {{ .Values.env.rtsp | quote }}
             - name: MTX_RTMP
@@ -63,7 +69,7 @@ spec:
               value: {{ .Values.env.webrtcTrackGatherTimeout | quote }}
             - name: MTX_WEBRTCADDRESS
               value: {{ .Values.env.webrtcAddress | quote }}
-            # TURN server ICE URL — uses the node's external IP so browsers can reach it.
+            # TURN server ICE URL — uses the node IP or hostname that browsers can reach.
             - name: MTX_WEBRTCICESERVERS2_0_URL
               value: "turn:{{ .Values.global.hostIP }}:{{ .Values.env.coturnPort }}"
             - name: MTX_WEBRTCICESERVERS2_0_USERNAME
@@ -72,14 +78,12 @@ spec:
               value: {{ .Values.webrtcIcePassword | quote }}
             {{- include "lvc.proxyEnv" . | nindent 12 }}
           livenessProbe:
-            httpGet:
-              path: /v3/config/global/get
+            tcpSocket:
               port: api
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
-            httpGet:
-              path: /v3/config/global/get
+            tcpSocket:
               port: api
             initialDelaySeconds: 5
             periodSeconds: 10

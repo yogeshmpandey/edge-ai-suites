@@ -11,6 +11,9 @@ metadata:
     app.kubernetes.io/component: coturn
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+    rollingUpdate: null
   selector:
     matchLabels:
       {{- include "coturn.selectorLabels" . | nindent 6 }}
@@ -45,6 +48,7 @@ spec:
           ports:
             - name: turn-udp
               containerPort: {{ .Values.service.port }}
+              hostPort: {{ .Values.service.nodePort }}
               protocol: UDP
           env:
             {{- include "lvc.proxyEnv" . | nindent 12 }}

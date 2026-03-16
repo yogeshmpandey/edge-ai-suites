@@ -14,7 +14,7 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: NodePort
+  type: ClusterIP
   # Container port the FastAPI app listens on.
   # Type: integer
   port: 4173

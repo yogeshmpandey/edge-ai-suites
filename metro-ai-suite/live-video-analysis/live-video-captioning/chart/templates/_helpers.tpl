@@ -96,7 +96,8 @@ The helper reads from .Values.global.{httpProxy,httpsProxy,noProxy}.
 
 {{/*
 lvc.nodeAffinity — emit a requiredDuringScheduling nodeAffinity block that
-pins pods to nodes labelled with the key/value from global values.
+pins pods either to a specific node name or to nodes matched by the
+configured global label selector.
 
 Usage (inside a pod spec, indented appropriately):
 
@@ -108,10 +109,10 @@ Produces:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
         - matchExpressions:
-          - key: intel.com/lvc-node
+          - key: kubernetes.io/hostname
             operator: In
             values:
-            - "true"
+            - "worker4"
 */}}
 {{- define "lvc.nodeAffinity" -}}
 affinity:
@@ -119,10 +120,18 @@ affinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
-            - key: {{ .Values.global.nodeAffinityKey | quote }}
+{{- if .Values.global.nodeName }}
+            - key: "kubernetes.io/hostname"
+{{- else }}
+            - key: {{ default "kubernetes.io/hostname" .Values.global.nodeAffinityKey | quote }}
+{{- end }}
               operator: In
               values:
+{{- if .Values.global.nodeName }}
+                - {{ .Values.global.nodeName | quote }}
+{{- else }}
                 - {{ .Values.global.nodeAffinityValue | quote }}
+{{- end }}
 {{- end }}
 
 {{/*

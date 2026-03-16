@@ -17,15 +17,26 @@ Before you begin, ensure that you have the following:
 
 ## Prepare the Cluster
 
-### 1. Label the target node
+### 1. Select the target node
 
-All workloads in this chart are pinned to the node selected by `global.nodeAffinityKey` and `global.nodeAffinityValue`.
+All workloads in this chart are pinned to the target node selected in the chart values.
+
+Preferred option: set `global.nodeName` to the Kubernetes node name. This uses the built-in `kubernetes.io/hostname` label, so you do not need permission to label nodes.
+
+Example:
+
+```yaml
+global:
+  nodeName: worker4
+```
+
+Optional fallback: if you prefer label-based placement, set `global.nodeAffinityKey` and `global.nodeAffinityValue`, then label the target node:
 
 ```bash
 kubectl label node <node-name> intel.com/lvc-node=true
 ```
 
-If you want to use a different label, update the corresponding values in `values-override.yaml`.
+If you want to use a different existing label, update the corresponding values in `values-override.yaml`.
 
 ### 2. Create the collector host directory
 
@@ -46,24 +57,25 @@ kubectl create namespace "$my_namespace"
 
 If the namespace already exists, reuse it with the same value.
 
-### 4. Get the IP of the labeled node
+### 4. Get the IP of the selected node
 
-Use the same node that you labeled for this chart. First list the nodes and labels:
+Use the same node that you selected for this chart. First list the nodes and labels:
 
 ```bash
 kubectl get nodes --show-labels
 ```
 
-Then inspect the labeled node:
+Then inspect the selected node:
 
 ```bash
 kubectl get node <node-name> -o wide
 ```
 
-Use the node address that is reachable by the browser:
+Set `global.hostIP` to the node address that is reachable by the browser:
 
-- Use `EXTERNAL-IP` if you access the dashboard from outside the node network.
-- Use `INTERNAL-IP` if your browser is on the same LAN or VPN and can reach the node directly.
+- In clusters without worker-node external IPs, use `INTERNAL-IP`.
+- Use `EXTERNAL-IP` only if the node actually has one and your browser reaches the application through it.
+- Use `INTERNAL-IP` when your browser is on the same LAN or VPN and can reach the node directly.
 
 To print the value directly:
 
@@ -79,6 +91,8 @@ kubectl get node <node-name> -o jsonpath='{.status.addresses[?(@.type=="Internal
 
 Set that value in `global.hostIP`. Do not use a pod IP, a Service `ClusterIP`, or `127.0.0.1` unless the browser runs on the same node.
 
+If the worker node does not have any browser-reachable IP, direct NodePort access will not work. In that case, expose the application through a load balancer, ingress, VPN, SSH tunnel, or another network path that makes the selected node reachable from the browser.
+
 ## Configure Required Values
 
 The chart includes a sample override file at `chart/values-override.yaml`. Update it before deploying.
@@ -87,9 +101,10 @@ The most important values are:
 
 | Key | Description | Example |
 | --- | --- | --- |
-| `global.hostIP` | External or internal IP of the labeled node that is reachable by the browser. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
-| `global.nodeAffinityKey` | Node label key used to pin workloads | `intel.com/lvc-node` |
-| `global.nodeAffinityValue` | Node label value used to pin workloads | `true` |
+| `global.hostIP` | Browser-reachable IP of the selected node. In many on-prem clusters this is the node `INTERNAL-IP`. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
+| `global.nodeName` | Kubernetes node name used to pin workloads without adding a custom label | `worker4` |
+| `global.nodeAffinityKey` | Optional node label key used to pin workloads when `global.nodeName` is empty | `intel.com/lvc-node` |
+| `global.nodeAffinityValue` | Optional node label value used to pin workloads when `global.nodeName` is empty | `true` |
 | `global.storageClassName` | StorageClass for the chart PVCs. Leave empty to use the cluster default | `local-path` |
 | `modelsPvc.size` | PVC size for downloaded or pre-populated VLM models | `50Gi` |
 | `detectionModelsPvc.size` | PVC size for object detection models | `5Gi` |
@@ -129,8 +144,8 @@ If your cluster runs behind a proxy, set the proxy fields under `global`:
 
 ```yaml
 global:
-  httpProxy: http://proxy.example.com:8080
-  httpsProxy: http://proxy.example.com:8080
+  httpProxy: http://proxy-pilot.intel.com:916
+  httpsProxy: http://proxy-pilot.intel.com:916
   noProxy: localhost,127.0.0.1,mqtt-broker,dlstreamer-pipeline-server,mediamtx,coturn,video-caption-service,live-metrics-service,collector,camera.example.com,192.168.1.50
 ```
 
@@ -160,7 +175,8 @@ From `chart`, install the application with the override file:
 ```bash
 helm install lvc . \
   -f values-override.yaml \
-  -n "$my_namespace"
+  -n "$my_namespace" \
+  --timeout 60m
 ```
 
 You can also install from the repository root:
@@ -168,8 +184,13 @@ You can also install from the repository root:
 ```bash
 helm install lvc ./chart \
   -f ./chart/values-override.yaml \
-  -n "$my_namespace"
+  -n "$my_namespace" \
+  --timeout 60m
 ```
+
+> **Note:** The `--timeout 60m` flag is required because the pre-install hook downloads and converts
+> OpenVINO models, which can take 30–60+ minutes depending on network speed and model size.
+> Helm's default timeout is 5 minutes and will cause the install to fail prematurely.
 
 ## Verify the Deployment
 
@@ -226,7 +247,8 @@ Then upgrade the release:
 ```bash
 helm upgrade lvc . \
   -f values-override.yaml \
-  -n "$my_namespace"
+  -n "$my_namespace" \
+  --timeout 60m
 ```
 
 ## Uninstall the Release
@@ -239,7 +261,7 @@ helm uninstall lvc -n "$my_namespace"
 
 - If pods remain `Pending`, check that the target node is labeled correctly and that the requested `StorageClass` can provision the PVCs.
 - If the install fails before pods appear, inspect the model download hook logs and confirm that the selected model ID and Hugging Face credentials are valid.
-- If the dashboard opens but video does not start, confirm that `global.hostIP` is reachable from the browser and that the RTSP source is reachable from the Kubernetes node.
+- If the dashboard opens but video does not start, confirm that `global.hostIP` is reachable from the browser. If your worker nodes do not have external IPs, this usually means using the node `INTERNAL-IP` over a reachable LAN or VPN. Also confirm that the RTSP source is reachable from the Kubernetes node.
 - If WebRTC negotiation fails, verify that the NodePort services for MediaMTX and coturn are allowed by your network policy or firewall.
 - If detection is enabled but the pipeline cannot start, ensure the detection models PVC contains the required OpenVINO detection model artifacts.
 - If the collector does not report metrics, confirm that the host path in `collector.collectorSignalsHostPath` exists on the selected node and that the pod is scheduled there.

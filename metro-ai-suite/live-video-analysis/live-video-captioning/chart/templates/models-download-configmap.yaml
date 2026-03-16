@@ -6,8 +6,6 @@ ConfigMap holding the model-download shell script.
 The Job mounts this ConfigMap and executes the script.
 Each model is passed as indexed environment variables so the bash script
 can iterate without Helm template directives inside the shell string.
-
-Hook weight -10 ensures this ConfigMap exists before the Job (weight -5).
 */}}
 {{- if .Values.modelsDownload.enabled }}
 apiVersion: v1
@@ -16,21 +14,44 @@ metadata:
   name: {{ include "live-video-captioning.fullname" . }}-models-download-script
   labels:
     {{- include "live-video-captioning.labels" . | nindent 4 }}
-  annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-10"
-    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 data:
   download.sh: |
     #!/bin/bash
-    set -e
+    # -u: treat unset variables as errors
+    # -o pipefail: a pipe fails if any command in it fails
+    # NOTE: -e is intentionally omitted so the loop can count all failures
+    #       instead of aborting on the first one.
+    set -uo pipefail
 
     echo "=== Model Download Job ==="
-    echo "Requirements URL: ${REQUIREMENTS_URL}"
-    echo "Model count     : ${MODEL_COUNT}"
+    echo "Model count: ${MODEL_COUNT}"
     echo ""
 
-    echo "--- Installing model export toolchain ---"
+    # Enable fast HuggingFace transfers when the hf_transfer package is available.
+    export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
+
+    # First pass: check which models are missing.
+    MISSING=0
+    i=0
+    while [ "${i}" -lt "${MODEL_COUNT}" ]; do
+      name_var="MODEL_${i}_NAME"
+      OUTPUT_NAME="${!name_var}"
+      if [ ! -d "/models/${OUTPUT_NAME}" ]; then
+        MISSING=$(( MISSING + 1 ))
+      fi
+      i=$(( i + 1 ))
+    done
+
+    if [ "${MISSING}" -eq 0 ]; then
+      echo "All ${MODEL_COUNT} model(s) already exist in the PVC — nothing to download."
+      echo ""
+      echo "=== All models processed successfully. ==="
+      exit 0
+    fi
+
+    # Install the export toolchain only when at least one model needs downloading.
+    echo "${MISSING} model(s) missing — installing export toolchain..."
+    echo "Requirements URL: ${REQUIREMENTS_URL}"
     pip install --quiet -r "${REQUIREMENTS_URL}"
     echo "Toolchain installed."
     echo ""
@@ -38,7 +59,7 @@ data:
     FAILED=0
     i=0
     while [ "${i}" -lt "${MODEL_COUNT}" ]; do
-      # Bash indirect variable expansion to read model_N_* env vars
+      # Bash indirect variable expansion to read MODEL_N_* env vars.
       id_var="MODEL_${i}_ID"
       name_var="MODEL_${i}_NAME"
       fmt_var="MODEL_${i}_FORMAT"
@@ -58,24 +79,33 @@ data:
             --model "${MODEL_ID}" \
             --weight-format "${WEIGHT_FORMAT}" \
             "${OUTPUT_PATH}" \
-            --trust-remote-code
+            --trust-remote-code \
+          || { echo "  ERROR: download failed for ${MODEL_ID}." >&2; FAILED=$(( FAILED + 1 )); }
         else
           optimum-cli export openvino \
             --model "${MODEL_ID}" \
             "${OUTPUT_PATH}" \
-            --trust-remote-code
+            --trust-remote-code \
+          || { echo "  ERROR: download failed for ${MODEL_ID}." >&2; FAILED=$(( FAILED + 1 )); }
         fi
-        echo "  Done."
+        if [ -d "${OUTPUT_PATH}" ]; then
+          echo "  ✔ Model '${OUTPUT_NAME}' downloaded and converted to OpenVINO IR format successfully."
+        fi
       fi
 
       i=$(( i + 1 ))
     done
 
     if [ "${FAILED}" -ne 0 ]; then
+      echo "" >&2
       echo "ERROR: ${FAILED} model(s) failed to download." >&2
       exit 1
     fi
 
     echo ""
-    echo "=== All models processed successfully. ==="
+    echo "================================================================"
+    echo "  All ${MODEL_COUNT} model(s) downloaded and converted."
+    echo "  The model download job is complete — exiting now."
+    echo "================================================================"
+    exit 0
 {{- end }}

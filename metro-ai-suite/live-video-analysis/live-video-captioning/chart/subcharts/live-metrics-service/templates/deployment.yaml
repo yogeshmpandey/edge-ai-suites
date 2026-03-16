@@ -41,6 +41,7 @@ spec:
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}
+              hostPort: {{ .Values.service.nodePort }}
               protocol: TCP
           env:
             - name: METRICS_PORT

@@ -15,7 +15,7 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: NodePort
+  type: ClusterIP
   # UDP port for STUN/TURN.
   # Type: integer
   port: 3478
