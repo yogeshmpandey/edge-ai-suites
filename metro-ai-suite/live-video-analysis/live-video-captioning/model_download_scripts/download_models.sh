@@ -23,6 +23,8 @@ set -Eeuo pipefail
 # ----------- Defaults / Config -----------
 ROOT=${PWD}
 
+MODEL_DOWNLOAD_PATH=${PWD}/ovms_model
+LLM_MODEL_PATH="${ROOT}/llm_models"
 VLM_MODEL_PATH="${ROOT}/ov_models"
 DETECTION_MODEL_PATH="${ROOT}/ov_detection_models"
 
@@ -33,7 +35,7 @@ API_PORT=8200
 
 MODEL_TYPE="vlm"   # or "vision"
 DEVICE="CPU"
-PRECISION="int8"
+PRECISION="fp16"
 
 POLL_INTERVAL=10    # seconds between polls
 TIMEOUT_MINUTES=30  # max time to wait for job completion
@@ -43,6 +45,7 @@ MODEL=""
 API_BASE="${API_SCHEME}://${API_HOST}:${API_PORT}"
 JOB_URL_BASE="${API_BASE}/api/v1/jobs"
 MODEL_DOWNLOAD_URL="${API_BASE}/api/v1/models/download"
+MODEL_DOWNLOAD_PATH_QUERY="download_path=ovms_model"
 
 # ----------- Utilities -----------
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
@@ -62,9 +65,12 @@ Required:
   --model <id>            Model identifier, e.g. "OpenGVLab/InternVL2-1B" or "OpenGVLab/InternVL2-2B"
 
 Optional:
-  --type <vlm|vision>              Model type (default: ${MODEL_TYPE})
-  --device <CPU|GPU>               Device (default: ${DEVICE})
-  --weight-format <int4|int8|fp16> Quantization. Applied only to VLM models. (default: ${PRECISION})
+  --type <vlm|vision|llm>          Model type (default: ${MODEL_TYPE})
+  --weight-format <int4|int8|fp16> Quantization. Applied only to VLM models not vision models. (default: ${PRECISION})
+                                   fp16 -> FP16 precision (No quantization)
+                                   int8 -> 8-bit integer quantization via NNCF
+                                   int4 -> 4-bit integer quantization via NNCF (best compression if supported by model)
+  --device <CPU|GPU|NPU>           Device. Not required unless using NPU device. Not tested on NPU at the moment. (default: ${DEVICE})
   -h, --help                       Show this help
 
 Process:
@@ -77,6 +83,7 @@ Process:
   3) On success:
      - VLM: flatten to ${VLM_MODEL_PATH}/<model_id>
      - Vision: flatten to ${DETECTION_MODEL_PATH}/<model_id>
+     - LLM: flatten to ${LLM_MODEL_PATH}/<model_id>
 EOF
 }
 
@@ -123,8 +130,13 @@ elif [[ "$MODEL_TYPE" == "vision" ]]; then
     log "Creating Vision base directory: $DETECTION_MODEL_PATH"
     mkdir -p "$DETECTION_MODEL_PATH"
   fi
+elif [[ "$MODEL_TYPE" == "llm" ]]; then
+  if [[ ! -d "$LLM_MODEL_PATH" ]]; then
+    log "Creating LLM base directory: $LLM_MODEL_PATH"
+    mkdir -p "$LLM_MODEL_PATH"
+  fi
 else
-  err "Unknown model type: ${MODEL_TYPE}. Please specify a valid type (e.g. --type vlm or --type vision)."
+  err "Unknown model type: ${MODEL_TYPE}. Please specify a valid type (e.g. --type vlm, --type vision, or --type llm)."
   exit 1
 fi
 
@@ -132,11 +144,11 @@ fi
 need_cmd curl
 need_cmd jq
 
-if [[ "$MODEL_TYPE" == "vlm" ]]; then
-  MODEL_BASENAME="${MODEL##*/}"  # e.g., InternVL2-1B
+mkdir -p "$MODEL_DOWNLOAD_PATH"
+
+if [[ "$MODEL_TYPE" == "vlm" || "$MODEL_TYPE" == "llm" ]]; then
   HUB="openvino"
   IS_OVMS=true
-  MODEL_DOWNLOAD_PATH_QUERY="download_path=ov_models/${MODEL_BASENAME}"
   PAYLOAD=$(cat <<JSON
 {
   "models": [
@@ -157,7 +169,6 @@ JSON
 )
 elif [[ "$MODEL_TYPE" == "vision" ]]; then
   HUB="ultralytics"
-  MODEL_DOWNLOAD_PATH_QUERY="download_path=ov_detection_models/${MODEL}"
   PAYLOAD=$(cat <<JSON
 {
   "models": [
@@ -172,7 +183,7 @@ elif [[ "$MODEL_TYPE" == "vision" ]]; then
 JSON
 )
 else
-  warn "Unknown model type: ${MODEL_TYPE}. Please specify a valid type (e.g. --type vlm or --type vision)."
+  warn "Unknown model type: ${MODEL_TYPE}. Please specify a valid type (e.g. --type vlm, --type vision, or --type llm)."
   exit 1
 fi
 
@@ -231,7 +242,6 @@ while (( ATTEMPT < MAX_ATTEMPTS )); do
   JOB_STATUS="$(echo "$JOB_RESP" | jq -r '.status // "unknown"')"
   JOB_RESULT_SUCCESS="$(echo "$JOB_RESP" | jq -r '.result.success // ""')"
   JOB_RESULT_MSG="$(echo "$JOB_RESP" | jq -r '.result.message // ""')"
-  # CONVERSION_PATH="$(echo "$JOB_RESP" | jq -r '.result.conversion_path // ""')"
   CONVERSION_PATH="$(echo "$JOB_RESP" | jq -r '.result.conversion_path // .result.download_path // ""')"
 
   log "Job status: ${JOB_STATUS:-unknown} | success=${JOB_RESULT_SUCCESS:-} | msg=${JOB_RESULT_MSG:-}"
@@ -267,25 +277,40 @@ log "Start flattening model directory..."
 log "Conversion path from API response: ${CONVERSION_PATH}"
 
 if [[ -n "$CONVERSION_PATH" && -d "$CONVERSION_PATH" ]]; then
-  # Extract model root: /path/to/ov_models/internvl2-1b
   MODEL_ROOT=$(echo "$CONVERSION_PATH" | sed -E "s|(.*ov_[^/]*models/[^/]+).*|\1|")
   if [[ -d "$MODEL_ROOT" ]]; then
     log "Fixing ownership and flattening: ${MODEL_ROOT}"
+    # Ensure we can delete MODEL_DOWNLOAD_PATH by fixing parent perms first
+    PARENT_DIR="$(dirname "$MODEL_DOWNLOAD_PATH")"
+    BASENAME="$(basename "$MODEL_DOWNLOAD_PATH")"
     # Fix ownership
-    docker run --rm -v "${MODEL_ROOT}:/data" alpine:latest chown -R $(id -u):$(id -g) /data
+    # Make sure parent is writable
+    docker run --rm -u root \
+      -v "${PARENT_DIR}:/parent" \
+      alpine:latest sh -c "chown $(id -u):$(id -g) /parent && chmod u+rwx /parent"
+
+    # Ensure the target tree is ours and writable
+    docker run --rm -u root \
+      -v "${MODEL_DOWNLOAD_PATH}:/data" \
+      alpine:latest sh -c "chown -R $(id -u):$(id -g) /data && chmod -R u+rwX /data"
+
     # Move files and cleanup
-    MODEL_BASENAME=$(basename "$MODEL")
     if [[ "$MODEL_TYPE" == "vlm" ]]; then
-      FLATTENED_DIR="${VLM_MODEL_PATH}/${MODEL_BASENAME}"
-      NESTED_MODEL_DIR="${CONVERSION_PATH}/${MODEL}"
-
-      mkdir -p "$FLATTENED_DIR"
-      mv "$NESTED_MODEL_DIR"/* "$FLATTENED_DIR"/ && rm -rf "$MODEL_ROOT"
-      log "Completed: ${FLATTENED_DIR}"
-
+      MODEL_BASENAME=$(basename "$MODEL")
+      log "Creating model directory for VLM: ${MODEL_BASENAME}"
+      MODEL_DIRNAME="${VLM_MODEL_PATH}/${MODEL_BASENAME}"
+      mkdir -p "$MODEL_DIRNAME"
+      mv "$MODEL_ROOT"/"$MODEL"/* "$MODEL_DIRNAME"/
     elif [[ "$MODEL_TYPE" == "vision" ]]; then
-      mv "$CONVERSION_PATH"/public "$MODEL_ROOT"/ && rm -rf "$MODEL_ROOT/ultralytics"
-      log "Completed: ${MODEL_ROOT}"
+      MODEL_DIRNAME="${DETECTION_MODEL_PATH}/${MODEL}"
+      mkdir -p "$MODEL_DIRNAME"
+      mv "$CONVERSION_PATH"/public "$MODEL_DIRNAME"/
+    elif [[ "$MODEL_TYPE" == "llm" ]]; then
+      MODEL_DIRNAME="${LLM_MODEL_PATH}/${MODEL}"
+      mkdir -p "$MODEL_DIRNAME"
+      mv "$MODEL_ROOT"/"$MODEL"/* "$MODEL_DIRNAME"/
     fi
+    rm -rf "$MODEL_DOWNLOAD_PATH"
+    log "Completed: ${MODEL_DIRNAME}"
   fi
 fi
