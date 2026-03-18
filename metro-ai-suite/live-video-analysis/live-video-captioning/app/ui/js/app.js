@@ -18,6 +18,7 @@
         pipelineInfo: document.getElementById('pipelineInfo'),
         runsContainer: document.getElementById('runsContainer'),
         themeToggle: document.getElementById('themeToggle'),
+        chatToggle: document.getElementById('chatToggle'),
         detectionModelField: document.getElementById('detectionModelField'),
         detectionThresholdField: document.getElementById('detectionThresholdField'),
         detectionModelNameSelect: document.getElementById('detectionModelNameSelect'),
@@ -41,6 +42,17 @@
         const detectionSection = document.getElementById('detectionSection');
         if (!enabledByFlag) {
             setSectionVisible(detectionSection, false);
+        }
+    })();
+
+    (function initChatToggleVisibility() {
+        if (cfg.enableEmbedding !== true) {
+            setSectionVisible(els.chatToggle, false);
+        } else if (els.chatToggle) {
+            els.chatToggle.addEventListener('click', () => {
+                const chatUrl = `http://${window.location.hostname}:${cfg.liveVideoRagHostPort}`;
+                window.open(chatUrl, '_blank');
+            });
         }
     })();
 

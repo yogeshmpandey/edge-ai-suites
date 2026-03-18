@@ -23,7 +23,7 @@ services:
       - app_network
 
   dlstreamer-pipeline-server:
-    image: intel/dlstreamer-pipeline-server:2026.0.0-ubuntu24-rc2
+    image: intel/dlstreamer-pipeline-server:2026.0.0-ubuntu24-rc3
     hostname: dlstreamer-pipeline-server
     container_name: dlstreamer-pipeline-server
     read_only: false
@@ -167,6 +167,7 @@ services:
       - EMBEDDING_HOST_PORT=${EMBEDDING_HOST_PORT:-8000}
       - VDMS_HOST=${VDMS_HOST:-vdms-vector-db}
       - VDMS_PORT=${VDMS_PORT:-55555}
+      - LIVE_VIDEO_RAG_HOST_PORT=${LIVE_VIDEO_RAG_HOST_PORT:-4172}
     volumes:
       - "./ov_models:/app/ov_models:ro"
       - "./ov_detection_models:/app/ov_detection_models:ro"
@@ -331,11 +332,17 @@ services:
       VDMS_HOST: ${VDMS_HOST}
       VDMS_PORT: ${VDMS_PORT:-55555}
     ports:
-      - 4172:4172
+      - ${LIVE_VIDEO_RAG_HOST_PORT:-4172}:4172
     group_add:
-      - ${USER_GROUP_ID-1000}
+      - ${USER_GROUP_ID:-1000}
+      # render group ID for ubuntu 20.04 host OS
+      - "109"
+      # render group ID for ubuntu 22.04 host OS
+      - "110"
+      # render group ID for ubuntu 24.04 host OS
+      - "992"
     volumes:
-      - "${MODEL_CACHE_PATH}:/tmp/model_cache"
+      - "${MODEL_CACHE_PATH:-/tmp/model_cache}:/tmp/model_cache"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:4172/api/health" ]
       interval: 30s
