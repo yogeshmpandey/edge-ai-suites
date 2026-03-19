@@ -36,6 +36,7 @@
     };
 
     const state = { selectedRunId: null, runs: new Map() };
+    const CHAT_TAB_NAME = 'Live Caption RAG Dashboard';
 
     (function initDetectionVisibility() {
         const enabledByFlag = cfg.enableDetectionPipeline === true;
@@ -51,7 +52,10 @@
         } else if (els.chatToggle) {
             els.chatToggle.addEventListener('click', () => {
                 const chatUrl = `http://${window.location.hostname}:${cfg.liveVideoRagHostPort}`;
-                window.open(chatUrl, '_blank');
+                const chatWindow = window.open(chatUrl, CHAT_TAB_NAME);
+                if (chatWindow) {
+                    chatWindow.focus();
+                }
             });
         }
     })();

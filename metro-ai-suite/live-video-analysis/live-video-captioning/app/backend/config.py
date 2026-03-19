@@ -47,6 +47,9 @@ UI_DIR = BASE_DIR / "ui"
 
 # Host Server Configuration
 LIVE_VIDEO_RAG_HOST_PORT = int(os.environ.get("LIVE_VIDEO_RAG_HOST_PORT", "4172"))
+EMBEDDING_API_URL = os.environ.get(
+    "EMBEDDING_API_URL", f"http://live-video-captioning-rag:{LIVE_VIDEO_RAG_HOST_PORT}/api/embedding"
+)
 
 # Embedding/Vector Database Configuration
 VDMS_HOST = os.getenv("VDMS_HOST", "localhost")

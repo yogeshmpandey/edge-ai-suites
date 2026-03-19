@@ -301,7 +301,7 @@ services:
       - OVERRIDE_blobs_path=/db/blobs
       - OVERRIDE_pmgd_path=/db/graph
     ports:
-      - '${VDMS_VDB_HOST_PORT}:55555'
+      - '${VDMS_PORT:-55555}:55555'
     volumes:
       - vdms-db:/db
     networks:
