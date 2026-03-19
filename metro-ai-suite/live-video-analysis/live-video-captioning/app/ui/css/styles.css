@@ -397,6 +397,26 @@ iframe {
     color: var(--muted);
 }
 
+.caption-entry-alert {
+    border-left: 4px solid;
+    border-left-color: inherit;
+    transition: background-color 0.2s ease, border-left-color 0.2s ease;
+}
+
+.caption-entry-alert:hover {
+    border-left-width: 4px;
+}
+
+.caption-alert-icon {
+    flex-shrink: 0;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+}
+
+.caption-entry-alert:hover .caption-alert-icon {
+    opacity: 1;
+}
+
 .chips {
     display: flex;
     flex-wrap: wrap;
@@ -963,8 +983,6 @@ iframe {
     position: relative;
     overflow: visible;
 }
-
-
 
 /* Optional: tweak the SVG color */
 .info-svg {
