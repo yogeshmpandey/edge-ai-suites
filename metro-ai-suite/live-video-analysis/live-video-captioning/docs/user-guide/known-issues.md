@@ -45,6 +45,15 @@ If the dashboard or APIs are not reachable, check whether the ports are already 
 - Reduce `max_tokens`.
 - Ensure hardware acceleration and drivers are installed if using GPU.
 
+## Metrics graphs lag on GPU pipelines when running in Helm Deployments
+
+Symptoms:
+- Live metrics graphs in the dashboard trail behind real-time by a few seconds intermittently when the pipeline is running on a GPU node.
+
+Details:
+- The lag is a display artifact caused by the collector's `inputs.exec` plugin taking longer than expected to gather CPU frequency data on high-core-count GPU nodes (e.g. nodes with 192 CPUs). This can cause metric batches to queue up and be flushed slightly out of sync.
+- The pipeline inference and captioning are unaffected; only the metrics visualization is delayed.
+
 ## Gemma model not working in GPU
 
 - Gemma model is not working on GPU. Only working on CPU.

@@ -17,7 +17,7 @@ data:
     # Configuration for telegraf agent
     # Customized for Metrics Service - Standalone deployment
     [agent]
-      interval = "1s"
+      interval = "2s"
       round_interval = true
       metric_batch_size = 2000
       metric_buffer_limit = 20000
@@ -39,9 +39,9 @@ data:
       commands = ["/app/read_cpu_freq.sh"]
       environment = []
       name_suffix = ""
-      timeout = "5s"
+      timeout = "15s"
       data_format = "influx"
-      interval = "1s"
+      interval = "10s"
 
     [[inputs.execd]]
       command = ["python3", "/app/qmassa_reader.py"]
