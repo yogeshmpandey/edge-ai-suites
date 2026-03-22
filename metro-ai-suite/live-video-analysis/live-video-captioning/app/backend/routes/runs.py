@@ -251,7 +251,7 @@ async def stop_run(run_id: str) -> dict[str, str]:
     # A failure (502) usually means the pipeline is already stopped
     try:
         http_json("DELETE", stop_url)
-    except HTTPException:
+    except Exception:
         # Pipeline may already be stopped or unreachable - continue cleanup
         pass
 
