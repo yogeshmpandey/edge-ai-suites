@@ -1,0 +1,133 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+# values-override.yaml — User-facing overrides for Live Video Captioning
+#
+# Copy this file, fill in the values marked REQUIRED, and deploy with:
+# First refresh vendored dependencies from ./subcharts/:
+#   helm dependency update ./chart
+#
+# NOTE: Model download is a pre-install hook and can take 30–60+ minutes depending
+# on network speed. Always pass --timeout to allow enough time for the download.
+#
+#   helm install lvc ./chart \
+#     -f ./chart/values-override.yaml \
+#     -n <your-namespace> --create-namespace \
+#     --timeout 60m
+#
+# Upgrade an existing release:
+#   helm upgrade lvc ./chart \
+#     -f ./chart/values-override.yaml \
+#     -n <your-namespace> \
+#     --timeout 60m
+#
+# Only the values that users typically need to change appear here.
+# Everything else has sensible defaults in values.yaml.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GLOBAL — must be set for a working deployment
+# ─────────────────────────────────────────────────────────────────────────────
+global:
+  # ❗ REQUIRED: IP or hostname of the worker node reachable by the browser.
+  # In clusters without worker-node external IPs, this is usually the INTERNAL-IP.
+  # Used for WebRTC signaling and TURN server ICE candidate URLs.
+  hostIP: ""             # <-- change to your node IP
+
+  # Preferred: pin workloads to one specific node by Kubernetes node name.
+  # This uses the built-in kubernetes.io/hostname label, so no custom label is needed.
+  nodeName: ""
+
+  # Optional fallback: use a node label selector instead.
+  # Leave these as-is when nodeName is set. Otherwise, label your node with:
+  #   kubectl label node <node-name> intel.com/lvc-node=true
+  nodeAffinityKey: "intel.com/lvc-node"
+  nodeAffinityValue: "true"
+
+  # Corporate proxy (leave as empty strings if not behind a proxy)
+  httpProxy: ""
+  httpsProxy: ""
+  noProxy: "localhost,127.0.0.1,mqtt-broker,dlstreamer-pipeline-server,mediamtx,coturn,video-caption-service,live-metrics-service,collector"
+
+  # StorageClass for all PVCs.  Leave empty to use the cluster default.
+  storageClassName: ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODEL DOWNLOAD
+# ─────────────────────────────────────────────────────────────────────────────
+modelsDownload:
+  # Set to false if the models PVC is already populated.
+  enabled: true
+
+  # List the VLM model(s) you want downloaded and converted to OpenVINO IR.
+  # Supported short keys: internvl2_1B, internvl2_2B, gemma3
+  # Or provide any HuggingFace model ID directly.
+  # The outputName must match the captioner_model_name used in the UI / config.json.
+  models:
+    - modelId: ""
+      outputName: ""
+      weightFormat: ""           # "" = fp16 (default), "int8", or "int4"
+
+  # For gated models (e.g. google/gemma-3-4b-it), create a secret first:
+  #   kubectl create secret generic hf-token --from-literal=HF_TOKEN=<token>
+  # Then uncomment:
+  # hfTokenSecret:
+  #   name: "hf-token"
+  #   key: "HF_TOKEN"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MEDIAMTX — WebRTC signaling & TURN credentials
+# ─────────────────────────────────────────────────────────────────────────────
+mediamtx:
+  # TURN server credentials sent to the browser for ICE negotiation.
+  # Change these from the defaults for any deployment outside localhost.
+  webrtcIceUsername: ""
+  webrtcIcePassword: ""
+
+  # WebRTC / WHIP server port exposed on the node.
+  service:
+    whipNodePort: 8889           # Port browsers use for WebRTC signaling
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VIDEO CAPTION SERVICE
+# ─────────────────────────────────────────────────────────────────────────────
+video-caption-service:
+  env:
+    # Default RTSP stream URL shown in the UI on first load.
+    # Leave empty to let the user type it in the dashboard.
+    defaultRtspUrl: ""
+
+    # Enable alert-mode captioning (binary yes/no answers instead of descriptions).
+    alertMode: "false"
+
+    # Enable object-detection pipeline (requires detection models PVC populated).
+    enableDetectionPipeline: "false"
+
+    # Number of previous captions shown in the caption timeline (0 = current only).
+    captionHistory: "3"
+
+    # WebRTC stream bitrate in kbps.
+    webrtcBitrate: "2048"
+
+  # NodePort for the dashboard UI.
+  service:
+    nodePort: 4173
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DLSTREAMER PIPELINE SERVER
+# ─────────────────────────────────────────────────────────────────────────────
+dlstreamer-pipeline-server:
+  env:
+    # Default inference device: CPU or GPU
+    detectionDevice: "CPU"
+
+  # NodePort for the pipeline REST API.
+  service:
+    hostPort: 8040
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COLLECTOR
+# ─────────────────────────────────────────────────────────────────────────────
+collector:
+  # Host directory mounted into the collector DaemonSet at /app/.collector-signals.
+  # Create this directory on the node before deploying.
+  collectorSignalsHostPath: "/tmp/lvc/collector-signals"
