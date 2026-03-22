@@ -26,7 +26,7 @@ websocketUrl: "ws://live-metrics-service:9090/ws/collector"
 # Pre-create this directory on the node before deploying:
 #   mkdir -p /opt/lvc/collector-signals
 # Type: string
-collectorSignalsHostPath: "/opt/lvc/collector-signals"
+collectorSignalsHostPath: "/tmp/lvc/collector-signals"
 
 podSecurityContext:
   # Required for hardware access

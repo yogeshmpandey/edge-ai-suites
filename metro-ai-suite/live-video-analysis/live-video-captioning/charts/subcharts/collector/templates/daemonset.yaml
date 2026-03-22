@@ -38,13 +38,9 @@ spec:
     spec:
       {{- include "lvc.imagePullSecrets" . | nindent 6 }}
 
-      # Pin to the same node selection used by the other workloads.
+      # Pin to the same node used by the other workloads.
       nodeSelector:
-{{- if .Values.global.nodeName }}
         kubernetes.io/hostname: {{ .Values.global.nodeName | quote }}
-{{- else }}
-        {{ .Values.global.nodeAffinityKey }}: {{ .Values.global.nodeAffinityValue | quote }}
-{{- end }}
       # hostPID required for qmassa GPU monitoring (matches compose pid: host).
       hostPID: {{ .Values.hostPID }}
       securityContext:

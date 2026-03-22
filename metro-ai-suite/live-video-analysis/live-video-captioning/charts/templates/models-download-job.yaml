@@ -55,9 +55,9 @@ spec:
               value: {{ .Values.modelsDownload.requirementsUrl | quote }}
             # Total number of models to process
             - name: MODEL_COUNT
-              value: {{ len .Values.modelsDownload.models | quote }}
+              value: {{ len .Values.global.models | quote }}
             # Per-model indexed environment variables consumed by the bash script
-            {{- range $i, $model := .Values.modelsDownload.models }}
+            {{- range $i, $model := .Values.global.models }}
             - name: MODEL_{{ $i }}_ID
               value: {{ $model.modelId | quote }}
             - name: MODEL_{{ $i }}_NAME

@@ -33,23 +33,29 @@ global:
   # Used for WebRTC signaling and TURN server ICE candidate URLs.
   hostIP: ""             # <-- change to your node IP
 
-  # Preferred: pin workloads to one specific node by Kubernetes node name.
-  # This uses the built-in kubernetes.io/hostname label, so no custom label is needed.
-  nodeName: ""
-
-  # Optional fallback: use a node label selector instead.
-  # Leave these as-is when nodeName is set. Otherwise, label your node with:
-  #   kubectl label node <node-name> intel.com/lvc-node=true
-  nodeAffinityKey: "intel.com/lvc-node"
-  nodeAffinityValue: "true"
+  # ❗ REQUIRED: Kubernetes node name to pin all workloads to.
+  # Uses the built-in kubernetes.io/hostname label — no custom node label needed.
+  # Find the name with: kubectl get nodes
+  nodeName: ""             # <-- change to your worker node name
 
   # Corporate proxy (leave as empty strings if not behind a proxy)
   httpProxy: ""
   httpsProxy: ""
-  noProxy: "localhost,127.0.0.1,mqtt-broker,dlstreamer-pipeline-server,mediamtx,coturn,video-caption-service,live-metrics-service,collector"
+  # Add your RTSP camera host/IP here so DL Streamer bypasses the proxy for stream access.
+  # Example: "192.168.1.50" or "camera.example.com"
+  noProxy: ""
 
   # StorageClass for all PVCs.  Leave empty to use the cluster default.
   storageClassName: ""
+
+  # List of VLM models to download, convert, and serve.
+  # This is the single source of truth — the download job and the wait-for-models
+  # init containers in every pod all derive their configuration from this list.
+  # The outputName must match the captioner_model_name used in the UI / config.json.
+  models:
+    - modelId: ""
+      outputName: ""
+      weightFormat: ""           # "" = fp16 (default), "int8", or "int4"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MODEL DOWNLOAD
@@ -57,15 +63,6 @@ global:
 modelsDownload:
   # Set to false if the models PVC is already populated.
   enabled: true
-
-  # List the VLM model(s) you want downloaded and converted to OpenVINO IR.
-  # Supported short keys: internvl2_1B, internvl2_2B, gemma3
-  # Or provide any HuggingFace model ID directly.
-  # The outputName must match the captioner_model_name used in the UI / config.json.
-  models:
-    - modelId: ""
-      outputName: ""
-      weightFormat: ""           # "" = fp16 (default), "int8", or "int4"
 
   # For gated models (e.g. google/gemma-3-4b-it), create a secret first:
   #   kubectl create secret generic hf-token --from-literal=HF_TOKEN=<token>

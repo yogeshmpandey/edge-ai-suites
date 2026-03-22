@@ -80,15 +80,6 @@ env:
 modelsPvcName: ""
 detectionModelsPvcName: ""
 
-# Sentinel files written by the model-download Job inside the models PVC.
-# Each entry is a relative path under /models/ (e.g. "InternVL2-1B/.complete").
-# The wait-for-models init container waits for every file in this list before
-# starting the caption service.  Must stay in sync with modelsDownload.models
-# in the parent chart values.
-# Type: list of strings
-waitForModels:
-  sentinelFiles: []
-
 podSecurityContext: {}
 securityContext: {}
 

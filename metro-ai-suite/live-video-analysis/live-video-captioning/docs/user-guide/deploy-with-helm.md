@@ -11,7 +11,7 @@ Before you begin, ensure that you have the following:
 - Dynamic Persistent Volume provisioning available in the cluster, or a `StorageClass` you can set in the chart values.
 - A worker node reachable by your browser client. The chart uses this address for dashboard access and WebRTC signaling.
 - Sufficient storage for model PVCs. The default chart configuration requests `50Gi` for VLM models and `5Gi` for detection models.
-- A writable host path for collector signal files on the target node. By default the chart uses `/opt/lvc/collector-signals`.
+- A writable host path for collector signal files on the target node. By default the chart uses `/tmp/lvc/collector-signals`.
 - An RTSP source reachable from the Kubernetes node that runs `dlstreamer-pipeline-server`.
 - If you use gated Hugging Face models, a Hugging Face token stored in a Kubernetes secret.
 
@@ -21,7 +21,7 @@ Before you begin, ensure that you have the following:
 
 All workloads in this chart are pinned to the target node selected in the chart values.
 
-Preferred option: set `global.nodeName` to the Kubernetes node name. This uses the built-in `kubernetes.io/hostname` label, so you do not need permission to label nodes.
+Set `global.nodeName` to the Kubernetes node name. This uses the built-in `kubernetes.io/hostname` label, so you do not need permission to label nodes.
 
 Example:
 
@@ -30,25 +30,7 @@ global:
   nodeName: worker4
 ```
 
-Optional fallback: if you prefer label-based placement, set `global.nodeAffinityKey` and `global.nodeAffinityValue`, then label the target node:
-
-```bash
-kubectl label node <node-name> intel.com/lvc-node=true
-```
-
-If you want to use a different existing label, update the corresponding values in `values-override.yaml`.
-
-### 2. Create the collector host directory
-
-The collector DaemonSet mounts a host path for signal files. Create it on the selected node before installing the chart.
-
-```bash
-sudo mkdir -p /opt/lvc/collector-signals
-```
-
-If you prefer a different location, update `collector.collectorSignalsHostPath` in your override values.
-
-### 3. Create a namespace
+### 2. Create a namespace
 
 ```bash
 my_namespace=lvc
@@ -57,7 +39,7 @@ kubectl create namespace "$my_namespace"
 
 If the namespace already exists, reuse it with the same value.
 
-### 4. Get the IP of the selected node
+### 3. Get the IP of the selected node
 
 Use the same node that you selected for this chart. First list the nodes and labels:
 
@@ -95,16 +77,14 @@ If the worker node does not have any browser-reachable IP, direct NodePort acces
 
 ## Configure Required Values
 
-The chart includes a sample override file at `chart/values-override.yaml`. Update it before deploying.
+The chart includes a sample override file at `charts/values-override.yaml`. Update it before deploying.
 
 The most important values are:
 
 | Key | Description | Example |
 | --- | --- | --- |
 | `global.hostIP` | Browser-reachable IP of the selected node. In many on-prem clusters this is the node `INTERNAL-IP`. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
-| `global.nodeName` | Kubernetes node name used to pin workloads without adding a custom label | `worker4` |
-| `global.nodeAffinityKey` | Optional node label key used to pin workloads when `global.nodeName` is empty | `intel.com/lvc-node` |
-| `global.nodeAffinityValue` | Optional node label value used to pin workloads when `global.nodeName` is empty | `true` |
+| `global.nodeName` | Kubernetes node name used to pin workloads to a specific worker node | `worker4` |
 | `global.storageClassName` | StorageClass for the chart PVCs. Leave empty to use the cluster default | `local-path` |
 | `modelsPvc.size` | PVC size for downloaded or pre-populated VLM models | `50Gi` |
 | `detectionModelsPvc.size` | PVC size for object detection models | `5Gi` |
@@ -117,7 +97,7 @@ The most important values are:
 | `video-caption-service.env.enableDetectionPipeline` | Enables detection filtering in the pipeline | `"true"` or `"false"` |
 | `video-caption-service.env.alertMode` | Switches captioning to binary alert-style responses | `"true"` or `"false"` |
 | `dlstreamer-pipeline-server.env.detectionDevice` | Device used for object detection inference | `CPU` or `GPU` |
-| `collector.collectorSignalsHostPath` | Host path mounted into the collector pod | `/opt/lvc/collector-signals` |
+| `collector.collectorSignalsHostPath` | Host path mounted into the collector pod | `/tmp/lvc/collector-signals` |
 
 ### Gated Model Downloads
 
@@ -144,9 +124,9 @@ If your cluster runs behind a proxy, set the proxy fields under `global`:
 
 ```yaml
 global:
-  httpProxy: http://proxy-pilot.intel.com:916
-  httpsProxy: http://proxy-pilot.intel.com:916
-  noProxy: localhost,127.0.0.1,mqtt-broker,dlstreamer-pipeline-server,mediamtx,coturn,video-caption-service,live-metrics-service,collector,camera.example.com,192.168.1.50
+  httpProxy: "http://<your-proxy-host>:<port>"
+  httpsProxy: "http://<your-proxy-host>:<port>"
+  noProxy: "<your-rtsp-camera-host-or-ip>"
 ```
 
 Important: the host portion of every RTSP URL must be included in `noProxy` when the deployment runs behind a proxy.
@@ -166,11 +146,11 @@ Run the following command from the chart directory:
 helm dependency update
 ```
 
-This refreshes the packaged dependencies from `chart/subcharts/` and updates `Chart.lock`.
+This refreshes the packaged dependencies from `charts/subcharts/` and updates `Chart.lock`.
 
 ## Install the Chart
 
-From `chart`, install the application with the override file:
+From `charst`, install the application with the override file:
 
 ```bash
 helm install lvc . \
@@ -182,8 +162,8 @@ helm install lvc . \
 You can also install from the repository root:
 
 ```bash
-helm install lvc ./chart \
-  -f ./chart/values-override.yaml \
+helm install lvc ./charts \
+  -f ./charts/values-override.yaml \
   -n "$my_namespace" \
   --timeout 60m
 ```
@@ -259,7 +239,7 @@ helm uninstall lvc -n "$my_namespace"
 
 ## Troubleshooting
 
-- If pods remain `Pending`, check that the target node is labeled correctly and that the requested `StorageClass` can provision the PVCs.
+- If pods remain `Pending`, check that `global.nodeName` matches the correct node name and that the requested `StorageClass` can provision the PVCs.
 - If the install fails before pods appear, inspect the model download hook logs and confirm that the selected model ID and Hugging Face credentials are valid.
 - If the dashboard opens but video does not start, confirm that `global.hostIP` is reachable from the browser. If your worker nodes do not have external IPs, this usually means using the node `INTERNAL-IP` over a reachable LAN or VPN. Also confirm that the RTSP source is reachable from the Kubernetes node.
 - If WebRTC negotiation fails, verify that the NodePort services for MediaMTX and coturn are allowed by your network policy or firewall.

@@ -43,14 +43,14 @@ spec:
             - /bin/sh
             - -c
             - |
-              {{- if .Values.waitForModels.sentinelFiles }}
+              {{- if .Values.global.models }}
               echo "Waiting for model sentinel files..."
-              {{- range .Values.waitForModels.sentinelFiles }}
-              until [ -f "/models/{{ . }}" ]; do
-                echo "  /models/{{ . }} not found — model not yet downloaded/converted. Retrying in 10s..."
+              {{- range .Values.global.models }}
+              until [ -f "/models/{{ .outputName }}/.complete" ]; do
+                echo "  /models/{{ .outputName }}/.complete not found — model not yet downloaded/converted. Retrying in 10s..."
                 sleep 10
               done
-              echo "  ✔ /models/{{ . }} ready."
+              echo "  ✔ /models/{{ .outputName }}/.complete ready."
               {{- end }}
               echo "All models ready. Proceeding."
               {{- else }}

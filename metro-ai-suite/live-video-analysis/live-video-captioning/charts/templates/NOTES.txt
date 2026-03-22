@@ -12,8 +12,9 @@ APP VERSION: {{ .Chart.AppVersion }}
   global:
     nodeName: {{ .Values.global.nodeName | quote }}
 {{- else }}
-  Label your AI worker node:
-   kubectl label node <your-node-name> {{ .Values.global.nodeAffinityKey }}={{ .Values.global.nodeAffinityValue }}
+  ❗ global.nodeName is not set. Set it to your worker node name:
+  global:
+    nodeName: "<your-node-name>"
 {{- end }}
 
 2. Set your host IP in values-override.yaml:
@@ -50,8 +51,7 @@ Live Metrics:
 - All services are pinned to node:
   {{ .Values.global.nodeName }}
 {{- else }}
-- All services are pinned to nodes labelled:
-  {{ .Values.global.nodeAffinityKey }}={{ .Values.global.nodeAffinityValue }}
+- ❗ global.nodeName is not set — workloads will not be pinned to any specific node.
 {{- end }}
 - Models PVC ({{ .Values.modelsPvc.size }}) and detection models PVC ({{ .Values.detectionModelsPvc.size }})
   use ReadWriteOnce access mode — safe when all pods share the same node.

@@ -72,8 +72,11 @@ configured in global values.  Call from any subchart deployment template:
     {{- include "lvc.proxyEnv" . | nindent 12 }}
 
 The helper reads from .Values.global.{httpProxy,httpsProxy,noProxy}.
+Internal Kubernetes service hostnames are always prepended to no_proxy so
+users only need to supply their RTSP camera hosts/IPs.
 */}}
 {{- define "lvc.proxyEnv" -}}
+{{- $internalNoProxy := "localhost,127.0.0.1,mqtt-broker,dlstreamer-pipeline-server,mediamtx,coturn,video-caption-service,live-metrics-service,collector" -}}
 {{- if .Values.global.httpProxy }}
 - name: http_proxy
   value: {{ .Values.global.httpProxy | quote }}
@@ -86,18 +89,22 @@ The helper reads from .Values.global.{httpProxy,httpsProxy,noProxy}.
 - name: HTTPS_PROXY
   value: {{ .Values.global.httpsProxy | quote }}
 {{- end }}
-{{- if .Values.global.noProxy }}
+{{- if .Values.global.httpProxy }}
+{{- $noProxy := $internalNoProxy -}}
+{{- if .Values.global.noProxy -}}
+  {{- $noProxy = printf "%s,%s" $internalNoProxy .Values.global.noProxy -}}
+{{- end }}
 - name: no_proxy
-  value: {{ .Values.global.noProxy | quote }}
+  value: {{ $noProxy | quote }}
 - name: NO_PROXY
-  value: {{ .Values.global.noProxy | quote }}
+  value: {{ $noProxy | quote }}
 {{- end }}
 {{- end }}
 
 {{/*
 lvc.nodeAffinity — emit a requiredDuringScheduling nodeAffinity block that
-pins pods either to a specific node name or to nodes matched by the
-configured global label selector.
+pins pods to the node specified by global.nodeName (matched against the
+built-in kubernetes.io/hostname label).
 
 Usage (inside a pod spec, indented appropriately):
 
@@ -120,18 +127,10 @@ affinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
-{{- if .Values.global.nodeName }}
             - key: "kubernetes.io/hostname"
-{{- else }}
-            - key: {{ default "kubernetes.io/hostname" .Values.global.nodeAffinityKey | quote }}
-{{- end }}
               operator: In
               values:
-{{- if .Values.global.nodeName }}
                 - {{ .Values.global.nodeName | quote }}
-{{- else }}
-                - {{ .Values.global.nodeAffinityValue | quote }}
-{{- end }}
 {{- end }}
 
 {{/*
