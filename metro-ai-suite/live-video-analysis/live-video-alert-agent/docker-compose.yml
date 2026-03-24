@@ -92,7 +92,7 @@ services:
     network_mode: host
 
   live-metrics-service:
-    image: ${REGISTRY:-}live-metrics-service:1.0.0.rc.1
+    image: ${REGISTRY:-}live-metrics-service:1.0.0
     build:
       context: ../live-metrics-service
       dockerfile: Dockerfile

@@ -40,7 +40,7 @@ Edit `.env` to configure:
 
 ```bash
 export REGISTRY="intel/"
-export TAG="1.0.0-rc.1"
+export TAG="1.0.0"
 docker compose up
 ```
 

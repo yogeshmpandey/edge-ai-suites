@@ -1,6 +1,6 @@
 # Release Notes
 
-## 1.0.0-rc.1
+## 1.0.0
 
 **Release Date:** Feb 17, 2026
 

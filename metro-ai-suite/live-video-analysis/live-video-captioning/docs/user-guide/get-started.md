@@ -35,7 +35,7 @@ when object detection in the pipeline is enabled. Please refer to the [Object De
 3. **Configure Image Registry and Tag**:
      ```bash
         export REGISTRY="intel/"
-        export TAG="1.0.0-rc.2"
+        export TAG="1.0.0"
      ```
     Skip this step if you prefer to build the sample applciation from source. For detailed instructions, refer to the [Build from Source](./get-started/build-from-source.md) guide for details.
 

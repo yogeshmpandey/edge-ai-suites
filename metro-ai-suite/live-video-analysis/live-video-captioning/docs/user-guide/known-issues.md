@@ -63,3 +63,7 @@ If the dashboard or APIs are not reachable, check whether the ports are already 
 ## Limited testing on EMT-S and EMT-D
 
 - This release includes only limited testing on EMT‑S and EMT‑D, some behaviors may not yet be fully validated across all scenarios.
+
+## Known EMT Limitation with External RTSP Streams
+
+Due to an EMT networking limitation, RTSP streams must be deployed within the same Docker network as the application (accessed via container/service name). RTSP streams hosted outside the Docker network or accessed using <host-ip> are not supported
