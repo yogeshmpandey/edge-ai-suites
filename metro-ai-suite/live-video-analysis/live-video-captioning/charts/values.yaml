@@ -15,7 +15,7 @@
 #
 # To customise for your deployment, copy values-override.yaml, fill in the
 # mandatory fields, and install with:
-#   helm install lvc ./chart -f ./chart/values-override.yaml
+#   helm install lvc ./charts -f ./charts/values-override.yaml
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. GLOBAL VALUES
@@ -36,7 +36,7 @@ global:
   # signaling URL sent to the caption service.
   #
   # Type: string  REQUIRED — change to your node's IP
-  hostIP: "127.0.0.1"
+  hostIP: ""
 
   # ------- Proxy ---------------------------------------------------------------
   # Leave empty if the cluster is not behind a corporate proxy.

@@ -4,20 +4,20 @@
 # values-override.yaml — User-facing overrides for Live Video Captioning
 #
 # Copy this file, fill in the values marked REQUIRED, and deploy with:
-# First refresh vendored dependencies from ./subcharts/:
-#   helm dependency update ./chart
+# From the repository root, first refresh vendored dependencies:
+#   helm dependency update ./charts
 #
 # NOTE: Model download is a pre-install hook and can take 30–60+ minutes depending
 # on network speed. Always pass --timeout to allow enough time for the download.
 #
-#   helm install lvc ./chart \
-#     -f ./chart/values-override.yaml \
+#   helm install lvc ./charts \
+#     -f ./charts/values-override.yaml \
 #     -n <your-namespace> --create-namespace \
 #     --timeout 60m
 #
 # Upgrade an existing release:
-#   helm upgrade lvc ./chart \
-#     -f ./chart/values-override.yaml \
+#   helm upgrade lvc ./charts \
+#     -f ./charts/values-override.yaml \
 #     -n <your-namespace> \
 #     --timeout 60m
 #
@@ -64,25 +64,10 @@ modelsDownload:
   # Set to false if the models PVC is already populated.
   enabled: true
 
-  # For gated models (e.g. google/gemma-3-4b-it), create a secret first:
-  #   kubectl create secret generic hf-token --from-literal=HF_TOKEN=<token>
-  # Then uncomment:
+  # For gated models (e.g. google/gemma-3-4b-it), add huggingface token
   # hfTokenSecret:
   #   name: "hf-token"
   #   key: "HF_TOKEN"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MEDIAMTX — WebRTC signaling & TURN credentials
-# ─────────────────────────────────────────────────────────────────────────────
-mediamtx:
-  # TURN server credentials sent to the browser for ICE negotiation.
-  # Change these from the defaults for any deployment outside localhost.
-  webrtcIceUsername: ""
-  webrtcIcePassword: ""
-
-  # WebRTC / WHIP server port exposed on the node.
-  service:
-    whipNodePort: 8889           # Port browsers use for WebRTC signaling
 
 # ─────────────────────────────────────────────────────────────────────────────
 # VIDEO CAPTION SERVICE
@@ -102,12 +87,6 @@ video-caption-service:
     # Number of previous captions shown in the caption timeline (0 = current only).
     captionHistory: "3"
 
-    # WebRTC stream bitrate in kbps.
-    webrtcBitrate: "2048"
-
-  # NodePort for the dashboard UI.
-  service:
-    nodePort: 4173
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DLSTREAMER PIPELINE SERVER
@@ -116,15 +95,3 @@ dlstreamer-pipeline-server:
   env:
     # Default inference device: CPU or GPU
     detectionDevice: "CPU"
-
-  # NodePort for the pipeline REST API.
-  service:
-    hostPort: 8040
-
-# ─────────────────────────────────────────────────────────────────────────────
-# COLLECTOR
-# ─────────────────────────────────────────────────────────────────────────────
-collector:
-  # Host directory mounted into the collector DaemonSet at /app/.collector-signals.
-  # Create this directory on the node before deploying.
-  collectorSignalsHostPath: "/tmp/lvc/collector-signals"

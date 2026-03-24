@@ -25,7 +25,6 @@ spec:
       {{- end }}
     spec:
       {{- include "lvc.imagePullSecrets" . | nindent 6 }}
-      {{- include "lvc.nodeAffinity" . | nindent 6 }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

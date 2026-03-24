@@ -8,6 +8,22 @@ Symptoms:
 Hardware:
 - Issue observed on BMG-580 discrete GPU.
 
+## Pipeline server core dump sometimes
+
+Symptoms:
+- New pipelines cannot be created after pipeline server exits.
+- Logs show the pipeline server core-dumping.
+
+Details:
+- This issue appears to be caused by resource pressure or instability in the pipeline server rather than in the live-video-captioning application itself.
+
+Checks:
+- Verify the `dlstreamer-pipeline-server` service is running.
+- Restart the pipeline server or the full application stack if the service is not running.
+
+Tip:
+- Size the number of streams according to the available hardware resources.
+
 ## WebRTC connectivity issues
 
 Symptoms:
@@ -61,3 +77,7 @@ Details:
 ## Limited testing on EMT-S and EMT-D
 
 - This release includes only limited testing on EMT‑S and EMT‑D, some behaviors may not yet be fully validated across all scenarios.
+
+## Known EMT Limitation with External RTSP Streams
+
+Due to an EMT networking limitation, RTSP streams must be deployed within the same Docker network as the application (accessed via container/service name). RTSP streams hosted outside the Docker network or accessed using <host-ip> are not supported

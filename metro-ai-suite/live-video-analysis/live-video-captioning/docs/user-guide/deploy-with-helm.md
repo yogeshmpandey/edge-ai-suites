@@ -9,7 +9,7 @@ Before you begin, ensure that you have the following:
 - A Kubernetes cluster with `kubectl` configured for access.
 - Helm installed on your system. See the [Installation Guide](https://helm.sh/docs/intro/install/).
 - Dynamic Persistent Volume provisioning available in the cluster, or a `StorageClass` you can set in the chart values.
-- A worker node reachable by your browser client. The chart uses this address for dashboard access and WebRTC signaling.
+- A worker node reachable by your browser client. Prefer a GPU-capable worker node when available, because the chart pins the media and inference workloads to the selected node and DL Streamer benefits most from GPU access.
 - Sufficient storage for model PVCs. The default chart configuration requests `50Gi` for VLM models and `5Gi` for detection models.
 - A writable host path for collector signal files on the target node. By default the chart uses `/tmp/lvc/collector-signals`.
 - An RTSP source reachable from the Kubernetes node that runs `dlstreamer-pipeline-server`.
@@ -19,7 +19,23 @@ Before you begin, ensure that you have the following:
 
 ### 1. Select the target node
 
-All workloads in this chart are pinned to the target node selected in the chart values.
+The chart pins the workloads that need to stay together to the target node selected in the chart values:
+
+- `dlstreamer-pipeline-server`
+- `video-caption-service`
+- `mediamtx`
+- `coturn`
+- `collector`
+
+These workloads are kept on the same worker because they rely on node-local access patterns:
+
+- `dlstreamer-pipeline-server` and `video-caption-service` share the model PVCs.
+- `dlstreamer-pipeline-server` and `collector` need direct access to node hardware and host resources.
+- `mediamtx` and `coturn` expose browser-facing WebRTC and TURN endpoints that must match the selected node's reachable IP.
+
+Other supporting services such as `mqtt-broker` and `live-metrics-service` do not need to be pinned to that same worker node.
+
+For best performance, choose a worker node with a GPU. The chart can run with CPU-only inference, but a GPU-capable node is the preferred deployment target for DL Streamer and real-time media processing.
 
 Set `global.nodeName` to the Kubernetes node name. This uses the built-in `kubernetes.io/hostname` label, so you do not need permission to label nodes.
 
@@ -30,18 +46,9 @@ global:
   nodeName: worker4
 ```
 
-### 2. Create a namespace
+### 2. Get the IP of the selected node
 
-```bash
-my_namespace=lvc
-kubectl create namespace "$my_namespace"
-```
-
-If the namespace already exists, reuse it with the same value.
-
-### 3. Get the IP of the selected node
-
-Use the same node that you selected for this chart. First list the nodes and labels:
+Use the same node that you selected for the pinned media workloads. First list the nodes and labels:
 
 ```bash
 kubectl get nodes --show-labels
@@ -71,9 +78,9 @@ If no external address is present, use:
 kubectl get node <node-name> -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}'
 ```
 
-Set that value in `global.hostIP`. Do not use a pod IP, a Service `ClusterIP`, or `127.0.0.1` unless the browser runs on the same node.
+Set that value in `global.hostIP`.
 
-If the worker node does not have any browser-reachable IP, direct NodePort access will not work. In that case, expose the application through a load balancer, ingress, VPN, SSH tunnel, or another network path that makes the selected node reachable from the browser.
+If the worker node does not have any browser-reachable IP, direct NodePort access will not work. This capability will be added to the chart in a future update. 
 
 ## Configure Required Values
 
@@ -83,40 +90,19 @@ The most important values are:
 
 | Key | Description | Example |
 | --- | --- | --- |
-| `global.hostIP` | Browser-reachable IP of the selected node. In many on-prem clusters this is the node `INTERNAL-IP`. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
-| `global.nodeName` | Kubernetes node name used to pin workloads to a specific worker node | `worker4` |
+| `global.hostIP` | Browser-reachable IP of the selected node that runs the pinned media workloads. In many on-prem clusters this is the node `INTERNAL-IP`. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
+| `global.nodeName` | Kubernetes node name used to pin the media, TURN, and host-coupled workloads to one worker node. Prefer a GPU-capable node when available | `worker4` |
 | `global.storageClassName` | StorageClass for the chart PVCs. Leave empty to use the cluster default | `local-path` |
+| `global.models` | List of Hugging Face model IDs to export to OpenVINO format | `OpenGVLab/InternVL2-1B` |
 | `modelsPvc.size` | PVC size for downloaded or pre-populated VLM models | `50Gi` |
 | `detectionModelsPvc.size` | PVC size for object detection models | `5Gi` |
 | `modelsDownload.enabled` | Whether the pre-install hook downloads models into the VLM models PVC | `true` |
-| `modelsDownload.models` | List of Hugging Face model IDs to export to OpenVINO format | `OpenGVLab/InternVL2-1B` |
 | `modelsDownload.hfTokenSecret.name` | Secret name for gated-model downloads | `hf-token` |
-| `mediamtx.webrtcIceUsername` | TURN username exposed to the browser | `lvcuser` |
-| `mediamtx.webrtcIcePassword` | TURN password exposed to the browser | `lvcpass` |
 | `video-caption-service.env.defaultRtspUrl` | Default RTSP URL shown in the dashboard | `rtsp://camera.example/live` |
 | `video-caption-service.env.enableDetectionPipeline` | Enables detection filtering in the pipeline | `"true"` or `"false"` |
 | `video-caption-service.env.alertMode` | Switches captioning to binary alert-style responses | `"true"` or `"false"` |
 | `dlstreamer-pipeline-server.env.detectionDevice` | Device used for object detection inference | `CPU` or `GPU` |
-| `collector.collectorSignalsHostPath` | Host path mounted into the collector pod | `/tmp/lvc/collector-signals` |
 
-### Gated Model Downloads
-
-If your selected model requires authentication, create a secret in the target namespace:
-
-```bash
-kubectl create secret generic hf-token \
-  --from-literal=HF_TOKEN=<your-token> \
-  -n "$my_namespace"
-```
-
-Then set the following values:
-
-```yaml
-modelsDownload:
-  hfTokenSecret:
-    name: hf-token
-    key: HF_TOKEN
-```
 
 ### Proxy Configuration
 
@@ -146,11 +132,11 @@ Run the following command from the chart directory:
 helm dependency update
 ```
 
-This refreshes the packaged dependencies from `charts/subcharts/` and updates `Chart.lock`.
+This refreshes the chart dependencies from `subcharts/` and updates `Chart.lock`.
 
 ## Install the Chart
 
-From `charst`, install the application with the override file:
+From `charts/`, install the application with the override file:
 
 ```bash
 helm install lvc . \
@@ -239,10 +225,10 @@ helm uninstall lvc -n "$my_namespace"
 
 ## Troubleshooting
 
-- If pods remain `Pending`, check that `global.nodeName` matches the correct node name and that the requested `StorageClass` can provision the PVCs.
+- If pods remain `Pending`, check that `global.nodeName` matches the correct node name, that the selected node has the required hardware access, and that the requested `StorageClass` can provision the PVCs.
 - If the install fails before pods appear, inspect the model download hook logs and confirm that the selected model ID and Hugging Face credentials are valid.
 - If the dashboard opens but video does not start, confirm that `global.hostIP` is reachable from the browser. If your worker nodes do not have external IPs, this usually means using the node `INTERNAL-IP` over a reachable LAN or VPN. Also confirm that the RTSP source is reachable from the Kubernetes node.
-- If WebRTC negotiation fails, verify that the NodePort services for MediaMTX and coturn are allowed by your network policy or firewall.
+- If WebRTC negotiation fails, verify that `global.hostIP` points to the same node that runs `mediamtx` and `coturn`, and that the required ports are allowed by your network policy or firewall.
 - If detection is enabled but the pipeline cannot start, ensure the detection models PVC contains the required OpenVINO detection model artifacts.
 - If the collector does not report metrics, confirm that the host path in `collector.collectorSignalsHostPath` exists on the selected node and that the pod is scheduled there.
 
