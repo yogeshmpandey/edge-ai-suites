@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import uuid
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from ..config import (
@@ -22,6 +22,45 @@ from ..state import RUNS
 
 router = APIRouter(prefix="/api", tags=["runs"])
 logger = logging.getLogger("app.runs")
+WEBRTC_PEER_ID_MAX_LENGTH = 8
+WEBRTC_PEER_ID_PREFIX = "s"
+
+
+def _sanitize_run_name(run_name: str) -> str:
+    """Normalize a user-supplied run name into a safe run identifier."""
+    sanitized = re.sub(r"\s+", "_", run_name.strip())
+    return re.sub(r"[^a-zA-Z0-9_-]", "", sanitized)
+
+
+def _build_unique_run_name(requested_name: Optional[str]) -> Optional[str]:
+    """Return a sanitized, unique run name or None when no valid name was provided."""
+    if not requested_name or not requested_name.strip():
+        return None
+
+    sanitized = _sanitize_run_name(requested_name)
+    if not sanitized:
+        return None
+
+    run_name = sanitized
+    counter = 1
+    while run_name in RUNS:
+        run_name = f"{sanitized}_{counter}"
+        counter += 1
+
+    return run_name
+
+
+def _generate_peer_id() -> str:
+    """Generate a short, unique WebRTC peer ID accepted by the pipeline server."""
+    existing_peer_ids = {run.peerId for run in RUNS.values()}
+    peer_body_length = WEBRTC_PEER_ID_MAX_LENGTH - len(WEBRTC_PEER_ID_PREFIX)
+    if peer_body_length < 1:
+        raise RuntimeError("Invalid WebRTC peer ID configuration")
+
+    while True:
+        candidate = f"{WEBRTC_PEER_ID_PREFIX}{uuid.uuid4().hex[:peer_body_length]}"
+        if candidate not in existing_peer_ids:
+            return candidate
 
 
 def _build_pipeline_parameters(req: StartRunRequest, run_id: str) -> dict:
@@ -80,20 +119,7 @@ def _extract_pipeline_id(raw: str) -> str:
 @router.post("/runs")
 async def start_run(req: StartRunRequest) -> RunInfo:
     """Start a new video captioning run."""
-    # Process optional runName - use it for run_id if provided
-    run_name = None
-    if req.runName and req.runName.strip():
-        # Sanitize: replace spaces with underscores, remove special chars
-        sanitized = re.sub(r"\s+", "_", req.runName.strip())
-        sanitized = re.sub(r"[^a-zA-Z0-9_-]", "", sanitized)
-        if sanitized:
-            run_name = sanitized
-            # Check for duplicates and append suffix if needed
-            base_name = sanitized
-            counter = 1
-            while run_name in RUNS:
-                run_name = f"{base_name}_{counter}"
-                counter += 1
+    run_name = _build_unique_run_name(req.runName)
 
     # Use runName for run_id if provided, otherwise generate UUID
     if run_name:
@@ -101,7 +127,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     else:
         run_id = uuid.uuid4().hex[:10]
 
-    peer_id = f"stream-{run_id[:10] if len(run_id) > 10 else run_id}"
+    peer_id = _generate_peer_id()
 
     # MQTT topic for this run's metadata
     mqtt_topic = f"{MQTT_TOPIC_PREFIX}"
