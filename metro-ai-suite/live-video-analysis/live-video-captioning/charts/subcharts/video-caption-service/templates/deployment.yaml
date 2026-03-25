@@ -61,9 +61,28 @@ spec:
               done
               echo "Models PVC is populated. Proceeding."
               {{- end }}
+              {{- if eq (lower (toString .Values.env.enableDetectionPipeline)) "true" }}
+              {{- if .Values.global.detectionModels }}
+              echo "Detection pipeline enabled — waiting for detection model sentinel files..."
+              {{- range .Values.global.detectionModels }}
+              until [ -f "/detection-models/{{ . }}/.complete" ]; do
+                echo "  /detection-models/{{ . }}/.complete not found — detection model not yet downloaded. Retrying in 10s..."
+                sleep 10
+              done
+              echo "  ✔ /detection-models/{{ . }}/.complete ready."
+              {{- end }}
+              echo "All detection models ready. Proceeding."
+              {{- else }}
+              echo "ERROR: detection pipeline enabled but global.detectionModels is empty." >&2
+              exit 1
+              {{- end }}
+              {{- end }}
           volumeMounts:
             - name: models
               mountPath: /models
+              readOnly: true
+            - name: detection-models
+              mountPath: /detection-models
               readOnly: true
       containers:
         - name: video-caption-service

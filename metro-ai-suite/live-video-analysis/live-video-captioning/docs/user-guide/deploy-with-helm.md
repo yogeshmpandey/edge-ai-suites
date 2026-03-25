@@ -98,8 +98,10 @@ The most important values are:
 | `detectionModelsPvc.size` | PVC size for object detection models | `5Gi` |
 | `modelsDownload.enabled` | Whether the pre-install hook downloads models into the VLM models PVC | `true` |
 | `modelsDownload.hfTokenSecret.name` | Secret name for gated-model downloads | `hf-token` |
+| `video-caption-service.env.enableDetectionPipeline` | Enables detection filtering in the pipeline. When set to `"true"`, also set `detectionModelsDownload.enabled: true` and configure `global.detectionModels` so the chart downloads the required detection models automatically | `"true"` or `"false"` |
+| `detectionModelsDownload.enabled` | Whether the chart automatically downloads detection models into the detection models PVC. Only takes effect when `video-caption-service.env.enableDetectionPipeline` is also `"true"` and `global.detectionModels` is non-empty | `true` |
+| `global.detectionModels` | List of detection model names to download. Each entry is passed to the DL Streamer `download_public_models.sh` helper | `["yolov8s"]` |
 | `video-caption-service.env.defaultRtspUrl` | Default RTSP URL shown in the dashboard | `rtsp://camera.example/live` |
-| `video-caption-service.env.enableDetectionPipeline` | Enables detection filtering in the pipeline | `"true"` or `"false"` |
 | `video-caption-service.env.alertMode` | Switches captioning to binary alert-style responses | `"true"` or `"false"` |
 | `dlstreamer-pipeline-server.env.detectionDevice` | Device used for object detection inference | `CPU` or `GPU` |
 

@@ -77,6 +77,15 @@ global:
       outputName: "InternVL2-1B"
       weightFormat: ""
 
+  # Detection models to download when the object-detection pipeline is enabled.
+  # Each entry matches the model argument accepted by DL Streamer's
+  # download_public_models.sh helper and is stored under:
+  #   /ov_detection_models/<model-name>/public/<model-name>
+  #
+  # Type: list of strings
+  detectionModels:
+    - "yolov8s"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. PERSISTENT VOLUME CLAIMS  (managed by parent chart)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -156,6 +165,36 @@ modelsDownload:
   # Guards against a download that hangs indefinitely.
   # Set to 0 or remove to disable the deadline.
   # Type: integer
+  activeDeadlineSeconds: 7200
+
+# Detection-model download job.
+# Runs only when the detection pipeline is enabled and detection models are configured.
+detectionModelsDownload:
+  # Set to false to skip automatic detection-model downloads.
+  # Type: boolean
+  enabled: true
+
+  image:
+    # The full Python image (not -slim) is required because the upstream
+    # download_public_models.sh installs opencv-python which needs X11/GL
+    # system libraries (libxcb, libGL, libglib) not present in slim images.
+    repository: "python"
+    tag: "3.12"
+    pullPolicy: IfNotPresent
+
+  # URL of the DL Streamer helper used by the object-detection guide.
+  # Type: string
+  scriptUrl: "https://raw.githubusercontent.com/open-edge-platform/dlstreamer/refs/tags/v2026.0.0/samples/download_public_models.sh"
+
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+
+  ttlSecondsAfterFinished: 0
   activeDeadlineSeconds: 7200
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -54,6 +54,10 @@ global:
       outputName: ""
       weightFormat: ""           # "" = fp16 (default), "int8", or "int4"
 
+  # Detection models downloaded automatically when the detection pipeline is enabled.
+  detectionModels:
+    - "yolov8s"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MODEL DOWNLOAD
 # ─────────────────────────────────────────────────────────────────────────────
@@ -65,6 +69,10 @@ modelsDownload:
   # hfTokenSecret:
   #   name: "hf-token"
   #   key: "HF_TOKEN"
+
+detectionModelsDownload:
+  # Set to false if the detection models PVC is already populated.
+  enabled: false
 # ─────────────────────────────────────────────────────────────────────────────
 # PVC RETENTION
 # ─────────────────────────────────────────────────────────────────────────────
