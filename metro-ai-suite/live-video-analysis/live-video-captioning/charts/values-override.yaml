@@ -7,19 +7,17 @@
 # From the repository root, first refresh vendored dependencies:
 #   helm dependency update ./charts
 #
-# NOTE: Model download is a pre-install hook and can take 30–60+ minutes depending
-# on network speed. Always pass --timeout to allow enough time for the download.
+# NOTE: Model download can take 30–60+ minutes depending
+# on network speed. 
 #
 #   helm install lvc ./charts \
 #     -f ./charts/values-override.yaml \
-#     -n <your-namespace> --create-namespace \
-#     --timeout 60m
+#     -n <your-namespace> --create-namespace 
 #
 # Upgrade an existing release:
 #   helm upgrade lvc ./charts \
 #     -f ./charts/values-override.yaml \
-#     -n <your-namespace> \
-#     --timeout 60m
+#     -n <your-namespace> 
 #
 # Only the values that users typically need to change appear here.
 # Everything else has sensible defaults in values.yaml.
@@ -48,7 +46,6 @@ global:
   # StorageClass for all PVCs.  Leave empty to use the cluster default.
   storageClassName: ""
 
-  # List of VLM models to download, convert, and serve.
   # This is the single source of truth — the download job and the wait-for-models
   # init containers in every pod all derive their configuration from this list.
   # The outputName must match the captioner_model_name used in the UI / config.json.
@@ -68,7 +65,16 @@ modelsDownload:
   # hfTokenSecret:
   #   name: "hf-token"
   #   key: "HF_TOKEN"
+# ─────────────────────────────────────────────────────────────────────────────
+# PVC RETENTION
+# ─────────────────────────────────────────────────────────────────────────────
+modelsPvc:
+  size: "50Gi"
+  keepPvc: false
 
+detectionModelsPvc:
+  size: "5Gi"
+  keepPvc: false
 # ─────────────────────────────────────────────────────────────────────────────
 # VIDEO CAPTION SERVICE
 # ─────────────────────────────────────────────────────────────────────────────

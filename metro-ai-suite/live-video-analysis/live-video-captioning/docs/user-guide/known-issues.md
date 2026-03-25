@@ -78,6 +78,34 @@ Details:
 
 - This release includes only limited testing on EMT‑S and EMT‑D, some behaviors may not yet be fully validated across all scenarios.
 
+## PVCs bound to local storage prevent reinstall on a different worker node
+
+If the cluster default `StorageClass` uses node-local storage (for example `local-path`), the PersistentVolumes backing the model PVCs are physically stored on the node where the chart was first installed.
+When `keepPvc` is `true` (the default), uninstalling the chart preserves the PVCs.
+If you then reinstall the chart targeting a different worker node (`global.nodeName`), the pods will remain in `Pending` because the existing PVs are only accessible from the original node.
+
+Workaround — choose one of the following:
+
+- **Delete the old PVCs** before reinstalling on a different node:
+
+    ```bash
+    kubectl delete pvc <release>-live-video-captioning-models
+    kubectl delete pvc <release>-live-video-captioning-detection-models
+    ```
+
+    The model-download hook will repopulate the PVCs on the new node.
+
+- **Set `keepPvc` to `false`** in your override values so Helm deletes and recreates the PVCs on every install:
+
+    ```yaml
+    modelsPvc:
+      keepPvc: false
+    detectionModelsPvc:
+      keepPvc: false
+    ```
+
+- **Use a network-attached `StorageClass`** (for example NFS, Ceph, or Longhorn) by setting `global.storageClassName` so that PVs are accessible from any node.
+
 ## Known EMT Limitation with External RTSP Streams
 
 Due to an EMT networking limitation, RTSP streams must be deployed within the same Docker network as the application (accessed via container/service name). RTSP streams hosted outside the Docker network or accessed using <host-ip> are not supported

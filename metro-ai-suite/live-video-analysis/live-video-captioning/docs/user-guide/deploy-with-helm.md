@@ -92,7 +92,7 @@ The most important values are:
 | --- | --- | --- |
 | `global.hostIP` | Browser-reachable IP of the selected node that runs the pinned media workloads. In many on-prem clusters this is the node `INTERNAL-IP`. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
 | `global.nodeName` | Kubernetes node name used to pin the media, TURN, and host-coupled workloads to one worker node. Prefer a GPU-capable node when available | `worker4` |
-| `global.storageClassName` | StorageClass for the chart PVCs. Leave empty to use the cluster default | `local-path` |
+| `global.storageClassName` | StorageClass for the chart PVCs. Leave empty to use the cluster default. If the default class uses node-local storage, see [Known Issues](./known-issues.md#pvcs-bound-to-local-storage-prevent-reinstall-on-a-different-worker-node) | `` |
 | `global.models` | List of Hugging Face model IDs to export to OpenVINO format | `OpenGVLab/InternVL2-1B` |
 | `modelsPvc.size` | PVC size for downloaded or pre-populated VLM models | `50Gi` |
 | `detectionModelsPvc.size` | PVC size for object detection models | `5Gi` |
@@ -151,12 +151,7 @@ You can also install from the repository root:
 helm install lvc ./charts \
   -f ./charts/values-override.yaml \
   -n "$my_namespace" \
-  --timeout 60m
 ```
-
-> **Note:** The `--timeout 60m` flag is required because the pre-install hook downloads and converts
-> OpenVINO models, which can take 30–60+ minutes depending on network speed and model size.
-> Helm's default timeout is 5 minutes and will cause the install to fail prematurely.
 
 ## Verify the Deployment
 
@@ -186,9 +181,6 @@ The first deployment can take several minutes because the chart may download and
 By default the chart exposes these NodePort services:
 
 - Dashboard UI: `http://<global.hostIP>:4173`
-- DL Streamer Pipeline API: `http://<global.hostIP>:8040`
-- Live Metrics endpoint: `http://<global.hostIP>:9090`
-- MediaMTX WHIP / WebRTC signaling: `http://<global.hostIP>:8889`
 
 If you changed the service ports in your override values, use those instead.
 
@@ -213,8 +205,7 @@ Then upgrade the release:
 ```bash
 helm upgrade lvc . \
   -f values-override.yaml \
-  -n "$my_namespace" \
-  --timeout 60m
+  -n "$my_namespace" 
 ```
 
 ## Uninstall the Release

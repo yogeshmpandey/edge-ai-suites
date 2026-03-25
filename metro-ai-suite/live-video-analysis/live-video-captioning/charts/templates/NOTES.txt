@@ -21,15 +21,6 @@ APP VERSION: {{ .Chart.AppVersion }}
    global:
      hostIP: "<your-node-ip-reachable-by-browser>"
 
-3. If your models are gated (e.g. Gemma), create a HuggingFace token secret:
-   kubectl create secret generic hf-token \
-     --from-literal=HF_TOKEN=<your-token> \
-     -n {{ .Release.Namespace }}
-   Then set in values-override.yaml:
-     modelsDownload:
-       hfTokenSecret:
-         name: hf-token
-
 4. The model download Job runs BEFORE pods start. Monitor it with:
    kubectl get jobs -n {{ .Release.Namespace }}
    kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=model-downloader

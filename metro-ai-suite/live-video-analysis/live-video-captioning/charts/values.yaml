@@ -104,7 +104,7 @@ detectionModelsPvc:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. MODEL DOWNLOAD JOB
-# Runs as a pre-install/pre-upgrade Helm hook before any pod is scheduled.
+# Runs as a pre-install/pre-upgrade before any pod is scheduled.
 # The list of models to download is taken from global.models (section 1 above).
 # ─────────────────────────────────────────────────────────────────────────────
 modelsDownload:
@@ -129,8 +129,6 @@ modelsDownload:
 
   # Optional: Kubernetes Secret holding a HuggingFace access token for
   # gated model downloads (e.g. google/gemma-3-4b-it).
-  # Create with:
-  #   kubectl create secret generic hf-token --from-literal=HF_TOKEN=<token>
   hfTokenSecret:
     # Name of the Kubernetes Secret.  Leave empty to disable.
     # Type: string
