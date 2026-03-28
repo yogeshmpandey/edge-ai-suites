@@ -93,14 +93,12 @@ The most important values are:
 | `global.hostIP` | Browser-reachable IP of the selected node that runs the pinned media workloads. In many on-prem clusters this is the node `INTERNAL-IP`. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
 | `global.nodeName` | Kubernetes node name used to pin the media, TURN, and host-coupled workloads to one worker node. Prefer a GPU-capable node when available | `worker4` |
 | `global.storageClassName` | StorageClass for the chart PVCs. Leave empty to use the cluster default. If the default class uses node-local storage, see [Known Issues](./known-issues.md#pvcs-bound-to-local-storage-prevent-reinstall-on-a-different-worker-node) | `` |
-| `global.models` | List of Hugging Face model IDs to export to OpenVINO format | `OpenGVLab/InternVL2-1B` |
-| `modelsPvc.size` | PVC size for downloaded or pre-populated VLM models | `50Gi` |
+| `global.models` | **Required.** List of VLM models to export to OpenVINO format. Must contain at least one entry — the chart will fail if this list is empty. The download job always runs and uses this list as its source of truth | `OpenGVLab/InternVL2-1B` |
+| `modelsPvc.size` | PVC size for VLM models | `50Gi` |
 | `detectionModelsPvc.size` | PVC size for object detection models | `5Gi` |
-| `modelsDownload.enabled` | Whether the pre-install hook downloads models into the VLM models PVC | `true` |
 | `modelsDownload.hfTokenSecret.name` | Secret name for gated-model downloads | `hf-token` |
-| `video-caption-service.env.enableDetectionPipeline` | Enables detection filtering in the pipeline. When set to `"true"`, also set `detectionModelsDownload.enabled: true` and configure `global.detectionModels` so the chart downloads the required detection models automatically | `"true"` or `"false"` |
-| `detectionModelsDownload.enabled` | Whether the chart automatically downloads detection models into the detection models PVC. Only takes effect when `video-caption-service.env.enableDetectionPipeline` is also `"true"` and `global.detectionModels` is non-empty | `true` |
-| `global.detectionModels` | List of detection model names to download. Each entry is passed to the DL Streamer `download_public_models.sh` helper | `["yolov8s"]` |
+| `video-caption-service.env.enableDetectionPipeline` | Enables the object-detection pipeline. When set to `"true"`, the chart automatically downloads the models listed in `global.detectionModels` into the detection models PVC | `"true"` or `"false"` |
+| `global.detectionModels` | List of detection model names to download. Each entry is passed to the DL Streamer `download_public_models.sh` helper. Only downloaded when `enableDetectionPipeline` is `"true"` | `["yolov8s"]` |
 | `video-caption-service.env.defaultRtspUrl` | Default RTSP URL shown in the dashboard | `rtsp://camera.example/live` |
 | `video-caption-service.env.alertMode` | Switches captioning to binary alert-style responses | `"true"` or `"false"` |
 | `dlstreamer-pipeline-server.env.detectionDevice` | Device used for object detection inference | `CPU` or `GPU` |
@@ -171,7 +169,7 @@ kubectl logs -n "$my_namespace" -l app.kubernetes.io/component=model-downloader
 
 Before accessing the application, confirm the following:
 
-- The model download job has completed successfully or was intentionally disabled.
+- The model download job has completed successfully.
 - All pods are in the `Running` state.
 - All containers report `Ready`.
 - The PVCs are bound.
@@ -219,7 +217,7 @@ helm uninstall lvc -n "$my_namespace"
 ## Troubleshooting
 
 - If pods remain `Pending`, check that `global.nodeName` matches the correct node name, that the selected node has the required hardware access, and that the requested `StorageClass` can provision the PVCs.
-- If the install fails before pods appear, inspect the model download hook logs and confirm that the selected model ID and Hugging Face credentials are valid.
+- If the install fails before pods appear, inspect the model download hook logs and confirm that the selected model ID and Hugging Face credentials are valid. Note that `global.models` must contain at least one entry — the chart will reject an empty list at render time.
 - If the dashboard opens but video does not start, confirm that `global.hostIP` is reachable from the browser. If your worker nodes do not have external IPs, this usually means using the node `INTERNAL-IP` over a reachable LAN or VPN. Also confirm that the RTSP source is reachable from the Kubernetes node.
 - If WebRTC negotiation fails, verify that `global.hostIP` points to the same node that runs `mediamtx` and `coturn`, and that the required ports are allowed by your network policy or firewall.
 - If detection is enabled but the pipeline cannot start, ensure the detection models PVC contains the required OpenVINO detection model artifacts.

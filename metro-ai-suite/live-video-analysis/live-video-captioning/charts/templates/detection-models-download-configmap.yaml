@@ -7,7 +7,7 @@ The script follows the object-detection guide and invokes the DL Streamer
 download_public_models.sh helper for each configured detection model.
 */}}
 {{- $detectionEnabled := eq (lower (toString (index .Values "video-caption-service" "env" "enableDetectionPipeline"))) "true" -}}
-{{- if and .Values.detectionModelsDownload.enabled $detectionEnabled .Values.global.detectionModels }}
+{{- if and $detectionEnabled .Values.global.detectionModels }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -22,6 +22,9 @@ data:
     echo "=== Detection Model Download Job ==="
     echo "Detection model count: ${DETECTION_MODEL_COUNT}"
     echo ""
+
+    # Remove filesystem artifacts created by the ext4 formatter on fresh PVCs.
+    rm -rf /detection_models/lost+found
 
     MISSING=0
     i=0

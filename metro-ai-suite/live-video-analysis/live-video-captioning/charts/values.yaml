@@ -117,10 +117,6 @@ detectionModelsPvc:
 # The list of models to download is taken from global.models (section 1 above).
 # ─────────────────────────────────────────────────────────────────────────────
 modelsDownload:
-  # Set to false to skip model downloads entirely (e.g. PVC already populated).
-  # Type: boolean
-  enabled: true
-
   # Container image used to run optimum-cli for model export.
   # Requires Python 3.x with pip available.
   image:
@@ -170,10 +166,6 @@ modelsDownload:
 # Detection-model download job.
 # Runs only when the detection pipeline is enabled and detection models are configured.
 detectionModelsDownload:
-  # Set to false to skip automatic detection-model downloads.
-  # Type: boolean
-  enabled: true
-
   image:
     # The full Python image (not -slim) is required because the upstream
     # download_public_models.sh installs opencv-python which needs X11/GL

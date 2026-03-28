@@ -7,7 +7,6 @@ The Job mounts this ConfigMap and executes the script.
 Each model is passed as indexed environment variables so the bash script
 can iterate without Helm template directives inside the shell string.
 */}}
-{{- if .Values.modelsDownload.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,6 +25,11 @@ data:
     echo "=== Model Download Job ==="
     echo "Model count: ${MODEL_COUNT}"
     echo ""
+
+    # Remove filesystem artifacts created by the ext4 formatter when the PVC
+    # was first provisioned.  lost+found is an empty recovery directory that
+    # would otherwise appear as a spurious entry in the model listing UI.
+    rm -rf /models/lost+found
 
     # Enable fast HuggingFace transfers when the hf_transfer package is available.
     export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
@@ -109,4 +113,3 @@ data:
     echo "  The model download job is complete — exiting now."
     echo "================================================================"
     exit 0
-{{- end }}

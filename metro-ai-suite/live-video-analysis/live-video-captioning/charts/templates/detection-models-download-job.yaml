@@ -6,7 +6,7 @@ Job that downloads object-detection models into the detection-models PVC.
 Runs only when the detection pipeline is enabled.
 */}}
 {{- $detectionEnabled := eq (lower (toString (index .Values "video-caption-service" "env" "enableDetectionPipeline"))) "true" -}}
-{{- if and .Values.detectionModelsDownload.enabled $detectionEnabled .Values.global.detectionModels }}
+{{- if and $detectionEnabled .Values.global.detectionModels }}
 apiVersion: batch/v1
 kind: Job
 metadata:

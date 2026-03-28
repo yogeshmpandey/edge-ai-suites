@@ -16,7 +16,9 @@ The download script is injected via the models-download-script ConfigMap.
 Each model is passed as indexed environment variables (MODEL_0_ID, MODEL_0_NAME …).
 If a model directory already exists in the PVC, it is skipped — re-runs are safe.
 */}}
-{{- if .Values.modelsDownload.enabled }}
+{{- if not .Values.global.models }}
+  {{- fail "global.models must not be empty — at least one VLM model is required for the use case to run" }}
+{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -95,4 +97,3 @@ spec:
           configMap:
             name: {{ include "live-video-captioning.fullname" . }}-models-download-script
             defaultMode: 0755
-{{- end }}

@@ -8,16 +8,16 @@
 #   helm dependency update ./charts
 #
 # NOTE: Model download can take 30–60+ minutes depending
-# on network speed. 
+# on network speed.
 #
 #   helm install lvc ./charts \
 #     -f ./charts/values-override.yaml \
-#     -n <your-namespace> --create-namespace 
+#     -n <your-namespace> --create-namespace
 #
 # Upgrade an existing release:
 #   helm upgrade lvc ./charts \
 #     -f ./charts/values-override.yaml \
-#     -n <your-namespace> 
+#     -n <your-namespace>
 #
 # Only the values that users typically need to change appear here.
 # Everything else has sensible defaults in values.yaml.
@@ -50,29 +50,14 @@ global:
   # init containers in every pod all derive their configuration from this list.
   # The outputName must match the captioner_model_name used in the UI / config.json.
   models:
-    - modelId: ""
-      outputName: ""
+    - modelId: "OpenGVLab/InternVL2-1B"
+      outputName: "InternVL2-1B"
       weightFormat: ""           # "" = fp16 (default), "int8", or "int4"
-
+        # "" = fp16 (default), "int8", or "int4"
   # Detection models downloaded automatically when the detection pipeline is enabled.
   detectionModels:
     - "yolov8s"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODEL DOWNLOAD
-# ─────────────────────────────────────────────────────────────────────────────
-modelsDownload:
-  # Set to false if the models PVC is already populated.
-  enabled: true
-
-  # For gated models (e.g. google/gemma-3-4b-it), add huggingface token
-  # hfTokenSecret:
-  #   name: "hf-token"
-  #   key: "HF_TOKEN"
-
-detectionModelsDownload:
-  # Set to false if the detection models PVC is already populated.
-  enabled: false
 # ─────────────────────────────────────────────────────────────────────────────
 # PVC RETENTION
 # ─────────────────────────────────────────────────────────────────────────────
