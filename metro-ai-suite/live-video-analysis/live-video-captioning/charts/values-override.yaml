@@ -53,7 +53,7 @@ global:
     - modelId: "OpenGVLab/InternVL2-1B"
       outputName: "InternVL2-1B"
       weightFormat: ""           # "" = fp16 (default), "int8", or "int4"
-        # "" = fp16 (default), "int8", or "int4"
+
   # Detection models downloaded automatically when the detection pipeline is enabled.
   detectionModels:
     - "yolov8s"
