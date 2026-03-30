@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Intel Corporation
+# Copyright (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # dlstreamer-pipeline-server/values.yaml
@@ -11,7 +11,7 @@ image:
   # Type: string
   repository: intel/dlstreamer-pipeline-server
   # Type: string
-  tag: "2026.0.0-ubuntu24-rc2"
+  tag: "2026.0.0-ubuntu24"
   # Type: string
   pullPolicy: IfNotPresent
 
