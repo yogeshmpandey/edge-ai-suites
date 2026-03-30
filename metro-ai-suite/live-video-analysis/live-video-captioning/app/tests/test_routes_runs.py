@@ -71,6 +71,51 @@ class TestStartRun:
         assert resp.status_code == 200
         assert resp.json()["runId"] == "demo_1"
 
+    def test_start_run_long_name_uses_short_peer_id(self, client):
+        """Long run names keep their run ID while peer IDs stay within the server limit."""
+        with patch("backend.routes.runs.http_json", return_value='"p1"') as mock_http:
+            resp = client.post(
+                "/api/runs",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "runName": "white car stream",
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["runId"] == "white_car_stream"
+        assert len(body["peerId"]) < 9
+        assert mock_http.call_args.kwargs["payload"]["destination"]["frame"]["peer-id"] == body[
+            "peerId"
+        ]
+
+    def test_start_run_duplicate_long_name_gets_unique_short_peer_id(self, client):
+        """Duplicate long names get a suffixed run ID and a distinct short peer ID."""
+        with patch("backend.routes.runs.http_json", return_value='"p1"'):
+            first = client.post(
+                "/api/runs",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "runName": "white car stream",
+                },
+            )
+        with patch("backend.routes.runs.http_json", return_value='"p2"'):
+            second = client.post(
+                "/api/runs",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "runName": "white car stream",
+                },
+            )
+        assert first.status_code == 200
+        assert second.status_code == 200
+        first_body = first.json()
+        second_body = second.json()
+        assert second_body["runId"] == "white_car_stream_1"
+        assert len(first_body["peerId"]) < 9
+        assert len(second_body["peerId"]) < 9
+        assert first_body["peerId"] != second_body["peerId"]
+
     def test_start_run_pipeline_empty_response(self, client):
         """An empty pipeline ID from the server returns 502."""
         with patch("backend.routes.runs.http_json", return_value='""'):

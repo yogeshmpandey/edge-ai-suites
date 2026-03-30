@@ -6,4 +6,11 @@ helm/*.conf
 helm/*.sh
 helm/*.csv
 helm/*.template
+helm-packages/
+
 .venv/
+
+# Python cache
+tests/**/__pycache__/
+tests/__pycache__/
+tests/functional/tests.log
