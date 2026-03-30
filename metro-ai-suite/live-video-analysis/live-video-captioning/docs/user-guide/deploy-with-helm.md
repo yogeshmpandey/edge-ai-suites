@@ -11,9 +11,7 @@ Before you begin, ensure that you have the following:
 - Dynamic Persistent Volume provisioning available in the cluster, or a `StorageClass` you can set in the chart values.
 - A worker node reachable by your browser client. Prefer a GPU-capable worker node when available, because the chart pins the media and inference workloads to the selected node and DL Streamer benefits most from GPU access.
 - Sufficient storage for model PVCs. The default chart configuration requests `50Gi` for VLM models and `5Gi` for detection models.
-- A writable host path for collector signal files on the target node. By default the chart uses `/tmp/lvc/collector-signals`.
 - An RTSP source reachable from the Kubernetes node that runs `dlstreamer-pipeline-server`.
-- If you use gated Hugging Face models, a Hugging Face token stored in a Kubernetes secret.
 
 ## Prepare the Cluster
 
@@ -33,11 +31,9 @@ These workloads are kept on the same worker because they rely on node-local acce
 - `dlstreamer-pipeline-server` and `collector` need direct access to node hardware and host resources.
 - `mediamtx` and `coturn` expose browser-facing WebRTC and TURN endpoints that must match the selected node's reachable IP.
 
-Other supporting services such as `mqtt-broker` and `live-metrics-service` do not need to be pinned to that same worker node.
-
 For best performance, choose a worker node with a GPU. The chart can run with CPU-only inference, but a GPU-capable node is the preferred deployment target for DL Streamer and real-time media processing.
 
-Set `global.nodeName` to the Kubernetes node name. This uses the built-in `kubernetes.io/hostname` label, so you do not need permission to label nodes.
+Set `global.nodeName` to the Kubernetes node name. 
 
 Example:
 
@@ -141,8 +137,7 @@ From `charts/`, install the application with the override file:
 ```bash
 helm install lvc . \
   -f values-override.yaml \
-  -n "$my_namespace" \
-  --timeout 60m
+  -n "$my_namespace"
 ```
 
 You can also install from the repository root:
@@ -161,7 +156,7 @@ Check the hook job, pods, services, and PVCs:
 kubectl get jobs,pods,svc,pvc -n "$my_namespace"
 ```
 
-The model downloader runs as a Helm hook before the main workloads start. If the initial deployment takes time, inspect the job logs:
+The model downloader runs before the main workloads start. If the initial deployment takes time, inspect the job logs:
 
 ```bash
 kubectl logs -n "$my_namespace" -l app.kubernetes.io/component=model-downloader
@@ -217,7 +212,7 @@ helm uninstall lvc -n "$my_namespace"
 ## Troubleshooting
 
 - If pods remain `Pending`, check that `global.nodeName` matches the correct node name, that the selected node has the required hardware access, and that the requested `StorageClass` can provision the PVCs.
-- If the install fails before pods appear, inspect the model download hook logs and confirm that the selected model ID and Hugging Face credentials are valid. Note that `global.models` must contain at least one entry — the chart will reject an empty list at render time.
+- If the install fails before pods appear, inspect the model download logs and confirm that the selected model ID and Hugging Face credentials are valid. Note that `global.models` must contain at least one entry — the chart will reject an empty list at render time.
 - If the dashboard opens but video does not start, confirm that `global.hostIP` is reachable from the browser. If your worker nodes do not have external IPs, this usually means using the node `INTERNAL-IP` over a reachable LAN or VPN. Also confirm that the RTSP source is reachable from the Kubernetes node.
 - If WebRTC negotiation fails, verify that `global.hostIP` points to the same node that runs `mediamtx` and `coturn`, and that the required ports are allowed by your network policy or firewall.
 - If detection is enabled but the pipeline cannot start, ensure the detection models PVC contains the required OpenVINO detection model artifacts.
