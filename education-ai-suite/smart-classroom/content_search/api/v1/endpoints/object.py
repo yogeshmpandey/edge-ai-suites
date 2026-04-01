@@ -10,6 +10,7 @@ from utils.database import get_db
 from utils.task_service import task_service
 from utils.storage_service import storage_service
 from utils.search_service import search_service
+from utils.asset_service import asset_service
 import urllib.parse
 import mimetypes
 import json
@@ -20,20 +21,18 @@ from typing import Optional, Dict, Any
 
 router = APIRouter()
 
-# @router.get("/files")
-
 @router.post("/upload")
-async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    minio_payload = await storage_service.upload_and_prepare_payload(file)
-
-    result = await task_service.handle_file_upload(db, minio_payload, background_tasks, should_ingest=False)
-    return resp_200(
-        data={
-            "task_id": str(result["task_id"]),
-            "status": result["status"]
-        },
-        message="File received, processing started."
+async def upload_video(
+    background_tasks: BackgroundTasks, 
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db)
+):
+    result = await asset_service.process_simple_upload(
+        db=db,
+        file=file,
+        background_tasks=background_tasks
     )
+    return resp_200(data=result)
 
 @router.post("/ingest")
 async def ingest_existing_file(
@@ -76,24 +75,21 @@ async def ingest_existing_file(
     )
 
 class IngestTextRequest(BaseModel):
-    text: str
-    bucket_name: Optional[str] = None
-    file_path: Optional[str] = None
+    text: Optional[str] = None
+    bucket_name: Optional[str] = "content-search"
+    file_key: Optional[str] = None
     meta: Dict[str, Any] = Field(default_factory=dict)
+
 @router.post("/ingest-text")
 async def ingest_raw_text(
     request: IngestTextRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    payload = request.model_dump() 
-
-    if "tags" not in payload["meta"] or payload["meta"]["tags"] is None:
-        payload["meta"]["tags"] = ["default"]
 
     result = await task_service.handle_text_ingest(
         db,
-        payload,
+        request.model_dump(), 
         background_tasks
     )
 
@@ -102,7 +98,7 @@ async def ingest_raw_text(
             "task_id": str(result["task_id"]),
             "status": result["status"]
         },
-        message="Text ingestion started"
+        message="Text ingestion task created successfully"
     )
 
 @router.post("/upload-ingest")
@@ -114,75 +110,21 @@ async def upload_file_with_ingest(
     chunk_duration: int = Form(None),
     db: Session = Depends(get_db)
 ):
-    minio_payload = await storage_service.upload_and_prepare_payload(file)
-    
-    if meta:
-        try:
-            minio_payload["meta"] = json.loads(meta)
-        except:
-            minio_payload["meta"] = {"raw_info": meta}
-    else:
-        minio_payload["meta"] = {}
+    meta_data = asset_service.parse_meta(meta)
 
-    minio_payload["vs_options"] = {
-        "prompt": prompt,
-        "chunk_duration_s": chunk_duration
-    }
-
-    result = await task_service.handle_file_upload(
-        db, 
-        minio_payload, 
-        background_tasks, 
-        should_ingest=True
+    result = await asset_service.process_upload_and_ingest(
+        db, file, background_tasks,
+        meta=meta_data,
+        prompt=prompt,
+        chunk_duration=chunk_duration
     )
-
-    return resp_200(
-        data={
-            "task_id": str(result["task_id"]),
-            "status": result["status"],
-            "file_key": minio_payload["file_key"]
-        },
-        message="Upload and Ingest started"
-    )
-
-# @router.post("/search")
-# async def file_search(payload: dict):
-#     query = payload.get("query")
-#     limit = payload.get("max_num_results", 3)
-#     if not query:
-#         raise HTTPException(status_code=400, detail="Query cannot be empty")
-
-#     search_data = await search_service.semantic_search(query, limit)
-#     return resp_200(data=search_data, message="Resource found")
+    return resp_200(data=result)
 
 @router.post("/search")
-async def file_search(payload: dict):
-    query = payload.get("query")
-    image_base64 = payload.get("image_base64")
-    filters = payload.get("filter")
-    limit = payload.get("max_num_results", 10)
+async def file_search(payload: dict, db: Session = Depends(get_db)):
+    result = await task_service.handle_sync_search(db, payload)
 
-    if not query and not image_base64:
-        raise HTTPException(status_code=400, detail="Either 'query' or 'image_base64' must be provided")
-
-    if query and image_base64:
-        raise HTTPException(status_code=400, detail="Provide only one of 'query' or 'image_base64'")
-
-    search_payload = {
-        "max_num_results": limit
-    }
-
-    if query:
-        search_payload["query"] = query
-    else:
-        search_payload["image_base64"] = image_base64
-
-    if filters:
-        search_payload["filter"] = filters
-
-    search_data = await search_service.semantic_search(search_payload)
-
-    return resp_200(data=search_data, message="Search completed")
+    return resp_200(data=result, message="Search completed")
 
 @router.get("/download")
 async def download_file(file_key: str):
