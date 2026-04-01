@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Intel Corporation
+# Copyright (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # values.yaml — Live Video Captioning Helm Chart
@@ -53,6 +53,10 @@ global:
   # - name: my-registry-secret
 
   # ------- Models Download ------------------------------------------------------
+  # Model download service location. This service is responsible for downloading and preparing models for use by the caption service and DL Streamer.
+  # The chart does not deploy the model download service,
+  # so you must deploy it separately before deploying this chart by referring to https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/model-download/docs/user-guide/get-started/deploy-with-helm-chart.md
+
   modelDownload:
     serviceName: "model-download" # REQUIRED: e.g., model-download (Service name for model-download service which deployed previously using model-download chart)
     port: 8000   # REQUIRED: e.g., 8200 or 8000 (use service port, not NodePort)
@@ -84,8 +88,39 @@ global:
   detectionModels:
     - "yolov8s"
 
+  # HuggingFace API token for gated models (e.g. google/gemma-3-4b-it); not needed for public models
   huggingface:
-    apiToken: ""  # HuggingFace API token for gated models (e.g. google/gemma-3-4b-it); not needed for public models
+    apiToken: ""
+
+  # Set to true to deploy Retrieval-Augmented Generation components
+  enableRAG: false
+
+  # Configure for llmModel and embeddingModel when RAG is enabled.
+  # These values are used by the live-video-captioning-rag subchart.
+  # LLM Model for RAG
+  # Parameters:
+    # modelId: HuggingFace repo ID passed to optimum-cli for downloading the model, e.g. "microsoft/Phi-3.5-mini-instruct"
+    # modelType: "llm",
+    # weightFormat: "int8", or "int4" or "fp16"
+    # useGPU: set to true to enable GPU usage for the LLM; key is the GPU resource key for your cluster, e.g. "gpu.intel.com/i915" or "gpu.intel.com/xe"
+    #         please make sure that the key label used matches/available on the `nodeName` that is set above as it shared the pvc that model-download uses.
+  llmModel:
+    modelId: "microsoft/Phi-3.5-mini-instruct"
+    modelType: "llm"
+    weightFormat: "int8"
+    useGPU:
+      enabled: false
+      key: ""  # GPU resource key for your cluster, e.g. "gpu.intel.com/i95" or "gpu.intel.com/xe"
+
+  # Multimodal embedding model for RAG (handled by the multimodal-embedding subchart)
+  # Parameters:
+    # modelId: HuggingFace repo ID for the embedding model, e.g. "QwenText/qwen3-embedding-0.6b"
+    # useGPU: set to true to enable GPU usage for the embedding model; key is the GPU resource key for your cluster, e.g. "gpu.intel.com/i915" or "gpu.intel.com/xe"
+  embeddingModel:  # Multimodal embedding model for RAG.
+    modelId: "QwenText/qwen3-embedding-0.6b"
+    useGPU:
+      enabled: false
+      key: ""  # GPU resource key for your cluster, e.g. "gpu.intel.com/i95" or "gpu.intel.com/xe"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. SUBCHART OVERRIDES
@@ -140,3 +175,18 @@ collector:
   # The DaemonSet mounts this host directory at /app/.collector-signals.
   # Type: string
   collectorSignalsHostPath: "/tmp/lvc/collector-signals"
+
+# ── multimodal-embedding ───────────────────────────────────────────────────
+multimodal-embedding:
+  fullnameOverride: "multimodal-embedding"
+
+# ── vdmsvectordb ─────────────────────────────────────────────────────────────
+vdmsvectordb:
+  fullnameOverride: "vdms-vectordb"
+
+# ── live-video-captioning-rag ───────────────────────────────────────────────
+live-video-captioning-rag:
+  fullnameOverride: "live-video-captioning-rag"
+
+  # Shared models PVC name. Leave empty to auto-derive from release name.
+  modelsPvcName: ""

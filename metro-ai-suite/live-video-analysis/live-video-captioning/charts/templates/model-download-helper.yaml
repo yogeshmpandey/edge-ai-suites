@@ -72,10 +72,14 @@ data:
         local OUTPUT_NAME=${5:-""}
         local TARGET_ROOT="/opt/data/ov_models"
         local MODEL_BASENAME="${MODEL_NAME##*/}"
+        local MODEL_PROVIDER="${MODEL_NAME%%/*}"
+        local TARGET_SUBPATH=""
 
         # Keep model families isolated on the shared PVC.
         if [ "$MODEL_TYPE" = "vision" ]; then
             TARGET_ROOT="/opt/data/detection-models"
+        elif [ "$MODEL_TYPE" = "llm" ]; then
+            TARGET_ROOT="/opt/data/llm_models"
         fi
 
         # Fallback normalization when output name is not explicitly provided.
@@ -86,7 +90,17 @@ data:
             OUTPUT_NAME="${OUTPUT_NAME%-instruct}"
         fi
 
-        local TARGET_DIR="${TARGET_ROOT}/${OUTPUT_NAME}"
+        if [ "$MODEL_TYPE" = "llm" ]; then
+            TARGET_SUBPATH="$OUTPUT_NAME"
+            case "$TARGET_SUBPATH" in
+                */*) ;;
+                *) TARGET_SUBPATH="${MODEL_PROVIDER}/${TARGET_SUBPATH}" ;;
+            esac
+        else
+            TARGET_SUBPATH="$OUTPUT_NAME"
+        fi
+
+        local TARGET_DIR="${TARGET_ROOT}/${TARGET_SUBPATH}"
 
         # Backward-compatible API context initialization.
         # Works for both legacy script flow (variables already set) and direct helper usage.

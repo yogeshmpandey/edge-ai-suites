@@ -1,5 +1,5 @@
 {{/*
-Copyright (C) 2025 Intel Corporation
+Copyright (C) 2026 Intel Corporation
 SPDX-License-Identifier: Apache-2.0
 
 _helpers.tpl — parent chart helpers.
@@ -76,7 +76,7 @@ Internal Kubernetes service hostnames are always prepended to no_proxy so
 users only need to supply their RTSP camera hosts/IPs.
 */}}
 {{- define "lvc.proxyEnv" -}}
-{{- $internalNoProxy := "localhost,127.0.0.1,mqtt-broker,dlstreamer-pipeline-server,mediamtx,coturn,video-caption-service,live-metrics-service,collector" -}}
+{{- $internalNoProxy := "localhost,127.0.0.1,mqtt-broker,dlstreamer-pipeline-server,mediamtx,coturn,video-caption-service,live-metrics-service,collector,live-video-captioning-rag,multimodal-embedding,vdms-vector-db" -}}
 {{- if .Values.global.httpProxy }}
 - name: http_proxy
   value: {{ .Values.global.httpProxy | quote }}
