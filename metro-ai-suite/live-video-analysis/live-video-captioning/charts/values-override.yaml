@@ -85,12 +85,3 @@ video-caption-service:
 
     # Number of previous captions shown in the caption timeline (0 = current only).
     captionHistory: "3"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# DLSTREAMER PIPELINE SERVER
-# ─────────────────────────────────────────────────────────────────────────────
-dlstreamer-pipeline-server:
-  env:
-    # Default inference device: CPU or GPU
-    detectionDevice: "CPU"

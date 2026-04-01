@@ -78,6 +78,18 @@ Set that value in `global.hostIP`.
 
 If the worker node does not have any browser-reachable IP, direct NodePort access will not work. This capability will be added to the chart in a future update. 
 
+## Known Limitations
+
+### Single-node deployment with host port binding
+
+This chart is designed to run on a **single worker node**. Several workloads bind directly to host ports on that node so that the browser and RTSP clients can reach them without a LoadBalancer or Ingress.
+
+Because of these host port bindings:
+
+- **`replicaCount` must remain `1`** for all workloads that use host ports. Increasing it will fail at scheduling time because two pods cannot bind the same host port on the same node.
+- **Multi-node or high-availability deployments are not supported.** The chart intentionally pins all workloads to a single node via `global.nodeName`.
+- **Port conflicts with other applications on the same node** are possible. Ensure the ports listed above are not already in use on the target worker node before deploying.
+
 ## Configure Required Values
 
 The chart includes a sample override file at `charts/values-override.yaml`. Update it before deploying.
@@ -97,7 +109,6 @@ The most important values are:
 | `global.detectionModels` | List of detection model names to download. Each entry is passed to the DL Streamer `download_public_models.sh` helper. Only downloaded when `enableDetectionPipeline` is `"true"` | `["yolov8s"]` |
 | `video-caption-service.env.defaultRtspUrl` | Default RTSP URL shown in the dashboard | `rtsp://camera.example/live` |
 | `video-caption-service.env.alertMode` | Switches captioning to binary alert-style responses | `"true"` or `"false"` |
-| `dlstreamer-pipeline-server.env.detectionDevice` | Device used for object detection inference | `CPU` or `GPU` |
 
 
 ### Proxy Configuration
