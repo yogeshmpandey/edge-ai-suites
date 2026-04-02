@@ -35,12 +35,14 @@ data:
     export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
 
     # First pass: check which models are missing.
+    # A model is considered complete only when its .complete sentinel file exists.
+    # A directory without .complete means a previous conversion was interrupted.
     MISSING=0
     i=0
     while [ "${i}" -lt "${MODEL_COUNT}" ]; do
       name_var="MODEL_${i}_NAME"
       OUTPUT_NAME="${!name_var}"
-      if [ ! -d "/models/${OUTPUT_NAME}" ]; then
+      if [ ! -f "/models/${OUTPUT_NAME}/.complete" ]; then
         MISSING=$(( MISSING + 1 ))
       fi
       i=$(( i + 1 ))
@@ -74,25 +76,28 @@ data:
 
       echo "[$(( i + 1 ))/${MODEL_COUNT}] Processing: ${MODEL_ID} -> ${OUTPUT_PATH}"
 
-      if [ -d "${OUTPUT_PATH}" ]; then
-        echo "  Already exists — skipping."
+      if [ -f "${OUTPUT_PATH}/.complete" ]; then
+        echo "  Already complete — skipping."
       else
+        # Remove any partial directory from a previous interrupted conversion.
+        rm -rf "${OUTPUT_PATH}"
         echo "  Downloading ..."
+        model_failed=0
         if [ -n "${WEIGHT_FORMAT}" ]; then
           optimum-cli export openvino \
             --model "${MODEL_ID}" \
             --weight-format "${WEIGHT_FORMAT}" \
             "${OUTPUT_PATH}" \
             --trust-remote-code \
-          || { echo "  ERROR: download failed for ${MODEL_ID}." >&2; FAILED=$(( FAILED + 1 )); }
+          || { echo "  ERROR: download failed for ${MODEL_ID}." >&2; FAILED=$(( FAILED + 1 )); model_failed=1; }
         else
           optimum-cli export openvino \
             --model "${MODEL_ID}" \
             "${OUTPUT_PATH}" \
             --trust-remote-code \
-          || { echo "  ERROR: download failed for ${MODEL_ID}." >&2; FAILED=$(( FAILED + 1 )); }
+          || { echo "  ERROR: download failed for ${MODEL_ID}." >&2; FAILED=$(( FAILED + 1 )); model_failed=1; }
         fi
-        if [ -d "${OUTPUT_PATH}" ]; then
+        if [ "${model_failed}" -eq 0 ] && [ -d "${OUTPUT_PATH}" ]; then
           touch "${OUTPUT_PATH}/.complete"
           echo "  ✔ Model '${OUTPUT_NAME}' downloaded and converted to OpenVINO IR format successfully."
         fi
