@@ -144,14 +144,12 @@ modelsDownload:
   hfToken: ""
 
   # Resource requests/limits for the download Job container.
-  # Downloads are CPU/memory intensive during conversion.
+  # No limits are set so the pod can use as much CPU and memory as the node provides.
   resources:
     requests:
-      cpu: "2"
-      memory: "8Gi"
-    limits:
       cpu: "4"
-      memory: "16Gi"
+      memory: "8Gi"
+    limits: {}
 
   # Seconds after the Job finishes (success or failure) before Kubernetes
   # deletes the Job and its pod.  0 = destroy immediately.
