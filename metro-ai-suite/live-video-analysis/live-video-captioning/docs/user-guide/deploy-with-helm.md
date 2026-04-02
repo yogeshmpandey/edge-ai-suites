@@ -104,11 +104,22 @@ The most important values are:
 | `global.models` | **Required.** List of VLM models to export to OpenVINO format. Must contain at least one entry — the chart will fail if this list is empty. The download job always runs and uses this list as its source of truth | `OpenGVLab/InternVL2-1B` |
 | `modelsPvc.size` | PVC size for VLM models | `50Gi` |
 | `detectionModelsPvc.size` | PVC size for object detection models | `5Gi` |
-| `modelsDownload.hfTokenSecret.name` | Secret name for gated-model downloads | `hf-token` |
+| `modelsDownload.hfToken` | HuggingFace access token for gated-model downloads, passed as a plain value. Leave empty for public models. | `hf_abc123…` |
 | `video-caption-service.env.enableDetectionPipeline` | Enables the object-detection pipeline. When set to `"true"`, the chart automatically downloads the models listed in `global.detectionModels` into the detection models PVC | `"true"` or `"false"` |
 | `global.detectionModels` | List of detection model names to download. Each entry is passed to the DL Streamer `download_public_models.sh` helper. Only downloaded when `enableDetectionPipeline` is `"true"` | `["yolov8s"]` |
 | `video-caption-service.env.defaultRtspUrl` | Default RTSP URL shown in the dashboard | `rtsp://camera.example/live` |
 | `video-caption-service.env.alertMode` | Switches captioning to binary alert-style responses | `"true"` or `"false"` |
+
+### HuggingFace Token for Gated Models
+
+Some models (for example `google/gemma-3-4b-it`) require a HuggingFace access token. Set `modelsDownload.hfToken` directly in your override file:
+
+```yaml
+modelsDownload:
+  hfToken: "hf_<your-token>"
+```
+
+The chart injects `HF_TOKEN` and `HUGGINGFACEHUB_API_TOKEN` as environment variables in the model download job. Leave the field empty for public models that do not require authentication.
 
 
 ### Proxy Configuration
@@ -149,14 +160,6 @@ From `charts/`, install the application with the override file:
 helm install lvc . \
   -f values-override.yaml \
   -n "$my_namespace"
-```
-
-You can also install from the repository root:
-
-```bash
-helm install lvc ./charts \
-  -f ./charts/values-override.yaml \
-  -n "$my_namespace" \
 ```
 
 ## Verify the Deployment

@@ -138,15 +138,10 @@ modelsDownload:
   # Type: string
   requirementsUrl: "https://raw.githubusercontent.com/openvinotoolkit/openvino.genai/refs/tags/2025.4.1.0/samples/export-requirements.txt"
 
-  # Optional: Kubernetes Secret holding a HuggingFace access token for
-  # gated model downloads (e.g. google/gemma-3-4b-it).
-  hfTokenSecret:
-    # Name of the Kubernetes Secret.  Leave empty to disable.
-    # Type: string
-    name: ""
-    # Key inside the secret that holds the token value.
-    # Type: string
-    key: "HF_TOKEN"
+  # Optional: HuggingFace access token passed directly as a plain value.
+  # Use this for gated model downloads. Leave empty for public models.
+  # Type: string
+  hfToken: ""
 
   # Resource requests/limits for the download Job container.
   # Downloads are CPU/memory intensive during conversion.

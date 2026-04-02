@@ -68,17 +68,11 @@ spec:
               value: {{ $model.weightFormat | default "" | quote }}
             {{- end }}
             # Optional HuggingFace token for gated model downloads
-            {{- if .Values.modelsDownload.hfTokenSecret.name }}
+            {{- if .Values.modelsDownload.hfToken }}
             - name: HF_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.modelsDownload.hfTokenSecret.name | quote }}
-                  key: {{ .Values.modelsDownload.hfTokenSecret.key | quote }}
+              value: {{ .Values.modelsDownload.hfToken | quote }}
             - name: HUGGINGFACEHUB_API_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.modelsDownload.hfTokenSecret.name | quote }}
-                  key: {{ .Values.modelsDownload.hfTokenSecret.key | quote }}
+              value: {{ .Values.modelsDownload.hfToken | quote }}
             {{- end }}
             # Proxy settings forwarded from global values
             {{- include "lvc.proxyEnv" . | nindent 12 }}
