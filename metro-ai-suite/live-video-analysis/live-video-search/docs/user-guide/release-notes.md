@@ -1,8 +1,5 @@
 # Release Notes: Live Video Search
 
-## Version 1.0.0
-
-**April 01, 2026**
 
 Live Video Search is a new sample application which implements embedding and
 visual data ingestion microservices (available in
@@ -14,6 +11,21 @@ live camera feed and historical video data.
 A rich UI is provided to configure the camera used for data ingestion, enter
 the search query, and view telemetry data, currently, for CPU, GPU, and memory
 utilization. The sample application introduces camera streaming with Frigate.
+
+## Version 1.1.0
+
+**April 21, 2026**
+
+### New Features
+
+- **Helm Chart Support** ([#2267](https://github.com/intel/edge-ai-suites/pull/2267))
+Added a full Helm chart for deploying the Live Video Search application on Kubernetes. The chart includes subcharts for all core services.
+- Default and RTSP test override value files are included (`default_override.yaml`, `rtsp_test_override.yaml`).
+
+## Version 1.0.0
+
+**April 01, 2026**
+
 
 **New**
 
