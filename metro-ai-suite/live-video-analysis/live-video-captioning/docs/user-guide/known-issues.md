@@ -119,4 +119,16 @@ Workaround — choose one of the following:
 
 ## Known EMT Limitation with External RTSP Streams
 
+Due to an EMT networking limitation, RTSP streams must be deployed within the same Docker network as the application (accessed via container/service name). RTSP streams hosted outside the Docker network or accessed using <host-ip> are not supported
+
+## NPU pipeline ignores user-selected resolution and uses 150×150
+
+Symptoms:
+- When the NPU device pipeline is selected, the frame resolution shown or chosen in the UI is not applied. The backend always sends frames at 150×150 pixels regardless of what the user selects.
+
+Details:
+- This is a known limitation of OpenVINO™ inference on the NPU device. The NPU backend requires a fixed, pre-compiled input resolution and does not support dynamic resolution changes at runtime. 150×150 is the only validated input size for the supported VLMs running on NPU.
+
+Impact:
+- Visual quality of frames sent for captioning will be limited to 150×150 when using the NPU pipeline. Caption quality may be lower compared to CPU or GPU pipelines that support higher resolutions.
 Due to an EMT networking limitation, RTSP streams must be deployed within the same Docker network as the application (accessed via container/service name). RTSP streams hosted outside the Docker network or accessed using <host-ip> are not supported.

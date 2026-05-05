@@ -138,6 +138,8 @@ spec:
               value: {{ .Values.env.captionHistory | quote }}
             - name: PIPELINE_SERVER_URL
               value: {{ .Values.env.pipelineServerUrl | quote }}
+            - name: PIPELINE_NAME
+              value: {{ .Values.env.pipelineName | quote }}
             - name: METRICS_SERVICE_PORT
               value: {{ .Values.env.metricsServicePort | quote }}
             {{- if .Values.global.enableRAG }}

@@ -94,10 +94,11 @@ resources: {}
 podAnnotations: {}
 podLabels: {}
 
-# Extra supplemental group IDs for GPU device access.
+# Extra supplemental group IDs for GPU/NPU device access.
 # render group IDs differ per Ubuntu version.
 # Type: list of strings
 supplementalGroups:
+  - "44"    # video — required for Intel NPU /dev/accel/* device access
   - "109"   # render — Ubuntu 20.04
   - "110"   # render — Ubuntu 22.04
   - "992"   # render — Ubuntu 24.04

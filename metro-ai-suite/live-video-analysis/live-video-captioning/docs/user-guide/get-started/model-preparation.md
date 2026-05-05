@@ -62,7 +62,7 @@ To run this sample application, a Vision-Language Model (VLM) is required. If yo
      - For a VLM model (required for live-video-captioning):
 
          ```bash
-         ./model_download_scripts/download_models.sh --model OpenGVLab/InternVL2-1B --type vlm --weight-format int8
+         ./model_download_scripts/download_models.sh --model OpenGVLab/InternVL2-1B --type vlm --device <CPU/GPU/NPU> --weight-format int4
          ```
 
      - For a YOLO vision model (for live-video-captioning with object-detection pipeline):

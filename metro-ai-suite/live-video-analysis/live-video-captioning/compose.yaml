@@ -87,12 +87,6 @@ services:
       - 'c 189:* rmw'
       - 'c 209:* rmw'
       - 'a 189:* rwm'
-    devices:
-      # Following devices under /dev filesystem will be needed based on usecase
-      # dri - GPU
-      # USB camera devices
-      # Selective mount can be done for deployment as mounting whole /dev is not recommended
-      - "/dev/dri:/dev/dri"
     networks:
       - app_network
 

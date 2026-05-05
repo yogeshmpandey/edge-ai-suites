@@ -61,6 +61,15 @@ env:
   # Type: string
   captionHistory: "3"
 
+  # DL Streamer pipeline name to use when starting a captioning run.
+  # Must match one of the pipeline "name" fields in the dlstreamer-pipeline-server
+  # config.json.  Available values:
+  #   GenAI_Pipeline_on_NPU   — Intel NPU (requires int4 model)
+  #   GenAI_Pipeline_on_CPU   — CPU inference
+  #   GenAI_Pipeline_on_GPU   — Intel GPU inference
+  # Type: string
+  pipelineName: "GenAI_Pipeline_on_CPU"
+
   # DL Streamer pipeline server REST URL.
   # Must match dlstreamer-pipeline-server fullnameOverride.
   # Type: string

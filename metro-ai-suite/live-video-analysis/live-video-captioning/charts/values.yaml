@@ -77,6 +77,8 @@ global:
   #   outputName  — directory created under /models/ in the PVC; must match the
   #                 captioner_model_name expected by the caption service
   #   weightFormat — "" (fp16 default), "int8", or "int4"
+  #   NOTE: Intel NPU inference requires "int4" weight format.
+  #   Use "" (fp16) for CPU/GPU pipelines.
   #
   # Type: list of objects
   models:
