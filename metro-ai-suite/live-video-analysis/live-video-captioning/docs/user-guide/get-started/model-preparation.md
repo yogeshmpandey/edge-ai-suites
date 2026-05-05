@@ -64,7 +64,20 @@ To run this sample application, a Vision-Language Model (VLM) is required. If yo
          ```bash
          ./model_download_scripts/download_models.sh --model OpenGVLab/InternVL2-1B --type vlm --device <CPU/GPU/NPU> --weight-format int4
          ```
+    **VLM model naming convention (device suffix):**
 
+    VLM models are saved with a device-specific suffix so the UI can automatically match compatible models to the selected pipeline:
+
+    | `--device` flag | Output directory example | UI device tag |
+    |---|---|---|
+    | `CPU` (or omitted) | `ov_models/InternVL2-1B` | `cpu` |
+    | `GPU` | `ov_models/InternVL2-1B-gpu` | `gpu` |
+    | `NPU` | `ov_models/InternVL2-1B-npu` | `npu` |
+
+    When you select a pipeline in the UI (e.g. *GenAI Pipeline on NPU*), the **Model** dropdown is automatically filtered to show only models with the matching device tag. This prevents accidentally pairing an NPU pipeline with a CPU-optimised model (or vice versa).
+
+    > **NPU note:** NPU inference requires an `int4`-quantised model. Always pass `--weight-format int4` when downloading with `--device NPU`.
+    
      - For a YOLO vision model (for live-video-captioning with object-detection pipeline):
 
          ```bash

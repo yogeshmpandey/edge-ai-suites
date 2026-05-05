@@ -6,16 +6,43 @@ const ApiService = (function () {
     const DEFAULT_DETECTION_MODEL = 'yolov8s';
     const DEFAULT_PIPELINE = 'GenAI_Pipeline_on_CPU';
     let pipelineCache = [];
+    // Full ModelInfo list cached for filtering: [{name, device}, ...]
+    let allModels = [];
+
+    // Sentinel value stored in allModels when the API call itself failed
+    let modelsFetchFailed = false;
 
     async function fetchModels() {
         try {
             const resp = await fetch('/api/vlm-models');
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
-            return data?.models || [DEFAULT_MODEL];
+            // Backend returns [{name, device}, ...]; fall back to legacy string list
+            const raw = data?.models || [];
+            allModels = raw.map((m) => {
+                if (m && typeof m === 'object' && typeof m.name === 'string') {
+                    return { name: m.name, device: m.device || 'cpu' };
+                }
+                if (typeof m === 'string') {
+                    return { name: m, device: 'cpu' };
+                }
+                return null;
+            }).filter(Boolean);
+            modelsFetchFailed = false;
+            return allModels;
         } catch (_err) {
-            return [DEFAULT_MODEL];
+            allModels = [];
+            modelsFetchFailed = true;
+            return allModels;
         }
+    }
+
+    function getAllModels() {
+        return allModels;
+    }
+
+    function didModelsFetchFail() {
+        return modelsFetchFailed;
     }
 
     async function fetchDetectionModels() {
@@ -43,10 +70,12 @@ const ApiService = (function () {
                     if (it && typeof it === 'object' && typeof it.pipeline_name === 'string') {
                         const t = it.pipeline_type;
                         const type = (t === 'detection' || t === 'non-detection') ? t : 'non-detection';
-                        return { pipeline_name: it.pipeline_name, pipeline_type: type };
+                        const d = it.device;
+                        const device = (['cpu', 'gpu', 'npu', 'any'].includes(d)) ? d : 'any';
+                        return { pipeline_name: it.pipeline_name, pipeline_type: type, device };
                     }
                     if (typeof it === 'string') {
-                        return { pipeline_name: it, pipeline_type: 'non-detection' };
+                        return { pipeline_name: it, pipeline_type: 'non-detection', device: 'any' };
                     }
                     return null;
                 })
@@ -64,7 +93,7 @@ const ApiService = (function () {
 
             pipelineCache = pipelines.length
                 ? pipelines
-                : [{ pipeline_name: DEFAULT_PIPELINE, pipeline_type: 'non-detection' }];
+                : [{ pipeline_name: DEFAULT_PIPELINE, pipeline_type: 'non-detection', device: 'cpu' }];
 
             return pipelineCache;
         } catch (err) {
@@ -130,12 +159,13 @@ const ApiService = (function () {
 
     return {
         fetchModels,
+        getAllModels,
+        didModelsFetchFail,
         fetchDetectionModels,
         fetchPipelines,
         fetchRuns,
         startRun,
         stopRun,
-        DEFAULT_MODEL,
         DEFAULT_PIPELINE
     };
 })();

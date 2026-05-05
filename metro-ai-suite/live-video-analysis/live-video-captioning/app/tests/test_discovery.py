@@ -14,7 +14,59 @@ from backend.services.discovery import (
     discover_detection_models,
     is_detection_pipeline,
     discover_pipelines_remote,
+    _infer_model_device,
+    _infer_pipeline_device,
 )
+
+
+# ===================================================================
+# _infer_model_device
+# ===================================================================
+class TestInferModelDevice:
+    """Unit tests for the _infer_model_device helper."""
+
+    def test_npu_suffix(self):
+        assert _infer_model_device("InternVL2-2B-npu") == "npu"
+
+    def test_gpu_suffix(self):
+        assert _infer_model_device("InternVL2-2B-gpu") == "gpu"
+
+    def test_no_suffix_returns_cpu(self):
+        assert _infer_model_device("InternVL2-2B") == "cpu"
+
+    def test_case_insensitive_npu(self):
+        assert _infer_model_device("InternVL2-2B-NPU") == "npu"
+
+    def test_case_insensitive_gpu(self):
+        assert _infer_model_device("InternVL2-2B-GPU") == "gpu"
+
+    def test_unrelated_suffix_returns_cpu(self):
+        assert _infer_model_device("InternVL2-2B-int4") == "cpu"
+
+
+# ===================================================================
+# _infer_pipeline_device
+# ===================================================================
+class TestInferPipelineDevice:
+    """Unit tests for the _infer_pipeline_device helper."""
+
+    def test_cpu_pipeline(self):
+        assert _infer_pipeline_device("GenAI_Pipeline_on_CPU") == "cpu"
+
+    def test_gpu_pipeline(self):
+        assert _infer_pipeline_device("GenAI_Pipeline_on_GPU") == "gpu"
+
+    def test_npu_pipeline(self):
+        assert _infer_pipeline_device("GenAI_Pipeline_on_NPU") == "npu"
+
+    def test_detection_cpu_pipeline(self):
+        assert _infer_pipeline_device("GenAI_Detection_Pipeline_on_CPU") == "cpu"
+
+    def test_unknown_pipeline_returns_any(self):
+        assert _infer_pipeline_device("some_custom_pipeline") == "any"
+
+    def test_case_insensitive(self):
+        assert _infer_pipeline_device("pipeline_ON_NPU") == "npu"
 
 
 # ===================================================================
@@ -32,20 +84,26 @@ class TestDiscoverModels:
         """Returns an empty list when the directory is empty."""
         assert discover_models(models_dir) == []
 
-    def test_discovers_subdirectory_models(self, models_dir):
-        """Each subdirectory name is returned as a model name."""
+    def test_discovers_subdirectory_models_with_device(self, models_dir):
+        """Each subdirectory returns a ModelInfo with inferred device."""
         (models_dir / "InternVL2-1B").mkdir()
-        (models_dir / "InternVL2-2B").mkdir()
+        (models_dir / "InternVL2-2B-npu").mkdir()
+        (models_dir / "InternVL2-2B-gpu").mkdir()
         result = discover_models(models_dir)
-        assert result == ["InternVL2-1B", "InternVL2-2B"]
+        names = [m.name for m in result]
+        devices = {m.name: m.device for m in result}
+        assert names == ["InternVL2-1B", "InternVL2-2B-gpu", "InternVL2-2B-npu"]
+        assert devices["InternVL2-1B"] == "cpu"
+        assert devices["InternVL2-2B-npu"] == "npu"
+        assert devices["InternVL2-2B-gpu"] == "gpu"
 
-    def test_discovers_flat_file_models(self, models_dir):
-        """XML, BIN, and JSON files in the root are returned as models."""
+    def test_discovers_flat_file_models_as_cpu(self, models_dir):
+        """XML, BIN, and JSON files in the root are returned as cpu models."""
         (models_dir / "model.xml").write_text("")
-        (models_dir / "model.bin").write_text("")
-        (models_dir / "config.json").write_text("")
         result = discover_models(models_dir)
-        assert set(result) == {"config.json", "model.bin", "model.xml"}
+        assert len(result) == 1
+        assert result[0].name == "model.xml"
+        assert result[0].device == "cpu"
 
     def test_ignores_dotfiles(self, models_dir):
         """Hidden files/directories (starting with '.') are skipped."""
@@ -53,7 +111,8 @@ class TestDiscoverModels:
         (models_dir / ".hidden_file.json").write_text("")
         (models_dir / "visible_model").mkdir()
         result = discover_models(models_dir)
-        assert result == ["visible_model"]
+        assert len(result) == 1
+        assert result[0].name == "visible_model"
 
     def test_ignores_unsupported_extensions(self, models_dir):
         """Files with extensions other than .xml, .bin, .json are skipped."""
@@ -65,7 +124,8 @@ class TestDiscoverModels:
         """Returned model names are sorted alphabetically."""
         for name in ["Zeta", "Alpha", "Mid"]:
             (models_dir / name).mkdir()
-        assert discover_models(models_dir) == ["Alpha", "Mid", "Zeta"]
+        names = [m.name for m in discover_models(models_dir)]
+        assert names == ["Alpha", "Mid", "Zeta"]
 
 
 # ===================================================================
@@ -159,6 +219,26 @@ class TestDiscoverPipelinesRemote:
         assert "pipe_a" in names
         assert all(r["pipeline_type"] == "non-detection" for r in result)
 
+    def test_device_inferred_from_pipeline_name(self):
+        """device field is correctly inferred from the pipeline name suffix."""
+        payload = [
+            {"name": "GenAI_Pipeline_on_CPU", "parameters": {"properties": {}}},
+            {"name": "GenAI_Pipeline_on_GPU", "parameters": {"properties": {}}},
+            {"name": "GenAI_Pipeline_on_NPU", "parameters": {"properties": {}}},
+        ]
+        with self._mock_http(payload):
+            result = discover_pipelines_remote()
+        device_map = {r["pipeline_name"]: r["device"] for r in result}
+        assert device_map["GenAI_Pipeline_on_CPU"] == "cpu"
+        assert device_map["GenAI_Pipeline_on_GPU"] == "gpu"
+        assert device_map["GenAI_Pipeline_on_NPU"] == "npu"
+
+    def test_unknown_pipeline_device_is_any(self):
+        """Pipelines with no device suffix get device='any'."""
+        with self._mock_http([{"name": "custom_pipe", "parameters": {"properties": {}}}]):
+            result = discover_pipelines_remote()
+        assert result[0]["device"] == "any"
+
     def test_list_of_dicts_with_version(self):
         """Pipeline dicts with a 'version' key use that as the pipeline name."""
         with self._mock_http([{"version": "v1", "parameters": {"properties": {}}}]):
@@ -201,6 +281,7 @@ class TestDiscoverPipelinesRemote:
             result = discover_pipelines_remote()
         assert len(result) == 1
         assert result[0]["pipeline_type"] == "non-detection"
+        assert "device" in result[0]
 
     def test_http_exception_is_propagated(self):
         """An HTTPException from http_json (e.g. server unreachable) is re-raised."""

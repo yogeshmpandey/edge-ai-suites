@@ -27,8 +27,8 @@ services:
     hostname: dlstreamer-pipeline-server
     container_name: dlstreamer-pipeline-server
     read_only: false
-    security_opt:
-      - no-new-privileges
+    # security_opt:
+    #   - no-new-privileges
     privileged: true
     tty: true
     entrypoint: [ "./run.sh" ]

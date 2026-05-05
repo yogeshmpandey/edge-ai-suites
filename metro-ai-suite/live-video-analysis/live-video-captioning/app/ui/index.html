@@ -61,6 +61,17 @@
                     </label>
                     <div class="field-row">
                         <label class="field">
+                            <span class="label">Select Pipeline</span>
+                            <select id="pipelineSelect" class="input"></select>
+                        </label>
+                        <label class="field">
+                            <span class="label">Run Name</span>
+                            <input id="runNameInput" class="input" type="text"
+                                placeholder="Enter Run Name (Optional)" />
+                        </label>
+                    </div>
+                    <div class="field-row">
+                        <label class="field">
                             <span class="label">Select Model</span>
                             <select id="modelNameSelect" class="input"></select>
                         </label>
@@ -69,6 +80,7 @@
                             <input id="maxTokensInput" class="input" type="number" min="1" max="4096" value="70" />
                         </label>
                     </div>
+                    <div id="modelCompatibilityWarning" class="pipeline-error-banner" style="display:none;"></div>
                     <div class="field-row">
                         <label class="field">
                             <span class="label">Frame Rate</span>
@@ -105,17 +117,6 @@
                             <span class="label">Custom Height (px)</span>
                             <input id="customHeightInput" class="input" type="number" min="1" step="1"
                                 placeholder="e.g. 1080" />
-                        </label>
-                    </div>
-                    <div class="field-row">
-                        <label class="field">
-                            <span class="label">Select Pipeline</span>
-                            <select id="pipelineSelect" class="input"></select>
-                        </label>
-                        <label class="field">
-                            <span class="label">Run Name</span>
-                            <input id="runNameInput" class="input" type="text"
-                                placeholder="Enter Run Name (Optional)" />
                         </label>
                     </div>
                     <div id="detectionSection" class="field-group" style="display: none;">

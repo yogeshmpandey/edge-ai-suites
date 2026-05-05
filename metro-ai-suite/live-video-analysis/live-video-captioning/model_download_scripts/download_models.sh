@@ -327,8 +327,20 @@ if [[ -n "$CONVERSION_PATH" && -d "$CONVERSION_PATH" ]]; then
     # Move files and cleanup
     if [[ "$MODEL_TYPE" == "vlm" ]]; then
       MODEL_BASENAME=$(basename "$MODEL")
-      log "Creating model directory for VLM: ${MODEL_BASENAME}"
-      MODEL_DIRNAME="${VLM_MODEL_PATH}/${MODEL_BASENAME}"
+      # Append device suffix so the UI can filter models by hardware:
+      #   --device NPU  → <model>-npu
+      #   --device GPU  → <model>-gpu
+      #   --device CPU  → <model>  (no suffix)
+      DEVICE_UPPER="${DEVICE^^}"
+      if [[ "$DEVICE_UPPER" == "NPU" ]]; then
+        DEVICE_SUFFIX="-npu"
+      elif [[ "$DEVICE_UPPER" == "GPU" ]]; then
+        DEVICE_SUFFIX="-gpu"
+      else
+        DEVICE_SUFFIX=""
+      fi
+      log "Creating model directory for VLM: ${MODEL_BASENAME}${DEVICE_SUFFIX}"
+      MODEL_DIRNAME="${VLM_MODEL_PATH}/${MODEL_BASENAME}${DEVICE_SUFFIX}"
       mkdir -p "$MODEL_DIRNAME"
       mv "$MODEL_ROOT"/"$MODEL"/* "$MODEL_DIRNAME"/
     elif [[ "$MODEL_TYPE" == "vision" ]]; then

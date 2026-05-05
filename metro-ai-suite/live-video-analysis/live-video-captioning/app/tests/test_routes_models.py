@@ -5,6 +5,8 @@
 
 from unittest.mock import patch
 
+from backend.models.responses import ModelInfo
+
 
 class TestListVlmModels:
     """GET /api/vlm-models endpoint."""
@@ -16,13 +18,29 @@ class TestListVlmModels:
         assert resp.status_code == 200
         assert resp.json() == {"models": []}
 
-    def test_returns_discovered_models(self, client):
-        """Returns model names discovered from the directory."""
-        models = ["InternVL2-1B", "InternVL2-2B"]
+    def test_returns_discovered_models_with_device(self, client):
+        """Returns ModelInfo objects with name and device fields."""
+        models = [
+            ModelInfo(name="InternVL2-1B", device="cpu"),
+            ModelInfo(name="InternVL2-2B-gpu", device="gpu"),
+            ModelInfo(name="InternVL2-2B-npu", device="npu"),
+        ]
         with patch("backend.routes.models.discover_models", return_value=models):
             resp = client.get("/api/vlm-models")
         assert resp.status_code == 200
-        assert resp.json()["models"] == models
+        assert resp.json()["models"] == [
+            {"name": "InternVL2-1B", "device": "cpu"},
+            {"name": "InternVL2-2B-gpu", "device": "gpu"},
+            {"name": "InternVL2-2B-npu", "device": "npu"},
+        ]
+
+    def test_cpu_model_has_no_device_suffix(self, client):
+        """A model with no suffix is tagged as cpu."""
+        models = [ModelInfo(name="InternVL2-2B", device="cpu")]
+        with patch("backend.routes.models.discover_models", return_value=models):
+            resp = client.get("/api/vlm-models")
+        assert resp.status_code == 200
+        assert resp.json()["models"][0]["device"] == "cpu"
 
 
 class TestListDetectionModels:
