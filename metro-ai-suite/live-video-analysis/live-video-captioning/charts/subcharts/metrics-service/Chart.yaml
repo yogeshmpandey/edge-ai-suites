@@ -1,0 +1,11 @@
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v2
+name: metrics-service
+description: >
+  Intel Metrics Service — unified metrics collection, ingestion, and WebSocket
+  relay for real-time system metrics (CPU, GPU, memory, temperature).
+type: application
+version: 0.1.0
+appVersion: "2026.1.0"

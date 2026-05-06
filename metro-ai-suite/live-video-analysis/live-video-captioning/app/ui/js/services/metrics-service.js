@@ -1,8 +1,8 @@
 /**
- * Metrics collector service for WebSocket-based system metrics
- * Connects to the external live-metrics-service for real-time metrics streaming
+ * Metrics service client for WebSocket-based system metrics
+ * Connects to the metrics-service for real-time metrics streaming
  */
-const MetricsCollectorService = (function() {
+const MetricsService = (function() {
     let metricsWS = null;
     let reconnectTimeout = null;
     let reconnectAttempts = 0;
@@ -37,8 +37,8 @@ const MetricsCollectorService = (function() {
         return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 
-    function processCollectorMetrics(metrics, elements) {
-        const { cpuVal, ramVal, gpuVal, gpuDetail, gpuEngines, gpuFreq, gpuPower, gpuTemp, gpuError } = elements;
+    function processMetrics(metrics, elements) {
+        const { cpuVal, ramVal, gpuVal, gpuDetail, gpuEngines, gpuFreq, gpuPower, gpuTemp, gpuError, npuVal } = elements;
 
         // Reset power values for this batch
         gpuPowerValue = null;
@@ -120,6 +120,16 @@ const MetricsCollectorService = (function() {
                     // CPU frequency - could be displayed if needed
                     break;
 
+                case 'npu':
+                    if (fields.utilization !== undefined) {
+                        const npuUsage = fields.utilization;
+                        ChartManager.pushStatSample('npu', npuUsage);
+                        if (npuVal) {
+                            npuVal.textContent = `${npuUsage.toFixed(1)}%`;
+                        }
+                    }
+                    break;
+
                 case 'fps':
                     // FPS metrics - could be displayed if needed
                     break;
@@ -169,6 +179,7 @@ const MetricsCollectorService = (function() {
             { label: 'CPU %', color: '#1ad0ff' },
             { label: 'RAM %', color: '#8ca0c2' },
             { label: 'GPU %', color: '#ffb347' },
+            { label: 'NPU %', color: '#a78bfa' },
         ]);
 
         // WebSocket connection to external metrics service
@@ -180,22 +191,22 @@ const MetricsCollectorService = (function() {
                 return;
             }
 
-            console.log('Connecting to metrics collector WebSocket:', wsUrl);
+            console.log('Connecting to metrics service WebSocket:', wsUrl);
             metricsWS = new WebSocket(wsUrl);
 
             metricsWS.onopen = () => {
                 console.log('Metrics WebSocket connected');
                 reconnectAttempts = 0;
 
-                // Update UI to show collector connected
-                const collectorStatus = document.getElementById('collectorStatus');
-                const collectorStatusDot = document.getElementById('collectorStatusDot');
-                if (collectorStatus) {
-                    collectorStatus.textContent = 'Connected';
-                    collectorStatus.className = 'status-connected';
+                // Update UI to show metrics service connected
+                const metricsStatus = document.getElementById('metricsStatus');
+                const metricsStatusDot = document.getElementById('metricsStatusDot');
+                if (metricsStatus) {
+                    metricsStatus.textContent = 'Connected';
+                    metricsStatus.className = 'status-connected';
                 }
-                if (collectorStatusDot) {
-                    collectorStatusDot.classList.add('active');
+                if (metricsStatusDot) {
+                    metricsStatusDot.classList.add('active');
                 }
             };
 
@@ -206,7 +217,7 @@ const MetricsCollectorService = (function() {
                         return;
                     }
 
-                    processCollectorMetrics(data.metrics, elements);
+                    processMetrics(data.metrics, elements);
                 } catch (err) {
                     console.error('Error parsing metrics message:', err);
                 }
@@ -219,15 +230,15 @@ const MetricsCollectorService = (function() {
             metricsWS.onclose = () => {
                 console.log('Metrics WebSocket closed');
 
-                // Update UI to show collector disconnected
-                const collectorStatus = document.getElementById('collectorStatus');
-                const collectorStatusDot = document.getElementById('collectorStatusDot');
-                if (collectorStatus) {
-                    collectorStatus.textContent = 'Disconnected';
-                    collectorStatus.className = 'status-disconnected';
+                // Update UI to show metrics service disconnected
+                const metricsStatus = document.getElementById('metricsStatus');
+                const metricsStatusDot = document.getElementById('metricsStatusDot');
+                if (metricsStatus) {
+                    metricsStatus.textContent = 'Disconnected';
+                    metricsStatus.className = 'status-disconnected';
                 }
-                if (collectorStatusDot) {
-                    collectorStatusDot.classList.remove('active');
+                if (metricsStatusDot) {
+                    metricsStatusDot.classList.remove('active');
                 }
 
                 // Attempt to reconnect

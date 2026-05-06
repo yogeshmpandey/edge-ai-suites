@@ -1,0 +1,93 @@
+{{/*
+Copyright (C) 2026 Intel Corporation
+SPDX-License-Identifier: Apache-2.0
+
+metrics-service Deployment.
+
+Runs the unified metrics-service container with privileged access for
+hardware metrics collection (CPU frequency, GPU via qmassa, temperatures).
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "metrics-service.fullname" . }}
+  labels:
+    {{- include "metrics-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics-service
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "metrics-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "metrics-service.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: metrics-service
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "lvc.imagePullSecrets" . | nindent 6 }}
+      {{- include "lvc.nodeAffinity" . | nindent 6 }}
+      hostPID: {{ .Values.hostPID }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: metrics-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: api
+              containerPort: {{ .Values.service.port }}
+              hostPort: {{ .Values.service.nodePort }}
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9273
+              protocol: TCP
+          env:
+            - name: METRICS_PORT
+              value: {{ .Values.env.metricsPort | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.env.logLevel | quote }}
+            - name: CORS_ORIGINS
+              value: {{ .Values.env.corsOrigins | quote }}
+            - name: METRICS_RETENTION_SECONDS
+              value: {{ .Values.env.metricsRetentionSeconds | quote }}
+            {{- include "lvc.proxyEnv" . | nindent 12 }}
+          volumeMounts:
+            - name: host-sys
+              mountPath: /sys
+              readOnly: true
+            - name: host-run
+              mountPath: /run
+              readOnly: true
+            - name: host-dev-dri
+              mountPath: /dev/dri
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: host-run
+          hostPath:
+            path: /run
+        - name: host-dev-dri
+          hostPath:
+            path: /dev/dri

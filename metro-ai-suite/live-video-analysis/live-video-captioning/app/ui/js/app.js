@@ -515,7 +515,7 @@
         }
     }
 
-    function initCollectorMetrics() {
+    function initMetrics() {
         const elements = {
             cpuVal: document.getElementById('cpuVal'),
             ramVal: document.getElementById('ramVal'),
@@ -526,9 +526,10 @@
             gpuPower: document.getElementById('gpuPower'),
             gpuTemp: document.getElementById('gpuTemp'),
             gpuError: document.getElementById('gpuError'),
+            npuVal: document.getElementById('npuVal'),
         };
 
-        MetricsCollectorService.init(elements);
+        MetricsService.init(elements);
     }
 
     async function startPipeline(evt) {
@@ -718,7 +719,7 @@
 
         loadModels();
         loadPipelines();
-        initCollectorMetrics();
+        initMetrics();
 
         // Restore active runs from backend
         restoreActiveRuns();

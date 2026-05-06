@@ -27,5 +27,5 @@ data:
   HUGGINGFACE_HUB_CACHE: "/home/appuser/.cache/huggingface"
   http_proxy: {{ .Values.global.httpProxy | quote }}
   https_proxy: {{ .Values.global.httpsProxy | quote }}
-  no_proxy: "{{ .Values.global.noProxy }},mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,vdms-vector-db,multimodal-embedding,live-video-captioning-rag"
-  no_proxy_env: "{{ .Values.global.noProxy }},mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,collector,mqtt-broker,vdms-vector-db,multimodal-embedding,live-video-captioning-rag"
+  no_proxy: "{{ .Values.global.noProxy }},mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,vdms-vector-db,multimodal-embedding,live-video-captioning-rag"
+  no_proxy_env: "{{ .Values.global.noProxy }},mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,vdms-vector-db,multimodal-embedding,live-video-captioning-rag"

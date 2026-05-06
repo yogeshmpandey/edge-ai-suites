@@ -11,7 +11,7 @@ RTSP Source → dlstreamer-pipeline-server
             ├─→ 1fps AI branch (GStreamer gvagenai) → MQTT Broker
             └─→ 30fps preview → mediamtx (WebRTC) → Dashboard
                                                  ↓
-                                  Dashboard collects metrics (CPU, GPU, RAM)
+                                  metrics-service streams metrics (CPU, GPU, RAM)
 ```
 
 ## System Components
@@ -19,8 +19,8 @@ RTSP Source → dlstreamer-pipeline-server
 - **dlstreamer-pipeline-server**: Intel DLStreamer Pipeline Server processing RTSP sources with GStreamer pipelines and `gvagenai` for VLM inference
 - **mediamtx**: WebRTC/WHIP signaling server for video streaming
 - **coturn**: TURN server for NAT traversal in WebRTC connections
-- **app**: Python FastAPI backend serving REST APIs, SSE metadata streams, and WebSocket metrics
-- **collector**: Intel VIP-PET system metrics collector (CPU, GPU, memory, power)
+- **app**: Python FastAPI backend serving REST APIs and SSE metadata streams
+- **metrics-service**: Unified metrics collection, ingestion, and WebSocket relay (CPU, GPU, memory, power, temperature)
 
 ## Learn More
 

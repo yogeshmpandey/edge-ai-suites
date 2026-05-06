@@ -156,8 +156,8 @@
                             <span id="pipelineInfo">Pipeline idle</span>
                         </div>
                         <div class="status" style="margin: 0; flex-shrink: 0; font-size: 0.85rem;">
-                            <span class="dot" id="collectorStatusDot"></span>
-                            <span>Collector: <span id="collectorStatus"
+                            <span class="dot" id="metricsStatusDot"></span>
+                            <span>Metrics: <span id="metricsStatus"
                                     class="status-disconnected">Disconnected</span></span>
                         </div>
                         <button id="startBtn" class="btn btn-primary" type="submit">Start</button>
@@ -171,6 +171,7 @@
                                 <span class="chart-value" style="color:#1ad0ff">CPU <span id="cpuVal">—</span></span>
                                 <span class="chart-value" style="color:#8ca0c2">RAM <span id="ramVal">—</span></span>
                                 <span class="chart-value" style="color:#ffb347">GPU <span id="gpuVal">—</span></span>
+                                <span class="chart-value" style="color:#a78bfa">NPU <span id="npuVal">—</span></span>
                             </div>
                         </div>
                         <div class="gpu-error" id="gpuError"
@@ -192,7 +193,7 @@
     <script src="/js/utils/charts.js"></script>
     <script src="/js/services/api.js"></script>
     <script src="/js/services/metadata-stream.js"></script>
-    <script src="/js/services/metrics-collector.js"></script>
+    <script src="/js/services/metrics-service.js"></script>
     <script src="/js/components/run-card.js"></script>
     <script src="/js/app.js"></script>
 
