@@ -12,7 +12,7 @@ FRIGATE_BASE_URL = os.getenv("FRIGATE_BASE_URL")
 VSS_SUMMARY_URL = os.getenv("VSS_SUMMARY_URL")
 VSS_SEARCH_URL = os.getenv("VSS_SEARCH_URL")
 no_proxy: str = os.getenv("no_proxy")
-MQTT_BROKER = os.getenv("HOST_IP", "mqtt-broker")
+MQTT_BROKER = os.getenv("MQTT_BROKER", os.getenv("HOST_IP", "mqtt-broker"))
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1884))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "frigate/events")
 REDIS_HOST = os.getenv("HOST_IP", "redis")
@@ -22,7 +22,9 @@ MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 
 # Scenescape MQTT Configuration
 NVR_SCENESCAPE_ENABLED = os.getenv("NVR_SCENESCAPE", "false").lower() == "true"
-SCENESCAPE_MQTT_BROKER = os.getenv("HOST_IP", "mqtt-broker")
+SCENESCAPE_MQTT_BROKER = os.getenv(
+    "SCENESCAPE_MQTT_BROKER", os.getenv("HOST_IP", "mqtt-broker")
+)
 SCENESCAPE_MQTT_PORT = int(os.getenv("SCENESCAPE_MQTT_PORT", 1883))
 SCENESCAPE_MQTT_TOPIC = os.getenv("SCENESCAPE_MQTT_TOPIC", "scenescape/data/camera/#")  
 
@@ -35,4 +37,3 @@ SCENESCAPE_CLIENT_KEY_PATH = os.getenv("SCENESCAPE_CLIENT_KEY_PATH", "/mosquitto
 
 # Scenescape throttling configuration
 SCENESCAPE_THROTTLE_INTERVAL = float(os.getenv("SCENESCAPE_THROTTLE_INTERVAL", 2.0))
-

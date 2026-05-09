@@ -7,168 +7,117 @@ mqtt:
   user: '{FRIGATE_MQTT_USER}'
   password: '{FRIGATE_MQTT_PASSWORD}'
 
-genai:
-  enabled: false
-  provider: openai
-  model: Qwen/Qwen2.5-VL-3B-Instruct
-
 logger:
   default: info
 
+detect:
+  enabled: false
 
-semantic_search:
-  enabled: true
-  reindex: false
+snapshots:
+  enabled: false
 
 record:
   enabled: true
   retain:
-    days: 7
+    days: 1
     mode: all
+
+go2rtc:
+  rtsp:
+    listen: ":8554"
+  streams:
+    camera1:
+      - "exec:/usr/lib/ffmpeg/7.0/bin/ffmpeg -hide_banner -re -stream_loop -1 -i /videos/1122north_h264.ts -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -level:v 3.1 -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 -pix_fmt yuv420p -avoid_negative_ts make_zero -rtsp_transport tcp -f rtsp {{output}}"
+    camera2:
+      - "exec:/usr/lib/ffmpeg/7.0/bin/ffmpeg -hide_banner -re -stream_loop -1 -i /videos/1122east_h264.ts -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -level:v 3.1 -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 -pix_fmt yuv420p -avoid_negative_ts make_zero -rtsp_transport tcp -f rtsp {{output}}"
+    camera3:
+      - "exec:/usr/lib/ffmpeg/7.0/bin/ffmpeg -hide_banner -re -stream_loop -1 -i /videos/1122south_h264.ts -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -level:v 3.1 -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 -pix_fmt yuv420p -avoid_negative_ts make_zero -rtsp_transport tcp -f rtsp {{output}}"
+    camera4:
+      - "exec:/usr/lib/ffmpeg/7.0/bin/ffmpeg -hide_banner -re -stream_loop -1 -i /videos/1122west_h264.ts -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -level:v 3.1 -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 -pix_fmt yuv420p -avoid_negative_ts make_zero -rtsp_transport tcp -f rtsp {{output}}"
 
 cameras:
   camera1:
     ffmpeg:
       inputs:
-        - path: rtsp://{RTSP_STREAM_IP}:8554/camera1
-          input_args: -avoid_negative_ts make_zero -fflags +genpts+discardcorrupt -rtsp_transport tcp -r 5
+        - path: rtsp://127.0.0.1:8554/camera1
+          input_args: preset-rtsp-restream
           roles:
             - record
       output_args:
-        record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v libx264 -preset veryfast -profile:v baseline -level 3.1 -crf 23 -g 50 -pix_fmt yuv420p -movflags +faststart
+        record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v copy -movflags +faststart
     detect:
       enabled: false
-      max_disappeared: 30
-      width: 1280
-      height: 720
-      fps: 10
-    objects:
-      track: [vehicle,pedestrian]
-      filters:
-        car:
-          min_score: 0.6
-          threshold: 0.70
+    motion:
+      enabled: false
+    snapshots:
+      enabled: false
     record:
       enabled: true
       retain:
         days: 1
-    snapshots:
-      enabled: true
-      retain:
-        default: 1
-    genai:
-      enabled: false
-      use_snapshot: true
-      objects:
-        - vehicle
-        - pedestrian
-        - car
+        mode: all
+
   camera2:
     ffmpeg:
       inputs:
-        - path: rtsp://{RTSP_STREAM_IP}:8554/camera2
-          input_args: -avoid_negative_ts make_zero -fflags +genpts+discardcorrupt -rtsp_transport tcp -r 5
+        - path: rtsp://127.0.0.1:8554/camera2
+          input_args: preset-rtsp-restream
           roles:
             - record
       output_args:
-        record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v libx264 -preset veryfast -profile:v baseline -level 3.1 -crf 23 -g 50 -pix_fmt yuv420p -movflags +faststart
+        record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v copy -movflags +faststart
     detect:
       enabled: false
-      max_disappeared: 30
-      width: 1280
-      height: 720
-      fps: 10
-    objects:
-      track: [vehicle,pedestrian]
-      filters:
-        car:
-          min_score: 0.6
-          threshold: 0.70
+    motion:
+      enabled: false
+    snapshots:
+      enabled: false
     record:
       enabled: true
       retain:
         days: 1
-    snapshots:
-      enabled: true
-      retain:
-        default: 1
-    genai:
-      enabled: false
-      use_snapshot: true
-      objects:
-        - vehicle
-        - pedestrian
-        - car
+        mode: all
+
   camera3:
     ffmpeg:
       inputs:
-        - path: rtsp://{RTSP_STREAM_IP}:8554/camera3
-          input_args: -avoid_negative_ts make_zero -fflags +genpts+discardcorrupt -rtsp_transport tcp -r 5
+        - path: rtsp://127.0.0.1:8554/camera3
+          input_args: preset-rtsp-restream
           roles:
             - record
       output_args:
-        record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v libx264 -preset veryfast -profile:v baseline -level 3.1 -crf 23 -g 50 -pix_fmt yuv420p -movflags +faststart
+        record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v copy -movflags +faststart
     detect:
       enabled: false
-      max_disappeared: 30
-      width: 1280
-      height: 720
-      fps: 10
-    objects:
-      track: [vehicle,pedestrian]
-      filters:
-        car:
-          min_score: 0.6
-          threshold: 0.70
+    motion:
+      enabled: false
+    snapshots:
+      enabled: false
     record:
       enabled: true
       retain:
         days: 1
-    snapshots:
-      enabled: true
-      retain:
-        default: 1
-    genai:
-      enabled: false
-      use_snapshot: true
-      objects:
-        - vehicle
-        - pedestrian
-        - car
+        mode: all
+
   camera4:
     ffmpeg:
       inputs:
-        - path: rtsp://{RTSP_STREAM_IP}:8554/camera4
-          input_args: -avoid_negative_ts make_zero -fflags +genpts+discardcorrupt -rtsp_transport tcp -r 5
+        - path: rtsp://127.0.0.1:8554/camera4
+          input_args: preset-rtsp-restream
           roles:
             - record
       output_args:
-        record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v libx264 -preset veryfast -profile:v baseline -level 3.1 -crf 23 -g 50 -pix_fmt yuv420p -movflags +faststart
+        record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v copy -movflags +faststart
     detect:
       enabled: false
-      max_disappeared: 30
-      width: 1280
-      height: 720
-      fps: 10
-    objects:
-      track: [vehicle,pedestrian]
-      filters:
-        car:
-          min_score: 0.6
-          threshold: 0.70
+    motion:
+      enabled: false
+    snapshots:
+      enabled: false
     record:
       enabled: true
       retain:
         days: 1
-    snapshots:
-      enabled: true
-      retain:
-        default: 1
-    genai:
-      enabled: false
-      use_snapshot: true
-      objects:
-        - vehicle
-        - pedestrian
-        - car                
+        mode: all
+
 version: 0.15-1

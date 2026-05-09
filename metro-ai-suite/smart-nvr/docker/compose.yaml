@@ -8,6 +8,7 @@ services:
       - nvr-network
     ports:
       - "5000:5000" 
+      - "8554:8554"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/"]
       interval: 1m
@@ -28,12 +29,13 @@ services:
        mqtt-broker:
          condition: service_healthy
     environment:
-      no_proxy: ${no_proxy}, frigate, ${VSS_SUMMARY_IP}, ${VLM_SERVING_IP}
-      NO_PROXY: ${no_proxy}, frigate, ${VSS_SUMMARY_IP}, ${VLM_SERVING_IP}
+      no_proxy: ${no_proxy}, frigate, ${VSS_SUMMARY_IP}, ${VLM_SERVING_IP}, 127.0.0.1
+      NO_PROXY: ${no_proxy}, frigate, ${VSS_SUMMARY_IP}, ${VLM_SERVING_IP}, 127.0.0.1
       FRIGATE_MQTT_PASSWORD: ${MQTT_PASSWORD} 
       FRIGATE_MQTT_USER: ${MQTT_USER}
       OPENAI_BASE_URL: "http://${VLM_SERVING_IP}:${VLM_SERVING_PORT}/v1"
       OPENAI_API_KEY: "your_openai_api_key" 
+      GO2RTC_ALLOW_ARBITRARY_EXEC: "true"
   
   nvr-event-router:
     container_name: nvr-event-router
@@ -59,7 +61,7 @@ services:
       - ../frigate-clips:/media/frigate/recordings # Shared volume for watcher to access Frigate recordings
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
-      - ../edge-ai-suites/metro-ai-suite/metro-vision-ai-app-recipe/smart-intersection/src/secrets/certs:/mosquitto/secrets:ro
+      - ${SCENESCAPE_CERTS_DIR:-../metro-vision-ai-app-recipe/smart-intersection/src/secrets/certs}:/mosquitto/secrets:ro
     depends_on:
       frigate:
         condition: service_healthy
@@ -75,10 +77,17 @@ services:
       VSS_SEARCH_URL: "http://${VSS_SEARCH_IP}:${VSS_SEARCH_PORT}"
       VSS_SUMMARY_URL: "http://${VSS_SUMMARY_IP}:${VSS_SUMMARY_PORT}"
       no_proxy: ${no_proxy}, frigate-vms, ${VSS_SEARCH_IP}, ${VSS_SUMMARY_IP}, ${VLM_SERVING_IP}
+      MQTT_BROKER: ${HOST_IP}
+      MQTT_PORT: ${MQTT_PORT:-1884}
       MQTT_USER: ${MQTT_USER}
       MQTT_PASSWORD: ${MQTT_PASSWORD} 
       HOST_IP: ${HOST_IP}
       NVR_SCENESCAPE: ${NVR_SCENESCAPE}
+      SCENESCAPE_MQTT_BROKER: ${SCENESCAPE_MQTT_BROKER:-${HOST_IP}}
+      SCENESCAPE_MQTT_PORT: ${SCENESCAPE_MQTT_PORT:-1883}
+      SCENESCAPE_MQTT_USER: ${SCENESCAPE_MQTT_USER}
+      SCENESCAPE_MQTT_PASSWORD: ${SCENESCAPE_MQTT_PASSWORD}
+      SCENESCAPE_THROTTLE_INTERVAL: ${SCENESCAPE_THROTTLE_INTERVAL:-2.0}
 
   nvr-event-router-ui:
     container_name: nvr-event-router-ui
@@ -114,7 +123,7 @@ services:
       - mosquitto_log:/mosquitto/log
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
-      - ../edge-ai-suites/metro-ai-suite/metro-vision-ai-app-recipe/smart-intersection/src/secrets/certs:/mosquitto/secrets:ro
+      - ${SCENESCAPE_CERTS_DIR:-../metro-vision-ai-app-recipe/smart-intersection/src/secrets/certs}:/mosquitto/secrets:ro
     environment:
       MQTT_USER: ${MQTT_USER} 
       MQTT_PASSWORD: ${MQTT_PASSWORD} 
@@ -160,4 +169,3 @@ volumes:
   mosquitto_data:
   mosquitto_log:
   redis_data:
-

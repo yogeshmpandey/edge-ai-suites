@@ -27,3 +27,55 @@ The Smart NVR is a next-generation network video recorder that integrates GenAI-
 
 - **Release Notes**
   - [Release Notes](./docs/user-guide/release-notes.md): Information on the latest updates, improvements, and bug fixes.
+
+## Single-Node Demo Deployment
+
+Use `scripts/single_node_deploy.sh` to deploy the full SceneScape SmartNVR demo on one node: VSS search, Frigate RTSP restreaming/recording, SceneScape analytics, and SmartNVR event routing to VSS search.
+
+### Prerequisites
+
+- Docker and Docker Compose v2 available to the current user
+- Internet access for GitHub resources, container images, and model assets
+- Sufficient disk space for VSS images/models and demo videos
+- Hardware that meets the documented SmartNVR and VSS minimum requirements
+- If gated models are used, provide `HUGGINGFACE_TOKEN` in the shell environment; the script does not store or print it
+
+### Quick Start
+
+```bash
+bash scripts/single_node_deploy.sh
+```
+
+The script supplies local demo defaults for VSS credentials and model settings when they are not already exported. To override them, export values before running the script.
+
+### What the Script Does
+
+1. Validates Docker, Docker Compose v2, daemon access, and registry access.
+2. Clones `edge-ai-libraries` at commit `7a27eab2ba3fe99baf59e45ff4d193f60011362a` and starts VSS in search mode.
+3. Downloads the four demo `.ts` videos and verifies them under `resources/videos/`.
+4. Configures Frigate to loop-play the videos, expose four RTSP streams, and record clips while detection/snapshots/motion are disabled.
+5. Renders SceneScape DL Streamer config so SceneScape consumes the Frigate RTSP streams.
+6. Prepares SceneScape in the sibling `../metro-vision-ai-app-recipe` app, then starts it with the same flow used manually: `./install.sh smart-intersection` followed by `docker compose up -d`.
+7. Starts SmartNVR with SceneScape MQTT and VSS search wiring, seeds demo SceneScape rules, and prints a component status table.
+
+### Re-running the Script
+
+The script is idempotent. It stores deployment state under `.deploy-state/single-node/`, compares generated config hashes, and skips healthy components that are already configured. Use `--force` to regenerate configs and restart services.
+
+### Cleanup
+
+```bash
+bash scripts/single_node_deploy.sh --cleanup
+```
+
+Cleanup stops the SmartNVR, SceneScape, and VSS stacks, restores the previous Frigate config when a backup exists, removes the cloned `edge-ai-libraries` deployment copy, and preserves downloaded videos and SceneScape-generated secrets.
+
+### Troubleshooting
+
+- **Docker permission denied**: Add your user to the `docker` group or run with appropriate privileges.
+- **Docker pull fails**: Check internet, registry, and proxy settings.
+- **Port conflict on 8554 or 1883**: Stop services using those ports; this demo reserves 8554 for Frigate RTSP and 1883 for the SceneScape broker.
+- **VSS setup fails**: Check `.deploy-state/single-node/logs/vss-setup-search.log`.
+- **Frigate streams missing**: Check `http://localhost:5000/api/go2rtc/streams` and `docker logs frigate-vms`.
+- **SceneScape MQTT errors**: Verify SceneScape secrets exist under `../metro-vision-ai-app-recipe/smart-intersection/src/secrets/` and check `docker logs nvr-event-router`.
+- **No VSS uploads**: Confirm the seeded `source=scenescape` rules exist in SmartNVR and that SceneScape events are arriving.

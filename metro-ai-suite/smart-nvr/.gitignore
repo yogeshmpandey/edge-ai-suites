@@ -132,6 +132,9 @@ uploads/
 downloads/
 data/
 storage/
+edge-ai-libraries/
+.deploy-state/
+frigate-clips/
 
 # Secrets and certificates
 *.pem
