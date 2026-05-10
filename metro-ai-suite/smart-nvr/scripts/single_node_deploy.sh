@@ -55,31 +55,34 @@ VSS_SEARCH_PORT="${VSS_SEARCH_PORT:-12345}"
 CAMERAS=(camera1 camera2 camera3 camera4)
 REQUESTED_VIDEOS=(1122east_h264.ts 1122west_h264.ts 1122north_h264.ts 1122south_h264.ts)
 
-CLEANUP=false
-FORCE=false
-SEED_DEMO_RULES=true
+ACTION=""
 
 usage() {
   cat <<USAGE
-Usage: bash scripts/single_node_deploy.sh [--cleanup] [--force] [--no-seed-rules] [--help]
+Usage: ./single_node_deploy.sh [--setup | --run | --down | --cleanup | --help]
 
-Deploys a single-node SmartNVR + VSS search + Frigate + SceneScape demo.
+Single-node deployment for SmartNVR + VSS Search + Metro AI (SceneScape) demo.
 
-Options:
-  --cleanup        Stop demo stacks and restore generated SmartNVR config.
-  --force          Re-render generated configs and restart services even if healthy.
-  --no-seed-rules  Do not seed demo SceneScape rules.
-  --help           Show this help text.
+Commands (mutually exclusive):
+  (default)    Run --setup followed by --run (full first-time deploy).
+  --setup      First-time setup: validate prereqs, clone deps, download
+               videos, render configs, and build Docker images.
+               Does NOT start services.
+  --run        Start all services (VSS, SmartNVR, SceneScape) and verify.
+  --down       Gracefully stop all running services.
+  --cleanup    Stop services, clean data, remove volumes & cloned repos.
+  --help       Show this help message.
 USAGE
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --cleanup) CLEANUP=true ;;
-    --force) FORCE=true ;;
-    --no-seed-rules) SEED_DEMO_RULES=false ;;
+    --setup|--run|--down|--cleanup)
+      [[ -z "$ACTION" ]] || die "Flags --setup, --run, --down, and --cleanup are mutually exclusive."
+      ACTION="$1"
+      ;;
     --help|-h) usage; exit 0 ;;
-    *) die "Unknown argument: $1" ;;
+    *) usage; die "Unknown argument: $1" ;;
   esac
   shift
 done
@@ -214,8 +217,8 @@ vss_healthy() {
     curl -fsS "http://localhost:${VSS_SEARCH_PORT}/manager/health" >/dev/null 2>&1
 }
 
-deploy_vss() {
-  info "Preparing VSS search mode at pinned commit ${EDGE_AI_LIBRARIES_COMMIT}"
+clone_vss_repo() {
+  info "Cloning/updating VSS repo at pinned commit ${EDGE_AI_LIBRARIES_COMMIT}"
   if [[ -d "${EDGE_AI_LIBRARIES_DIR}/.git" ]]; then
     (cd "$EDGE_AI_LIBRARIES_DIR" && git fetch --quiet origin "$EDGE_AI_LIBRARIES_COMMIT")
   else
@@ -231,8 +234,12 @@ deploy_vss() {
   fi
 
   [[ -d "$VSS_APP_DIR" ]] || die "VSS app directory not found: ${VSS_APP_DIR}"
+}
 
-  if [[ "$FORCE" == false ]] && vss_healthy; then
+start_vss() {
+  [[ -d "$VSS_APP_DIR" ]] || die "VSS app directory not found: ${VSS_APP_DIR}. Run --setup first."
+
+  if vss_healthy; then
     skip "VSS appears healthy on port ${VSS_SEARCH_PORT}"
     return
   fi
@@ -409,17 +416,11 @@ prepare_scenescape() {
 }
 
 start_scenescape() {
-  if [[ "$FORCE" == false ]] && scenescape_services_running && state_hash_matches "scenescape-compose" "${METRO_RECIPE_DIR}/docker-compose.yml"; then
-    skip "SceneScape containers already running with generated compose"
-    return
-  fi
-
   info "Starting SceneScape stack"
   (
     cd "$METRO_RECIPE_DIR"
     export GID="$(id -g)"
-    export SUPASS
-    SUPASS="$(cat "${SMART_INTERSECTION_DIR}/src/secrets/supass")" || die "Could not read supass from ${SMART_INTERSECTION_DIR}/src/secrets/supass"
+    export SUPASS="${SUPASS}"
     docker compose up -d
   )
 }
@@ -466,34 +467,32 @@ deploy_smartnvr() {
   export VLM_SERVING_IP="${VLM_SERVING_IP:-${HOST_IP}}"
   export VLM_SERVING_PORT="${VLM_SERVING_PORT:-9766}"
 
-  if [[ "$FORCE" == false ]] && container_healthy_or_running "nvr-event-router" && container_healthy_or_running "frigate-vms" && state_hash_matches "frigate-config" "${SMART_NVR_ROOT}/resources/frigate-config/config.yml"; then
-    skip "SmartNVR/Frigate already running with generated Frigate config"
-    return
-  fi
-
   info "Starting SmartNVR stack"
-  (cd "$SMART_NVR_ROOT" && docker compose -f docker/compose.yaml up -d --build)
+  (cd "$SMART_NVR_ROOT" && docker compose -f docker/compose.yaml up -d)
 }
 
 seed_demo_rules() {
-  [[ "$SEED_DEMO_RULES" == true ]] || return
   info "Seeding demo SceneScape rules"
-  for camera in "${CAMERAS[@]}"; do
-    local legacy_rule_id="single-node-${camera}-pedestrian-search"
-    if curl -fsS "http://localhost:${SMARTNVR_API_PORT}/rules/${legacy_rule_id}" >/dev/null 2>&1; then
-      curl -fsS -X DELETE "http://localhost:${SMARTNVR_API_PORT}/rules/${legacy_rule_id}" >/dev/null
-      info "Removed legacy demo rule ${legacy_rule_id}"
-    fi
 
-    local rule_id="single-node-${camera}-vehicle-search"
-    if curl -fsS "http://localhost:${SMARTNVR_API_PORT}/rules/${rule_id}" >/dev/null 2>&1; then
-      skip "Rule already exists: ${rule_id}"
-      continue
-    fi
+  # Only seed when no rules exist at all
+  local existing_rules
+  existing_rules=$(curl -fsS "http://localhost:${SMARTNVR_API_PORT}/rules/" 2>/dev/null || echo "[]")
+  if echo "$existing_rules" | grep -q '"id"'; then
+    skip "Rules already exist — skipping seed"
+    return
+  fi
+
+  # Assign a count between 3 and 5 for each camera (cycling 3,4,5,3,…)
+  local counts=(3 4 5 3)
+  local i=0
+  for camera in "${CAMERAS[@]}"; do
+    local rule_id="add to search-${camera}-vehicle-search"
+    local count="${counts[$i]}"
     curl -fsS -X POST "http://localhost:${SMARTNVR_API_PORT}/rules/" \
       -H 'Content-Type: application/json' \
-      -d "{\"id\":\"${rule_id}\",\"label\":\"vehicle\",\"action\":\"add to search\",\"camera\":\"${camera}\",\"source\":\"scenescape\",\"count\":1}" >/dev/null
-    info "Seeded rule ${rule_id}"
+      -d "{\"id\":\"${rule_id}\",\"label\":\"vehicle\",\"action\":\"add to search\",\"camera\":\"${camera}\",\"source\":\"scenescape\",\"count\":${count}}" >/dev/null
+    info "Seeded rule ${rule_id} (count=${count})"
+    (( i++ )) || true
   done
 }
 
@@ -547,9 +546,7 @@ verify_all() {
   verify_frigate && frigate=true || warn "Frigate go2rtc streams are not all visible at http://localhost:${FRIGATE_HTTP_PORT}/api/go2rtc/streams"
   verify_scenescape && scenescape=true || warn "One or more SceneScape containers are not running"
   verify_smartnvr && smartnvr=true || warn "SmartNVR API health check failed"
-  if [[ "$SEED_DEMO_RULES" == true ]] && curl -fsS "http://localhost:${SMARTNVR_API_PORT}/rules/" | grep -q 'single-node-camera1'; then
-    rules=true
-  elif [[ "$SEED_DEMO_RULES" == false ]]; then
+  if curl -fsS "http://localhost:${SMARTNVR_API_PORT}/rules/" | grep -q 'add to search'; then
     rules=true
   else
     warn "Demo rules were not found in SmartNVR"
@@ -565,20 +562,25 @@ verify_all() {
 
   if [[ "$vss" == true && "$frigate" == true && "$scenescape" == true && "$smartnvr" == true && "$rules" == true ]]; then
     info "Single-node demo deployment verified"
-    info "Frigate RTSP streams:"
+    info "Live Camera streams:"
     for camera in "${CAMERAS[@]}"; do
       info "  rtsp://${FRIGATE_RTSP_HOST}:${FRIGATE_RTSP_PORT}/${camera}"
     done
-    info "SmartNVR UI: http://${FRIGATE_RTSP_HOST}:${SMARTNVR_UI_PORT}"
-    info "SceneScape UI: https://${FRIGATE_RTSP_HOST}"
+    info "Important URLs: "
+    info "  NVR UI: https://${FRIGATE_RTSP_HOST}":${FRIGATE_HTTP_PORT}
+    info "  SmartNVR UI: http://${FRIGATE_RTSP_HOST}:${SMARTNVR_UI_PORT}"
+    info "  Intel VSS Search UI: http://${FRIGATE_RTSP_HOST}:${VSS_SEARCH_PORT}"
+    info "  Scenescape UI: https://${FRIGATE_RTSP_HOST}"
+    info "Scenescape login username: admin"
+    info "Scenescape login password: ${SUPASS}"
     return
   fi
 
   die "Deployment verification failed. Review warnings above and logs in ${LOG_DIR}."
 }
 
-cleanup() {
-  info "Cleaning up single-node demo deployment"
+do_down() {
+  info "Stopping all services"
   compose_down_if_exists "${SMART_NVR_ROOT}/docker/compose.yaml" "$SMART_NVR_ROOT"
   if [[ -f "${METRO_RECIPE_DIR}/docker-compose.yml" ]]; then
     (cd "$METRO_RECIPE_DIR" && docker compose down) || warn "Failed to stop SceneScape docker compose stack"
@@ -586,32 +588,68 @@ cleanup() {
     compose_down_if_exists "${METRO_RECIPE_DIR}/compose-scenescape.yml" "$METRO_RECIPE_DIR"
   fi
   if [[ -f "${VSS_APP_DIR}/setup.sh" ]]; then
-    (set +eu; cd "$VSS_APP_DIR"; source ./setup.sh --clean-data) >"${LOG_DIR}/vss-down.log" 2>&1 || warn "VSS shutdown returned non-zero; see ${LOG_DIR}/vss-down.log"
+    (set +eu; cd "$VSS_APP_DIR"; source ./setup.sh --down) >"${LOG_DIR}/vss-down.log" 2>&1 || warn "VSS shutdown returned non-zero; see ${LOG_DIR}/vss-down.log"
   fi
   if [[ -f "${BACKUP_DIR}/frigate-config.yml" ]]; then
     cp "${BACKUP_DIR}/frigate-config.yml" "${SMART_NVR_ROOT}/resources/frigate-config/config.yml"
   fi
-  rm -rf "$EDGE_AI_LIBRARIES_DIR"
+  info "All services stopped."
+}
+
+do_cleanup() {
+  do_down
+  info "Removing data, cloned repos, and deploy state"
+  if [[ -f "${VSS_APP_DIR}/setup.sh" ]]; then
+    (set +eu; cd "$VSS_APP_DIR"; source ./setup.sh --clean-data) >"${LOG_DIR}/vss-cleanup.log" 2>&1 || warn "VSS clean-data returned non-zero; see ${LOG_DIR}/vss-cleanup.log"
+  fi
+  # rm -rf "$EDGE_AI_LIBRARIES_DIR"
   rm -f "${DEPLOY_STATE_DIR}"/*.sha256
   info "Cleanup complete. Demo videos and SceneScape generated secrets were preserved."
 }
 
-main() {
-  ensure_python3
-  if [[ "$CLEANUP" == true ]]; then
-    cleanup
-    exit 0
-  fi
-
+run_setup() {
+  info "=== First-time setup ==="
   validate_docker
   ensure_disk_space
-  deploy_vss
+  clone_vss_repo
   download_videos
   prepare_scenescape
+  info "Building SmartNVR Docker image"
+  (cd "$SMART_NVR_ROOT" && ./build.sh)
+  info "=== Setup complete. Run with --run to start the stack. ==="
+}
+
+read_supass() {
+  [[ -f "${SMART_INTERSECTION_DIR}/src/secrets/supass" ]] || die "SUPASS file not found at ${SMART_INTERSECTION_DIR}/src/secrets/supass"
+  export SUPASS="$(cat "${SMART_INTERSECTION_DIR}/src/secrets/supass")"
+}
+
+run_run() {
+  info "=== Starting full stack ==="
+  read_supass
+  start_vss
   deploy_smartnvr
   start_scenescape
   seed_demo_rules
   verify_all
+}
+
+main() {
+  ensure_python3
+
+  if [[ -z "$ACTION" ]]; then
+    info "=== No flag provided — running --setup then --run ==="
+    run_setup
+    run_run
+    return
+  fi
+
+  case "$ACTION" in
+    --setup)   run_setup ;;
+    --run)     run_run ;;
+    --down)    do_down ;;
+    --cleanup) do_cleanup ;;
+  esac
 }
 
 main "$@"

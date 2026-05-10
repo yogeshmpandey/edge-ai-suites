@@ -298,16 +298,23 @@ def create_ui():
             camera_list = []
             camera_labels_map = {}
     recent_events = []
-    def get_labels_for_camera(camera_name):
-        # Dummy example mapping camera to labels
-        camera_to_labels = {
-            "Front Gate": ["person", "car", "dog"],
-            "Backyard": ["cat", "person"],
-        }
+
+    _frigate_camera_to_labels = {
+        "Front Gate": ["person", "car", "dog"],
+        "Backyard": ["cat", "person"],
+    }
+
+    def _labels_for_camera(camera_name):
+        """Return raw label list for a Frigate camera, with fallback to example mapping."""
+        if not camera_name:
+            return []
         labels = camera_labels_map.get(camera_name, []) if camera_labels_map else []
-        if not labels:  # fallback to example mapping
-            labels = camera_to_labels.get(camera_name, [])
-        return gr.update(choices=labels, value=None)
+        if not labels:
+            labels = _frigate_camera_to_labels.get(camera_name, [])
+        return labels
+
+    def get_labels_for_camera(camera_name):
+        return gr.update(choices=_labels_for_camera(camera_name), value=None)
 
     def format_summary_responses():
         data = fetch_rule_responses()
@@ -352,6 +359,7 @@ def create_ui():
             "Monitor and process events from Frigate VMS using OEP Video Search and Summarization Application."
         )
         summary_id_state = gr.State(None)
+        count_browser_state = gr.BrowserState(0)
         with gr.Tabs():
             # Tab 1: Summarize/Search
             with gr.TabItem("Summarize/Search Clips"):
@@ -612,7 +620,7 @@ def create_ui():
                     source_dropdown = gr.Dropdown(
                         choices=["frigate"] + (["scenescape"] if show_scenescape_source else []),
                         label="Select Source",
-                        value="frigate",
+                        value="scenescape" if show_scenescape_source else "frigate",
                     )
 
                     camera_dropdown = gr.Dropdown(
@@ -624,7 +632,7 @@ def create_ui():
                     if show_scenescape_source:
                         # scenescape on detection label before the count
                         label_filter = gr.Dropdown(
-                            choices=[],
+                            choices=["person", "vehicle"],
                             value=None,
                             label="Detection Labels"
                         )
@@ -634,7 +642,7 @@ def create_ui():
                             value=0,
                             precision=0,
                             interactive=True,
-                            visible=False,  
+                            visible=True,
                         )
                     else:
                         # Original layout for frigate-only
@@ -646,17 +654,36 @@ def create_ui():
                             visible=False,  
                         )
 
-                    def toggle_count_visibility(source):
-                        if source == "scenescape":
-                            return gr.update(visible=True)
-                        else:
-                            return gr.update(visible=False, value=0)
+                    if show_scenescape_source:
+                        def update_source_controls(source, camera, saved_count=0):
+                            """Update count visibility and label choices based on source and camera.
 
-                    source_dropdown.change(
-                        fn=toggle_count_visibility,
-                        inputs=[source_dropdown],
-                        outputs=[count],
-                    )
+                            saved_count is read from gr.BrowserState so the user's last-used
+                            count value is restored after a page refresh.
+                            """
+                            if source == "scenescape":
+                                return (
+                                    gr.update(visible=True, value=saved_count or 0),
+                                    gr.update(choices=["person", "vehicle"], value=None),
+                                )
+                            # Frigate mode: use camera-specific labels
+                            labels = _labels_for_camera(camera)
+                            return (
+                                gr.update(visible=False, value=0),
+                                gr.update(choices=labels, value=None),
+                            )
+                    else:
+                        def toggle_count_visibility(source):
+                            if source == "scenescape":
+                                return gr.update(visible=True)
+                            else:
+                                return gr.update(visible=False, value=0)
+
+                        source_dropdown.change(
+                            fn=toggle_count_visibility,
+                            inputs=[source_dropdown],
+                            outputs=[count],
+                        )
 
                     if not show_scenescape_source:
                         # Only create label_filter for frigate-only mode
@@ -668,24 +695,46 @@ def create_ui():
 
                     action_dropdown_auto = gr.Dropdown(
                         choices=["Summarize", "Add to Search"],
-                        value="Summarize",
+                        value="Add to Search",
                         label="Select Action",
                     )
                     add_rule_btn = gr.Button("➕ Add Rule")
 
-                # 🔄 Trigger label load when dropdown loads (first time)
-                ui.load(
-                    fn=get_labels_for_camera,
-                    inputs=[camera_dropdown],
-                    outputs=[label_filter]
-                )
-
-                # 🔄 Also update labels when dropdown changes
-                camera_dropdown.change(
-                    fn=get_labels_for_camera,
-                    inputs=[camera_dropdown],
-                    outputs=[label_filter]
-                )
+                if show_scenescape_source:
+                    source_dropdown.change(
+                        fn=update_source_controls,
+                        inputs=[source_dropdown, camera_dropdown, count_browser_state],
+                        outputs=[count, label_filter],
+                    )
+                    camera_dropdown.change(
+                        fn=update_source_controls,
+                        inputs=[source_dropdown, camera_dropdown, count_browser_state],
+                        outputs=[count, label_filter],
+                    )
+                    ui.load(
+                        fn=update_source_controls,
+                        inputs=[source_dropdown, camera_dropdown, count_browser_state],
+                        outputs=[count, label_filter],
+                    )
+                    # Persist count to browser storage whenever the user edits it
+                    count.change(
+                        fn=lambda v: v,
+                        inputs=[count],
+                        outputs=[count_browser_state],
+                    )
+                else:
+                    # 🔄 Trigger label load when dropdown loads (first time)
+                    ui.load(
+                        fn=get_labels_for_camera,
+                        inputs=[camera_dropdown],
+                        outputs=[label_filter]
+                    )
+                    # 🔄 Also update labels when dropdown changes
+                    camera_dropdown.change(
+                        fn=get_labels_for_camera,
+                        inputs=[camera_dropdown],
+                        outputs=[label_filter]
+                    )
 
 
                 with gr.Row():
@@ -789,8 +838,12 @@ def create_ui():
                     return rows
 
                 def delete_selected_rule(evt: gr.SelectData):
-
-                    if evt.value == "🗑️ Delete":
+                    # Only act when the exact "Delete" column is clicked.
+                    # Gradio can fire duplicate select events (cell + row) for a single
+                    # click; the column-index guard prevents a second rule from being
+                    # accidentally deleted when the table reloads after the first deletion.
+                    delete_col_idx = len(headers) - 1
+                    if evt.value == "🗑️ Delete" and evt.index[1] == delete_col_idx:
                         try:
                             # Get the full row data from row_value
                             selected_row = evt.row_value
@@ -806,7 +859,7 @@ def create_ui():
                             logger.error(f"Error deleting rule: {str(e)}")
                             return f"❌ Error: {str(e)}", load_rules()
 
-                    return "Click the delete icon (🗑️) to remove a rule", load_rules()
+                    return gr.update(), load_rules()
 
                 # Event handlers
                 refresh_rules_btn.click(fn=load_rules, outputs=[rules_table])
