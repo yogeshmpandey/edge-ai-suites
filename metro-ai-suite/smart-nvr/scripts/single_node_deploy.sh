@@ -246,7 +246,8 @@ start_vss() {
 
   export_vss_env
   local log_file="${LOG_DIR}/vss-setup-search.log"
-  info "Starting VSS in search mode; logs: ${log_file}"
+  info "Starting VSS in search mode; For First time setup this will take ~15 min"
+  info "logs: ${log_file}"
   if ! (
     set +eu
     cd "$VSS_APP_DIR"
@@ -444,10 +445,7 @@ PY
   export SCENESCAPE_MQTT_USER SCENESCAPE_MQTT_PASSWORD
 }
 
-deploy_smartnvr() {
-  render_frigate_config
-  read_scenescape_credentials
-
+export_smartnvr_env() {
   export HOST_IP="${FRIGATE_RTSP_HOST}"
   export NVR_SCENESCAPE=true
   export NVR_GENAI=false
@@ -466,6 +464,31 @@ deploy_smartnvr() {
   export TAG="${TAG:-latest}"
   export VLM_SERVING_IP="${VLM_SERVING_IP:-${HOST_IP}}"
   export VLM_SERVING_PORT="${VLM_SERVING_PORT:-9766}"
+}
+
+deploy_frigate() {
+  render_frigate_config
+  export_smartnvr_env
+
+  info "Starting Frigate, MQTT broker, and Redis"
+  (cd "$SMART_NVR_ROOT" && docker compose -f docker/compose.yaml up -d frigate mqtt-broker redis)
+
+  info "Waiting for Frigate RTSP to be ready"
+  local retries=30
+  while (( retries > 0 )); do
+    if curl -fsS "http://localhost:${FRIGATE_HTTP_PORT}/" >/dev/null 2>&1; then
+      info "Frigate is healthy"
+      return
+    fi
+    sleep 5
+    (( retries-- ))
+  done
+  warn "Frigate health check timed out — continuing anyway"
+}
+
+deploy_smartnvr() {
+  read_scenescape_credentials
+  export_smartnvr_env
 
   info "Starting SmartNVR stack"
   (cd "$SMART_NVR_ROOT" && docker compose -f docker/compose.yaml up -d)
@@ -602,6 +625,13 @@ do_cleanup() {
   if [[ -f "${VSS_APP_DIR}/setup.sh" ]]; then
     (set +eu; cd "$VSS_APP_DIR"; source ./setup.sh --clean-data) >"${LOG_DIR}/vss-cleanup.log" 2>&1 || warn "VSS clean-data returned non-zero; see ${LOG_DIR}/vss-cleanup.log"
   fi
+  # Clean SceneScape Docker volumes
+  local ss_volumes
+  ss_volumes=$(docker volume ls -q --filter 'name=metro-vision-ai-app-recipe*' 2>/dev/null || true)
+  if [[ -n "$ss_volumes" ]]; then
+    info "Removing metro-vision-ai-app-recipe Docker volumes"
+    echo "$ss_volumes" | xargs docker volume rm 2>/dev/null || warn "Some SceneScape volumes could not be removed"
+  fi
   # rm -rf "$EDGE_AI_LIBRARIES_DIR"
   rm -f "${DEPLOY_STATE_DIR}"/*.sha256
   info "Cleanup complete. Demo videos and SceneScape generated secrets were preserved."
@@ -628,8 +658,9 @@ run_run() {
   info "=== Starting full stack ==="
   read_supass
   start_vss
-  deploy_smartnvr
+  deploy_frigate
   start_scenescape
+  deploy_smartnvr
   seed_demo_rules
   verify_all
 }
