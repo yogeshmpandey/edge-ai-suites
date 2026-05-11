@@ -495,6 +495,7 @@ deploy_smartnvr() {
 }
 
 seed_demo_rules() {
+  sleep 5
   info "Seeding demo SceneScape rules"
 
   # Only seed when no rules exist at all
@@ -590,7 +591,7 @@ verify_all() {
       info "  rtsp://${FRIGATE_RTSP_HOST}:${FRIGATE_RTSP_PORT}/${camera}"
     done
     info "Important URLs: "
-    info "  NVR UI: https://${FRIGATE_RTSP_HOST}":${FRIGATE_HTTP_PORT}
+    info "  NVR UI: http://${FRIGATE_RTSP_HOST}":${FRIGATE_HTTP_PORT}
     info "  SmartNVR UI: http://${FRIGATE_RTSP_HOST}:${SMARTNVR_UI_PORT}"
     info "  Intel VSS Search UI: http://${FRIGATE_RTSP_HOST}:${VSS_SEARCH_PORT}"
     info "  Scenescape UI: https://${FRIGATE_RTSP_HOST}"
