@@ -8,7 +8,6 @@ services:
       - nvr-network
     ports:
       - "5000:5000" 
-      - "8554:8554"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/"]
       interval: 1m
@@ -35,7 +34,6 @@ services:
       FRIGATE_MQTT_USER: ${MQTT_USER}
       OPENAI_BASE_URL: "http://${VLM_SERVING_IP}:${VLM_SERVING_PORT}/v1"
       OPENAI_API_KEY: "your_openai_api_key" 
-      GO2RTC_ALLOW_ARBITRARY_EXEC: "true"
   
   nvr-event-router:
     container_name: nvr-event-router

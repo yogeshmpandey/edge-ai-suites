@@ -29,7 +29,7 @@ SceneScape MQTT
   -> VSS search API
 ```
 
-For single-node demo deployment, Frigate is the video restreamer and recorder. SceneScape consumes Frigate RTSP streams, publishes metadata to its MQTT broker, and SmartNVR subscribes with `NVR_SCENESCAPE=true`.
+For single-node demo deployment, MediaMTX serves the demo RTSP streams, while Frigate records them and SceneScape consumes the same streams for analytics. SceneScape publishes metadata to its MQTT broker, and SmartNVR subscribes with `NVR_SCENESCAPE=true`.
 
 ## Codebase Conventions
 
@@ -45,7 +45,7 @@ For single-node demo deployment, Frigate is the video restreamer and recorder. S
 - `scripts/single_node_deploy.sh` owns generated demo state under `.deploy-state/single-node/`.
 - The script should be idempotent: check rendered config hashes and container health before restarting services.
 - Recommended port policy:
-  - Frigate owns host RTSP port `8554`.
+  - MediaMTX owns host RTSP port `8554`.
   - SceneScape broker owns host MQTT port `1883`.
   - SmartNVR MQTT broker remains on host `1884` for Frigate events.
 - The script uses the sibling `../metro-vision-ai-app-recipe` path for SceneScape/Smart Intersection assets.

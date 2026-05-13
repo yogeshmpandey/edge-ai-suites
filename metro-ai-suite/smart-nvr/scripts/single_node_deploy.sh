@@ -43,16 +43,22 @@ VIDEO_BRANCH="${VIDEO_BRANCH:-main}"
 VIDEO_URL="${VIDEO_URL:-https://github.com/open-edge-platform/edge-ai-resources/raw/refs/heads/${VIDEO_BRANCH}/videos}"
 
 FRIGATE_HTTP_PORT="${FRIGATE_HTTP_PORT:-5000}"
-FRIGATE_RTSP_HOST="${FRIGATE_RTSP_HOST:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
-FRIGATE_RTSP_HOST="${FRIGATE_RTSP_HOST:-localhost}"
-FRIGATE_RTSP_PORT="${FRIGATE_RTSP_PORT:-8554}"
+DETECTED_HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+RTSP_STREAM_BIND_IP="${RTSP_STREAM_BIND_IP:-0.0.0.0}"
+RTSP_STREAM_HOST="${RTSP_STREAM_HOST:-${FRIGATE_RTSP_HOST:-${DETECTED_HOST_IP}}}"
+RTSP_STREAM_PORT="${RTSP_STREAM_PORT:-${FRIGATE_RTSP_PORT:-8554}}"
+FRIGATE_RTSP_HOST="${FRIGATE_RTSP_HOST:-${RTSP_STREAM_HOST}}"
+FRIGATE_RTSP_PORT="${FRIGATE_RTSP_PORT:-${RTSP_STREAM_PORT}}"
 SMARTNVR_API_PORT="${SMARTNVR_API_PORT:-8000}"
 SMARTNVR_UI_PORT="${SMARTNVR_UI_PORT:-7860}"
 SCENESCAPE_MQTT_PORT="${SCENESCAPE_MQTT_PORT:-1883}"
 SMARTNVR_MQTT_PORT="${SMARTNVR_MQTT_PORT:-1884}"
 VSS_SEARCH_PORT="${VSS_SEARCH_PORT:-12345}"
+MEDIAMTX_PROJECT="${MEDIAMTX_PROJECT:-smartnvr-mediamtx}"
+STREAMER_COMPOSE_FILE="${SMART_NVR_ROOT}/streamer/docker-compose.yml"
 
 CAMERAS=(camera1 camera2 camera3 camera4)
+CAMERA_VIDEOS=(1122north_h264.ts 1122east_h264.ts 1122south_h264.ts 1122west_h264.ts)
 REQUESTED_VIDEOS=(1122east_h264.ts 1122west_h264.ts 1122north_h264.ts 1122south_h264.ts)
 
 ACTION=""
@@ -68,7 +74,7 @@ Commands (mutually exclusive):
   --setup      First-time setup: validate prereqs, clone deps, download
                videos, render configs, and build Docker images.
                Does NOT start services.
-  --run        Start all services (VSS, SmartNVR, SceneScape) and verify.
+  --run        Start all services (MediaMTX, VSS, Frigate, SmartNVR, SceneScape) and verify.
   --down       Gracefully stop all running services.
   --cleanup    Stop services, clean data, remove volumes & cloned repos.
   --help       Show this help message.
@@ -180,6 +186,64 @@ ensure_disk_space() {
   if (( available_kb < 20971520 )); then
     warn "Less than 20 GiB free under ${SMART_NVR_ROOT}; VSS images/models may require more disk space."
   fi
+}
+
+validate_rtsp_settings() {
+  case "$RTSP_STREAM_HOST" in
+    ""|localhost|127.*|0.0.0.0)
+      die "RTSP_STREAM_HOST must be this host's LAN IP or DNS name reachable from containers. Detected '${RTSP_STREAM_HOST:-empty}'."
+      ;;
+  esac
+  [[ "$RTSP_STREAM_PORT" =~ ^[0-9]+$ ]] || die "RTSP_STREAM_PORT must be numeric; got '${RTSP_STREAM_PORT}'."
+}
+
+wait_for_rtsp_streams() {
+  info "Waiting for MediaMTX RTSP streams"
+  local retries=30
+  while (( retries > 0 )); do
+    local ready=true
+    local camera
+    for camera in "${CAMERAS[@]}"; do
+      if ! docker exec rtsp-publisher sh -c "timeout 10 ffprobe -v error -rtsp_transport tcp -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 'rtsp://mediamtx:8554/${camera}' | grep -q video" >/dev/null 2>&1; then
+        ready=false
+        break
+      fi
+    done
+    if [[ "$ready" == true ]]; then
+      info "MediaMTX is serving all RTSP streams"
+      return
+    fi
+    sleep 3
+    (( retries-- ))
+  done
+  die "MediaMTX did not start serving all camera streams. Check docker logs rtsp-publisher and mediamtx."
+}
+
+start_rtsp_streamer() {
+  validate_rtsp_settings
+  local video_dir="${SMART_NVR_ROOT}/resources/videos"
+  local i
+  [[ -f "$STREAMER_COMPOSE_FILE" ]] || die "MediaMTX streamer compose file not found: ${STREAMER_COMPOSE_FILE}"
+  for i in "${!CAMERA_VIDEOS[@]}"; do
+    [[ -f "${video_dir}/${CAMERA_VIDEOS[$i]}" ]] || die "Missing demo video for ${CAMERAS[$i]}: ${video_dir}/${CAMERA_VIDEOS[$i]}. Run --setup first."
+  done
+
+  if docker port frigate-vms 8554/tcp >/dev/null 2>&1; then
+    info "Stopping existing Frigate RTSP port mapping before starting MediaMTX"
+    (cd "$SMART_NVR_ROOT" && docker compose -f docker/compose.yaml stop frigate) || docker stop frigate-vms >/dev/null
+  fi
+
+  info "Starting MediaMTX RTSP server on ${RTSP_STREAM_BIND_IP}:${RTSP_STREAM_PORT}"
+  (cd "$SMART_NVR_ROOT" && RTSP_STREAM_BIND_IP="$RTSP_STREAM_BIND_IP" RTSP_STREAM_PORT="$RTSP_STREAM_PORT" docker compose -p "$MEDIAMTX_PROJECT" -f "$STREAMER_COMPOSE_FILE" up -d)
+  wait_for_rtsp_streams
+}
+
+stop_rtsp_streamer() {
+  if [[ -f "$STREAMER_COMPOSE_FILE" ]]; then
+    (cd "$SMART_NVR_ROOT" && docker compose -p "$MEDIAMTX_PROJECT" -f "$STREAMER_COMPOSE_FILE" down) || warn "Failed to stop MediaMTX RTSP stack"
+    return
+  fi
+  docker rm -f rtsp-publisher mediamtx >/dev/null 2>&1 || true
 }
 
 export_vss_env() {
@@ -294,7 +358,25 @@ render_frigate_config() {
   local source="${SMART_NVR_ROOT}/resources/frigate-config/config-scenescape.yml"
   backup_once "$target" "frigate-config.yml"
 
-  cp "$source" "$target"
+  validate_rtsp_settings
+  CONFIG_TARGET="$target" \
+  CONFIG_TEMPLATE="$source" \
+  RTSP_HOST="$RTSP_STREAM_HOST" \
+  RTSP_PORT="$RTSP_STREAM_PORT" \
+  python3 - <<'PY'
+import os
+from pathlib import Path
+
+target = Path(os.environ["CONFIG_TARGET"])
+template = Path(os.environ["CONFIG_TEMPLATE"])
+content = template.read_text(encoding="utf-8")
+content = (
+    content
+    .replace("{RTSP_STREAM_IP}", os.environ["RTSP_HOST"])
+    .replace("{RTSP_STREAM_PORT}", os.environ["RTSP_PORT"])
+)
+target.write_text(content, encoding="utf-8")
+PY
   write_state_hash "frigate-config" "$target"
 }
 
@@ -307,8 +389,8 @@ render_scenescape_config() {
 
   CONFIG_TARGET="$target" \
   CONFIG_TEMPLATE="$template" \
-  RTSP_HOST="$FRIGATE_RTSP_HOST" \
-  RTSP_PORT="$FRIGATE_RTSP_PORT" \
+  RTSP_HOST="$RTSP_STREAM_HOST" \
+  RTSP_PORT="$RTSP_STREAM_PORT" \
   python3 - <<'PY'
 import json
 import os
@@ -410,7 +492,7 @@ prepare_scenescape() {
   info "Running install.sh smart-intersection to set up SceneScape assets"
   (
     cd "$METRO_RECIPE_DIR"
-    ./install.sh smart-intersection "${FRIGATE_RTSP_HOST}"
+    ./install.sh smart-intersection "${RTSP_STREAM_HOST}"
   )
   render_scenescape_config
   prepare_scenescape_compose
@@ -446,7 +528,7 @@ PY
 }
 
 export_smartnvr_env() {
-  export HOST_IP="${FRIGATE_RTSP_HOST}"
+  export HOST_IP="${RTSP_STREAM_HOST}"
   export NVR_SCENESCAPE=true
   export NVR_GENAI=false
   export MQTT_USER="${MQTT_USER:-mqtt}"
@@ -473,17 +555,32 @@ deploy_frigate() {
   info "Starting Frigate, MQTT broker, and Redis"
   (cd "$SMART_NVR_ROOT" && docker compose -f docker/compose.yaml up -d frigate mqtt-broker redis)
 
-  info "Waiting for Frigate RTSP to be ready"
+  info "Waiting for Frigate HTTP API to be ready"
   local retries=30
   while (( retries > 0 )); do
     if curl -fsS "http://localhost:${FRIGATE_HTTP_PORT}/" >/dev/null 2>&1; then
       info "Frigate is healthy"
+      break
+    fi
+    sleep 5
+    (( retries-- ))
+  done
+  if (( retries == 0 )); then
+    warn "Frigate health check timed out — continuing anyway"
+    return
+  fi
+
+  info "Waiting for Frigate camera ingest"
+  retries=30
+  while (( retries > 0 )); do
+    if verify_frigate; then
+      info "Frigate is ingesting all camera streams"
       return
     fi
     sleep 5
     (( retries-- ))
   done
-  warn "Frigate health check timed out — continuing anyway"
+  warn "Frigate camera ingest check timed out — continuing anyway"
 }
 
 deploy_smartnvr() {
@@ -525,10 +622,27 @@ verify_vss() {
 }
 
 verify_frigate() {
-  curl -fsS "http://localhost:${FRIGATE_HTTP_PORT}/api/go2rtc/streams" | grep -q "${CAMERAS[0]}" &&
-  curl -fsS "http://localhost:${FRIGATE_HTTP_PORT}/api/go2rtc/streams" | grep -q "${CAMERAS[1]}" &&
-  curl -fsS "http://localhost:${FRIGATE_HTTP_PORT}/api/go2rtc/streams" | grep -q "${CAMERAS[2]}" &&
-  curl -fsS "http://localhost:${FRIGATE_HTTP_PORT}/api/go2rtc/streams" | grep -q "${CAMERAS[3]}"
+  local cameras_csv
+  cameras_csv="$(IFS=,; echo "${CAMERAS[*]}")"
+  curl -fsS "http://localhost:${FRIGATE_HTTP_PORT}/api/stats" | CAMERAS_CSV="$cameras_csv" python3 -c '
+import json
+import os
+import sys
+
+stats = json.load(sys.stdin)
+cameras = stats.get("cameras", {})
+missing = []
+for camera in os.environ["CAMERAS_CSV"].split(","):
+    camera_stats = cameras.get(camera, {})
+    try:
+        fps = float(camera_stats.get("camera_fps") or 0)
+    except (TypeError, ValueError):
+        fps = 0
+    if fps <= 0:
+        missing.append(camera)
+if missing:
+    raise SystemExit(f"Frigate camera_fps not ready for: {missing}")
+'
 }
 
 verify_scenescape() {
@@ -567,7 +681,7 @@ verify_all() {
   local vss=false frigate=false scenescape=false smartnvr=false rules=false
 
   verify_vss && vss=true || warn "VSS search endpoint is not reachable at http://localhost:${VSS_SEARCH_PORT}"
-  verify_frigate && frigate=true || warn "Frigate go2rtc streams are not all visible at http://localhost:${FRIGATE_HTTP_PORT}/api/go2rtc/streams"
+  verify_frigate && frigate=true || warn "Frigate is not ingesting all MediaMTX camera streams"
   verify_scenescape && scenescape=true || warn "One or more SceneScape containers are not running"
   verify_smartnvr && smartnvr=true || warn "SmartNVR API health check failed"
   if curl -fsS "http://localhost:${SMARTNVR_API_PORT}/rules/" | grep -q 'add to search'; then
@@ -579,7 +693,7 @@ verify_all() {
   printf '\n| Component                    | Status     |\n'
   printf '|------------------------------|------------|\n'
   print_status "VSS search" "$vss"
-  print_status "Frigate RTSP/recording" "$frigate"
+  print_status "Frigate recording" "$frigate"
   print_status "SceneScape" "$scenescape"
   print_status "SmartNVR API" "$smartnvr"
   print_status "Demo rules" "$rules"
@@ -588,13 +702,13 @@ verify_all() {
     info "Single-node demo deployment verified"
     info "Live Camera streams:"
     for camera in "${CAMERAS[@]}"; do
-      info "  rtsp://${FRIGATE_RTSP_HOST}:${FRIGATE_RTSP_PORT}/${camera}"
+      info "  rtsp://${RTSP_STREAM_HOST}:${RTSP_STREAM_PORT}/${camera}"
     done
     info "Important URLs: "
-    info "  NVR UI: http://${FRIGATE_RTSP_HOST}":${FRIGATE_HTTP_PORT}
-    info "  SmartNVR UI: http://${FRIGATE_RTSP_HOST}:${SMARTNVR_UI_PORT}"
-    info "  Intel VSS Search UI: http://${FRIGATE_RTSP_HOST}:${VSS_SEARCH_PORT}"
-    info "  Scenescape UI: https://${FRIGATE_RTSP_HOST}"
+    info "  NVR UI: http://${RTSP_STREAM_HOST}:${FRIGATE_HTTP_PORT}"
+    info "  SmartNVR UI: http://${RTSP_STREAM_HOST}:${SMARTNVR_UI_PORT}"
+    info "  Intel VSS Search UI: http://${RTSP_STREAM_HOST}:${VSS_SEARCH_PORT}"
+    info "  Scenescape UI: https://${RTSP_STREAM_HOST}"
     info "Scenescape login username: admin"
     info "Scenescape login password: ${SUPASS}"
     return
@@ -606,6 +720,7 @@ verify_all() {
 do_down() {
   info "Stopping all services"
   compose_down_if_exists "${SMART_NVR_ROOT}/docker/compose.yaml" "$SMART_NVR_ROOT"
+  stop_rtsp_streamer
   if [[ -f "${METRO_RECIPE_DIR}/docker-compose.yml" ]]; then
     (cd "$METRO_RECIPE_DIR" && docker compose down) || warn "Failed to stop SceneScape docker compose stack"
   else
@@ -641,6 +756,7 @@ do_cleanup() {
 run_setup() {
   info "=== First-time setup ==="
   validate_docker
+  validate_rtsp_settings
   ensure_disk_space
   clone_vss_repo
   download_videos
@@ -658,6 +774,7 @@ read_supass() {
 run_run() {
   info "=== Starting full stack ==="
   read_supass
+  start_rtsp_streamer
   start_vss
   deploy_frigate
   start_scenescape

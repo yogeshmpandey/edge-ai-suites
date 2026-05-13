@@ -22,25 +22,12 @@ record:
     days: 1
     mode: all
 
-go2rtc:
-  rtsp:
-    listen: ":8554"
-  streams:
-    camera1:
-      - "exec:/usr/lib/ffmpeg/7.0/bin/ffmpeg -hide_banner -re -stream_loop -1 -i /videos/1122north_h264.ts -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -level:v 3.1 -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 -pix_fmt yuv420p -avoid_negative_ts make_zero -rtsp_transport tcp -f rtsp {{output}}"
-    camera2:
-      - "exec:/usr/lib/ffmpeg/7.0/bin/ffmpeg -hide_banner -re -stream_loop -1 -i /videos/1122east_h264.ts -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -level:v 3.1 -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 -pix_fmt yuv420p -avoid_negative_ts make_zero -rtsp_transport tcp -f rtsp {{output}}"
-    camera3:
-      - "exec:/usr/lib/ffmpeg/7.0/bin/ffmpeg -hide_banner -re -stream_loop -1 -i /videos/1122south_h264.ts -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -level:v 3.1 -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 -pix_fmt yuv420p -avoid_negative_ts make_zero -rtsp_transport tcp -f rtsp {{output}}"
-    camera4:
-      - "exec:/usr/lib/ffmpeg/7.0/bin/ffmpeg -hide_banner -re -stream_loop -1 -i /videos/1122west_h264.ts -c:v libx264 -preset ultrafast -tune zerolatency -profile:v baseline -level:v 3.1 -g 30 -keyint_min 30 -sc_threshold 0 -bf 0 -pix_fmt yuv420p -avoid_negative_ts make_zero -rtsp_transport tcp -f rtsp {{output}}"
-
 cameras:
   camera1:
     ffmpeg:
       inputs:
-        - path: rtsp://127.0.0.1:8554/camera1
-          input_args: preset-rtsp-restream
+        - path: rtsp://{RTSP_STREAM_IP}:{RTSP_STREAM_PORT}/camera1
+          input_args: preset-rtsp-generic
           roles:
             - record
       output_args:
@@ -60,8 +47,8 @@ cameras:
   camera2:
     ffmpeg:
       inputs:
-        - path: rtsp://127.0.0.1:8554/camera2
-          input_args: preset-rtsp-restream
+        - path: rtsp://{RTSP_STREAM_IP}:{RTSP_STREAM_PORT}/camera2
+          input_args: preset-rtsp-generic
           roles:
             - record
       output_args:
@@ -81,8 +68,8 @@ cameras:
   camera3:
     ffmpeg:
       inputs:
-        - path: rtsp://127.0.0.1:8554/camera3
-          input_args: preset-rtsp-restream
+        - path: rtsp://{RTSP_STREAM_IP}:{RTSP_STREAM_PORT}/camera3
+          input_args: preset-rtsp-generic
           roles:
             - record
       output_args:
@@ -102,8 +89,8 @@ cameras:
   camera4:
     ffmpeg:
       inputs:
-        - path: rtsp://127.0.0.1:8554/camera4
-          input_args: preset-rtsp-restream
+        - path: rtsp://{RTSP_STREAM_IP}:{RTSP_STREAM_PORT}/camera4
+          input_args: preset-rtsp-generic
           roles:
             - record
       output_args:

@@ -30,7 +30,7 @@ The Smart NVR is a next-generation network video recorder that integrates GenAI-
 
 ## Single-Node Demo Deployment
 
-Use `scripts/single_node_deploy.sh` to deploy the full SceneScape SmartNVR demo on one node: VSS search, Frigate RTSP restreaming/recording, SceneScape analytics, and SmartNVR event routing to VSS search.
+Use `scripts/single_node_deploy.sh` to deploy the full SceneScape SmartNVR demo on one node: VSS search, MediaMTX RTSP streaming, Frigate recording, SceneScape analytics, and SmartNVR event routing to VSS search.
 
 ### Prerequisites
 
@@ -54,7 +54,7 @@ The script supplies local demo defaults for VSS credentials and model settings w
 2. Clones `edge-ai-libraries` at commit `7a27eab2ba3fe99baf59e45ff4d193f60011362a` and starts VSS in search mode.
 3. Downloads the four demo `.ts` videos and verifies them under `resources/videos/`.
 4. Configures Frigate to loop-play the videos, expose four RTSP streams, and record clips while detection/snapshots/motion are disabled.
-5. Renders SceneScape DL Streamer config so SceneScape consumes the Frigate RTSP streams.
+5. Starts MediaMTX and renders Frigate plus SceneScape DL Streamer configs so both consume the same RTSP streams.
 6. Prepares SceneScape in the sibling `../metro-vision-ai-app-recipe` app, then starts it with the same flow used manually: `./install.sh smart-intersection` followed by `docker compose up -d`.
 7. Starts SmartNVR with SceneScape MQTT and VSS search wiring, seeds demo SceneScape rules, and prints a component status table.
 
@@ -74,8 +74,8 @@ Cleanup stops the SmartNVR, SceneScape, and VSS stacks, restores the previous Fr
 
 - **Docker permission denied**: Add your user to the `docker` group or run with appropriate privileges.
 - **Docker pull fails**: Check internet, registry, and proxy settings.
-- **Port conflict on 8554 or 1883**: Stop services using those ports; this demo reserves 8554 for Frigate RTSP and 1883 for the SceneScape broker.
+- **Port conflict on 8554 or 1883**: Stop services using those ports; this demo reserves 8554 for MediaMTX RTSP and 1883 for the SceneScape broker.
 - **VSS setup fails**: Check `.deploy-state/single-node/logs/vss-setup-search.log`.
-- **Frigate streams missing**: Check `http://localhost:5000/api/go2rtc/streams` and `docker logs frigate-vms`.
+- **Frigate streams missing**: Check the MediaMTX publishers with `docker logs rtsp-publisher` and Frigate ingest with `http://localhost:5000/api/stats`.
 - **SceneScape MQTT errors**: Verify SceneScape secrets exist under `../metro-vision-ai-app-recipe/smart-intersection/src/secrets/` and check `docker logs nvr-event-router`.
 - **No VSS uploads**: Confirm the seeded `source=scenescape` rules exist in SmartNVR and that SceneScape events are arriving.
