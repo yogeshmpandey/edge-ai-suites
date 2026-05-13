@@ -36,7 +36,16 @@ services:
               -i "$$file" \
               -map 0:v:0 \
               -map 0:a:0? \
-              -c:v copy \
+              -c:v libx264 \
+              -preset ultrafast \
+              -tune zerolatency \
+              -profile:v baseline \
+              -level:v 3.1 \
+              -g 30 \
+              -keyint_min 30 \
+              -sc_threshold 0 \
+              -bf 0 \
+              -pix_fmt yuv420p \
               -c:a copy \
               -f rtsp \
               -rtsp_transport tcp \

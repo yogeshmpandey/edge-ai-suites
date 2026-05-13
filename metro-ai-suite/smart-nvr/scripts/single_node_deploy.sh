@@ -622,6 +622,7 @@ verify_vss() {
 }
 
 verify_frigate() {
+  sleep 5
   local cameras_csv
   cameras_csv="$(IFS=,; echo "${CAMERAS[*]}")"
   curl -fsS "http://localhost:${FRIGATE_HTTP_PORT}/api/stats" | CAMERAS_CSV="$cameras_csv" python3 -c '
