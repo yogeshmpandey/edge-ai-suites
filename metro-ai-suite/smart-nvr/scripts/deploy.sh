@@ -72,7 +72,7 @@ RI_MQTT_PORT="${RI_MQTT_PORT:-}"
 
 usage() {
   cat <<USAGE
-Usage: ./single_node_deploy.sh [--setup | --run | --down | --cleanup | --help]
+Usage: ./deploy.sh [--setup | --run | --down | --cleanup | --help]
 
 Deployment helper for SmartNVR + VSS Search + Metro AI (SceneScape) demo.
 At startup, choose single-node or dual-node deployment. In dual mode, choose:

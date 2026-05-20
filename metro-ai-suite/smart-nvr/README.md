@@ -28,9 +28,9 @@ The Smart NVR is a next-generation network video recorder that integrates GenAI-
 - **Release Notes**
   - [Release Notes](./docs/user-guide/release-notes.md): Information on the latest updates, improvements, and bug fixes.
 
-## Single-Node Demo Deployment
+## Single/Dual-Node Demo Deployment
 
-Use `scripts/single_node_deploy.sh` to deploy the full SceneScape SmartNVR demo on one node: VSS search, MediaMTX RTSP streaming, Frigate recording, SceneScape analytics, and SmartNVR event routing to VSS search.
+Use `scripts/deploy.sh` to deploy the full SceneScape SmartNVR demo on one/two node: VSS search, MediaMTX RTSP streaming, Frigate recording, SceneScape analytics, and SmartNVR event routing to VSS search.
 
 ### Prerequisites
 
@@ -65,7 +65,7 @@ The script is idempotent. It stores deployment state under `.deploy-state/single
 ### Cleanup
 
 ```bash
-bash scripts/single_node_deploy.sh --cleanup
+bash scripts/deploy.sh --cleanup
 ```
 
 Cleanup stops the SmartNVR, SceneScape, and VSS stacks, restores the previous Frigate config when a backup exists, removes the cloned `edge-ai-libraries` deployment copy, and preserves downloaded videos and SceneScape-generated secrets.

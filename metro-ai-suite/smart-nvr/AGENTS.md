@@ -42,7 +42,7 @@ For single-node demo deployment, MediaMTX serves the demo RTSP streams, while Fr
 
 ## Single-Node Deployment Notes
 
-- `scripts/single_node_deploy.sh` owns generated demo state under `.deploy-state/single-node/`.
+- `scripts/deploy.sh` owns generated demo state under `.deploy-state/single-node/`.
 - The script should be idempotent: check rendered config hashes and container health before restarting services.
 - Recommended port policy:
   - MediaMTX owns host RTSP port `8554`.
