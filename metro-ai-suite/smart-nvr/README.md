@@ -51,7 +51,7 @@ The script supplies local demo defaults for VSS credentials and model settings w
 ### What the Script Does
 
 1. Validates Docker, Docker Compose v2, daemon access, and registry access.
-2. Clones `edge-ai-libraries` at commit `7a27eab2ba3fe99baf59e45ff4d193f60011362a` and starts VSS in search mode.
+2. Clones `edge-ai-libraries` at tag `v2026.1.0-rc1` and starts VSS in search mode.
 3. Downloads the four demo `.ts` videos and verifies them under `resources/videos/`.
 4. Configures Frigate to loop-play the videos, expose four RTSP streams, and record clips while detection/snapshots/motion are disabled.
 5. Starts MediaMTX and renders Frigate plus SceneScape DL Streamer configs so both consume the same RTSP streams.

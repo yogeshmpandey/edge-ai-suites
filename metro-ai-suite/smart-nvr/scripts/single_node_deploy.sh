@@ -38,7 +38,7 @@ EDGE_AI_LIBRARIES_DIR="${EDGE_AI_LIBRARIES_DIR:-${DEPLOY_STATE_DIR}/edge-ai-libr
 VSS_APP_DIR="${EDGE_AI_LIBRARIES_DIR}/sample-applications/video-search-and-summarization"
 
 EDGE_AI_LIBRARIES_URL="${EDGE_AI_LIBRARIES_URL:-https://github.com/open-edge-platform/edge-ai-libraries.git}"
-EDGE_AI_LIBRARIES_COMMIT="${EDGE_AI_LIBRARIES_COMMIT:-7a27eab2ba3fe99baf59e45ff4d193f60011362a}"
+EDGE_AI_LIBRARIES_COMMIT="${EDGE_AI_LIBRARIES_COMMIT:-v2026.1.0-rc1}"
 VIDEO_BRANCH="${VIDEO_BRANCH:-main}"
 VIDEO_URL="${VIDEO_URL:-https://github.com/open-edge-platform/edge-ai-resources/raw/refs/heads/${VIDEO_BRANCH}/videos}"
 
@@ -431,7 +431,7 @@ stop_rtsp_streamer() {
 
 export_vss_env() {
   export REGISTRY_URL="${REGISTRY_URL:-intel}"
-  export TAG="${TAG:-latest}"
+  export TAG="${TAG:-2026.1.0-rc1}"
   export MINIO_ROOT_USER="${MINIO_ROOT_USER:-minio}"
   export MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-minio_minio}"
   export POSTGRES_USER="${POSTGRES_USER:-postgres}"
@@ -445,7 +445,7 @@ export_vss_env() {
   export VCLIP_MODEL="${VCLIP_MODEL:-openai/clip-vit-base-patch32}"
   export QWEN_MODEL="${QWEN_MODEL:-Qwen/Qwen3-Embedding-0.6B}"
   export EMBEDDING_PROCESSING_MODE="${EMBEDDING_PROCESSING_MODE:-sdk}"
-  export EMBEDDING_MODEL_NAME="${EMBEDDING_MODEL_NAME:-CLIP/clip-vit-b-32}"
+  export MULTIMODAL_EMBEDDING_MODEL="${EMBEDDING_MODEL_NAME:-CLIP/clip-vit-b-32}"
   export SDK_MODEL_ID="${SDK_MODEL_ID:-CLIP/clip-vit-b-32}"
   export SDK_USE_OPENVINO="${SDK_USE_OPENVINO:-true}"
   export TEXT_EMBEDDING_MODEL_NAME="${TEXT_EMBEDDING_MODEL_NAME:-QwenText/qwen3-embedding-0.6b}"
@@ -465,17 +465,18 @@ vss_healthy() {
 }
 
 clone_vss_repo() {
-  info "Cloning/updating VSS repo at pinned commit ${EDGE_AI_LIBRARIES_COMMIT}"
+  info "Cloning/updating VSS repo at pinned ref ${EDGE_AI_LIBRARIES_COMMIT}"
   if [[ -d "${EDGE_AI_LIBRARIES_DIR}/.git" ]]; then
-    (cd "$EDGE_AI_LIBRARIES_DIR" && git fetch --quiet origin "$EDGE_AI_LIBRARIES_COMMIT")
+    (cd "$EDGE_AI_LIBRARIES_DIR" && git fetch --quiet --tags origin)
   else
     git clone "$EDGE_AI_LIBRARIES_URL" "$EDGE_AI_LIBRARIES_DIR"
   fi
 
-  local current_commit dirty
+  local current_commit target_commit dirty
   current_commit="$(cd "$EDGE_AI_LIBRARIES_DIR" && git rev-parse HEAD 2>/dev/null || true)"
+  target_commit="$(cd "$EDGE_AI_LIBRARIES_DIR" && git rev-parse "${EDGE_AI_LIBRARIES_COMMIT}^{commit}" 2>/dev/null || true)"
   dirty="$(cd "$EDGE_AI_LIBRARIES_DIR" && git status --porcelain)"
-  if [[ "$current_commit" != "$EDGE_AI_LIBRARIES_COMMIT" ]]; then
+  if [[ "$current_commit" != "$target_commit" ]]; then
     [[ -z "$dirty" ]] || die "edge-ai-libraries has local changes at ${EDGE_AI_LIBRARIES_DIR}; commit/stash them or rerun with a clean clone."
     (cd "$EDGE_AI_LIBRARIES_DIR" && git checkout --quiet "$EDGE_AI_LIBRARIES_COMMIT")
   fi
@@ -727,8 +728,8 @@ export_smartnvr_env() {
   export SCENESCAPE_MQTT_BROKER="${SCENESCAPE_MQTT_BROKER:-${SCENESCAPE_MQTT_TLS_HOSTNAME}}"
   export SCENESCAPE_MQTT_PORT="${SCENESCAPE_MQTT_PORT}"
   export SCENESCAPE_THROTTLE_INTERVAL="${SCENESCAPE_THROTTLE_INTERVAL:-2.0}"
-    export REGISTRY="${REGISTRY:-}"
-  export TAG="${TAG:-latest}"
+  export REGISTRY="${REGISTRY:-}"
+  export TAG="${TAG:-2026.1.0-rc1}"
   export VLM_SERVING_IP="${VLM_SERVING_IP:-${HOST_IP}}"
   export VLM_SERVING_PORT="${VLM_SERVING_PORT:-9766}"
 }
