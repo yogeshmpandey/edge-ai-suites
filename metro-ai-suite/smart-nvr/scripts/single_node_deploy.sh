@@ -46,7 +46,6 @@ FRIGATE_HTTP_PORT="${FRIGATE_HTTP_PORT:-5000}"
 DETECTED_HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 LOCAL_HOST_IP="${DETECTED_HOST_IP}"
 RTSP_STREAM_BIND_IP="${RTSP_STREAM_BIND_IP:-0.0.0.0}"
-RTSP_STREAM_HOST_WAS_SET="${RTSP_STREAM_HOST+x}"
 RTSP_STREAM_HOST="${RTSP_STREAM_HOST:-${FRIGATE_RTSP_HOST:-${DETECTED_HOST_IP}}}"
 RTSP_STREAM_PORT="${RTSP_STREAM_PORT:-${FRIGATE_RTSP_PORT:-8554}}"
 FRIGATE_RTSP_HOST="${FRIGATE_RTSP_HOST:-${RTSP_STREAM_HOST}}"
@@ -162,6 +161,8 @@ select_deploy_target() {
     dual)
       if [[ -z "$DUAL_PHASE" ]]; then
         if [[ -t 0 ]]; then
+          printf '\n%s\n' "  setup1 = Smart Intersection RI + MediaMTX RTSP streams (video source machine)"
+          printf '%s\n\n' "  setup2 = VSS + Frigate + SmartNVR (analytics & recording machine)"
           prompt_choice DUAL_PHASE "Select dual-node phase for this machine" "setup1" "setup1 setup2"
         else
           die "DUAL_SETUP_PHASE must be set to setup1 or setup2 when DEPLOY_MODE=dual in non-interactive mode."
@@ -695,25 +696,6 @@ start_scenescape() {
   )
 }
 
-read_scenescape_credentials() {
-  local auth_file="${SOURCE}/secrets/browser.auth"
-  [[ -f "$auth_file" ]] || die "SceneScape browser.auth not found at ${auth_file}"
-  local creds
-  creds="$(python3 - "$auth_file" <<'PY'
-import json
-import sys
-with open(sys.argv[1], encoding="utf-8") as fh:
-    data = json.load(fh)
-print(data.get("user", ""))
-print(data.get("password", ""))
-PY
-)"
-  SCENESCAPE_MQTT_USER="$(printf '%s\n' "$creds" | sed -n '1p')"
-  SCENESCAPE_MQTT_PASSWORD="$(printf '%s\n' "$creds" | sed -n '2p')"
-  [[ -n "$SCENESCAPE_MQTT_USER" && -n "$SCENESCAPE_MQTT_PASSWORD" ]] || die "Could not parse SceneScape MQTT credentials from ${auth_file}"
-  export SCENESCAPE_MQTT_USER SCENESCAPE_MQTT_PASSWORD
-}
-
 export_smartnvr_env() {
   export HOST_IP="${LOCAL_HOST_IP}"
   export NVR_SCENESCAPE=true
@@ -954,6 +936,10 @@ verify_dual_setup1() {
   for camera in "${CAMERAS[@]}"; do
     info "  rtsp://${RTSP_STREAM_HOST}:${RTSP_STREAM_PORT}/${camera}"
   done
+  info "Important URLs:"
+  info "  Scenescape UI: https://${RTSP_STREAM_HOST}"
+  info "Scenescape login username: admin"
+  info "Scenescape login password: ${SUPASS}"
 }
 
 verify_dual_setup2() {
@@ -1027,7 +1013,6 @@ do_cleanup() {
     info "Removing metro-vision-ai-app-recipe Docker volumes"
     echo "$ss_volumes" | xargs docker volume rm 2>/dev/null || warn "Some SceneScape volumes could not be removed"
   fi
-  # rm -rf "$EDGE_AI_LIBRARIES_DIR"
   rm -f "${DEPLOY_STATE_DIR}"/*.sha256
   info "Cleanup complete. Demo videos and SceneScape generated secrets were preserved."
 }
