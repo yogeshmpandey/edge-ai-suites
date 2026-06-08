@@ -70,6 +70,8 @@ spec:
               value: {{ .Values.env.logLevel | quote }}
             - name: CORS_ORIGINS
               value: {{ .Values.env.corsOrigins | quote }}
+            - name: PROMETHEUS_POLLER_INTERVAL_MS
+              value: {{ .Values.env.pollIntervalMs | quote }}
             {{- include "lvc.proxyEnv" . | nindent 12 }}
           livenessProbe:
             httpGet:

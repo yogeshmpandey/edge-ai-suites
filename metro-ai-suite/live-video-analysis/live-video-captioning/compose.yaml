@@ -209,6 +209,9 @@ services:
       - METRICS_PORT=9090
       - LOG_LEVEL=INFO
       - CORS_ORIGINS=*
+      # Interval (ms) at which the SSE stream pushes metrics to the dashboard.
+      # Lower = more frequent UI updates, higher CPU. Range: 100-5000.
+      - PROMETHEUS_POLLER_INTERVAL_MS=${METRICS_POLL_INTERVAL_MS:-1000}
     ports:
       - "${METRICS_SERVICE_PORT:-9090}:9090"
       - "9273:9273"

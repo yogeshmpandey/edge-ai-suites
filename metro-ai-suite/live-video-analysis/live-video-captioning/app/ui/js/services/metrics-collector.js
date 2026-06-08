@@ -47,8 +47,6 @@ const MetricsCollectorService = (function () {
         let gpuFreqValue = null;
         let gpuTempValue = null;
         let npuUtilization = null;
-        let npuPowerValue = null;
-        let npuFreqValue = null;
 
         metrics.forEach(metric => {
             const { name, value } = metric;
@@ -99,14 +97,6 @@ const MetricsCollectorService = (function () {
                 case 'npu_utilization':
                     npuUtilization = value;
                     break;
-
-                case 'npu_power':
-                    npuPowerValue = value;
-                    break;
-
-                case 'npu_frequency':
-                    npuFreqValue = value;
-                    break;
             }
         });
 
@@ -155,12 +145,7 @@ const MetricsCollectorService = (function () {
             ChartManager.pushStatSample('npu', npuUtilization);
 
             if (npuVal) {
-                let npuText = `${npuUtilization.toFixed(1)}%`;
-                const extras = [];
-                if (npuFreqValue !== null) extras.push(`${npuFreqValue} MHz`);
-                if (npuPowerValue !== null) extras.push(`${npuPowerValue.toFixed(1)}W`);
-                if (extras.length > 0) npuText += ` (${extras.join(', ')})`;
-                npuVal.textContent = npuText;
+                npuVal.textContent = `${npuUtilization.toFixed(1)}%`;
             }
             // Reveal the NPU stat only once data is present
             if (npuStat) npuStat.style.display = '';

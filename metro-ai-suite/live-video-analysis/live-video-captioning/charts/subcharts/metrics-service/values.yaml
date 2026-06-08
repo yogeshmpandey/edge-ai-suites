@@ -42,6 +42,10 @@ env:
   # CORS allowed origins.
   # Type: string
   corsOrigins: "*"
+  # Interval (ms) at which the SSE stream pushes metrics to dashboard clients.
+  # Lower = more frequent UI updates, higher CPU per client. Range: 100-5000.
+  # Type: string
+  pollIntervalMs: "1000"
 
 podSecurityContext:
   # Required for hardware access
