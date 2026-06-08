@@ -717,6 +717,8 @@
             gpuPower: document.getElementById('gpuPower'),
             gpuTemp: document.getElementById('gpuTemp'),
             gpuError: document.getElementById('gpuError'),
+            npuVal: document.getElementById('npuVal'),
+            npuStat: document.getElementById('npuStat'),
         };
 
         MetricsCollectorService.init(elements);

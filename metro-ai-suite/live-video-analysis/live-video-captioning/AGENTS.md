@@ -63,8 +63,6 @@ live-video-captioning/
 │   └── ...                       # Tokenizer configs, model weights
 ├── ov_detection_models/          # Object detection models (YOLOv8)
 │   └── yolov8s/
-├── collector/                    # Metrics collection config
-│   └── telegraf.conf
 ├── mosquitto/                    # MQTT broker configuration
 │   └── mosquitto.conf
 ├── compose.yaml                  # Docker Compose orchestration

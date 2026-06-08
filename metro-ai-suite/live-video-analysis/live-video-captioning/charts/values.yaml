@@ -169,18 +169,9 @@ video-caption-service:
   # Shared models PVC name. Leave empty to auto-derive from release name.
   modelsPvcName: ""       # defaults to <release>-live-video-captioning-models
 
-# ── live-metrics-service ─────────────────────────────────────────────────────
-live-metrics-service:
-  fullnameOverride: "live-metrics-service"
-
-# ── collector ────────────────────────────────────────────────────────────────
-collector:
-  fullnameOverride: "collector"
-
-  # Host path on the node used to emit collector signal files (e.g. fps.txt).
-  # The DaemonSet mounts this host directory at /app/.collector-signals.
-  # Type: string
-  collectorSignalsHostPath: "/tmp/lvc/collector-signals"
+# ── metrics-service ──────────────────────────────────────────────────────────
+metrics-service:
+  fullnameOverride: "metrics-service"
 
 # ── multimodal-embedding ───────────────────────────────────────────────────
 multimodal-embedding:

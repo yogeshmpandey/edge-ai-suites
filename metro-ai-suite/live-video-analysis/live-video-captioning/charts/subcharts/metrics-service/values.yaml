@@ -1,0 +1,67 @@
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+# metrics-service/values.yaml
+#
+# ⚠️  Security notice:
+# The metrics-service runs with hostPID=true and privileged=true. This is
+# necessary for hardware metrics collection (CPU freq, GPU and NPU via qmassa).
+# Ensure your cluster policy (PodSecurityAdmission / OPA) allows this.
+
+fullnameOverride: ""
+
+# ⚠️  Do NOT set replicaCount > 1. metrics-service uses hostPort binding, so
+# multiple replicas on the same node will conflict on the port.
+replicaCount: 1
+
+image:
+  repository: intel/metrics-manager
+  # Type: string
+  tag: "2026.1.0-rc2"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  # HTTP API + SSE stream port (/metrics/stream, /api/v1/metrics).
+  # Type: integer
+  port: 9090
+  # NodePort/hostPort exposed on the host for the HTTP API.
+  # Type: integer
+  nodePort: 9090
+  # Prometheus scrape port.
+  # Type: integer
+  prometheusPort: 9273
+
+env:
+  # Port the metrics HTTP API listens on.
+  # Type: string
+  metricsPort: "9090"
+  # Log verbosity.
+  # Type: string  [DEBUG | INFO | WARNING | ERROR]
+  logLevel: "INFO"
+  # CORS allowed origins.
+  # Type: string
+  corsOrigins: "*"
+
+podSecurityContext:
+  # Required for hardware access
+  runAsUser: 0
+
+securityContext:
+  privileged: true
+  allowPrivilegeEscalation: true
+
+# Run with host PID namespace (required for qmassa GPU/NPU monitoring).
+# Type: boolean
+hostPID: true
+
+resources:
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+podAnnotations: {}
+podLabels: {}
