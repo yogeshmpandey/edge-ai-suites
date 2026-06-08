@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
+from backend.models import ModelInfo
 
 from backend.services.discovery import (
     discover_models,
@@ -38,9 +39,12 @@ class TestDiscoverModels:
     def test_discovers_subdirectory_models(self, models_dir):
         """Each subdirectory name is returned as a model name."""
         (models_dir / "InternVL2-1B").mkdir()
-        (models_dir / "InternVL2-2B").mkdir()
+        (models_dir / "InternVL2-2B-gpu").mkdir()
         result = discover_models(models_dir)
-        assert result == ["InternVL2-1B", "InternVL2-2B"]
+        assert result == [
+            ModelInfo(name="InternVL2-1B", device="cpu"),
+            ModelInfo(name="InternVL2-2B-gpu", device="gpu"),
+        ]
 
     def test_discovers_flat_file_models(self, models_dir):
         """XML, BIN, and JSON files in the root are returned as models."""
@@ -48,7 +52,8 @@ class TestDiscoverModels:
         (models_dir / "model.bin").write_text("")
         (models_dir / "config.json").write_text("")
         result = discover_models(models_dir)
-        assert set(result) == {"config.json", "model.bin", "model.xml"}
+        assert {m.name for m in result} == {"config.json", "model.bin", "model.xml"}
+        assert all(m.device == "cpu" for m in result)
 
     def test_ignores_dotfiles(self, models_dir):
         """Hidden files/directories (starting with '.') are skipped."""
@@ -56,7 +61,7 @@ class TestDiscoverModels:
         (models_dir / ".hidden_file.json").write_text("")
         (models_dir / "visible_model").mkdir()
         result = discover_models(models_dir)
-        assert result == ["visible_model"]
+        assert result == [ModelInfo(name="visible_model", device="cpu")]
 
     def test_ignores_unsupported_extensions(self, models_dir):
         """Files with extensions other than .xml, .bin, .json are skipped."""
@@ -68,7 +73,7 @@ class TestDiscoverModels:
         """Returned model names are sorted alphabetically."""
         for name in ["Zeta", "Alpha", "Mid"]:
             (models_dir / name).mkdir()
-        assert discover_models(models_dir) == ["Alpha", "Mid", "Zeta"]
+        assert [m.name for m in discover_models(models_dir)] == ["Alpha", "Mid", "Zeta"]
 
 
 # ===================================================================

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Dict
 from fastapi import HTTPException
 from ..config import PIPELINE_NAME, PIPELINE_SERVER_URL, ENABLE_DETECTION_PIPELINE
+from ..models import ModelInfo, PipelineInfo, ModelList, PipelineInfoList
 from .http_client import http_json
 
 _PIPELINE_DISPLAY_NAME_MAP = {
@@ -11,6 +12,41 @@ _PIPELINE_DISPLAY_NAME_MAP = {
     "GenAI_Camera_Detection_Pipeline_on_CPU": "GenAI_Detection_Pipeline_on_CPU",
     "GenAI_Camera_Detection_Pipeline_on_GPU": "GenAI_Detection_Pipeline_on_GPU",
 }
+
+
+def _infer_model_device(name: str) -> str:
+    """Infer target device from the model directory name suffix convention.
+
+    Naming convention written by download_models.sh:
+      <model>-npu  → npu
+      <model>-gpu  → gpu
+      <model>      → cpu  (default, no suffix)
+    """
+    lower = name.lower()
+    if lower.endswith("-npu"):
+        return "npu"
+    if lower.endswith("-gpu"):
+        return "gpu"
+    return "cpu"
+
+
+def _infer_pipeline_device(name: str) -> str:
+    """Infer target device from the pipeline name.
+
+    DL Streamer pipeline naming convention:
+      *_on_NPU  → npu
+      *_on_GPU  → gpu
+      *_on_CPU  → cpu
+      anything else → any
+    """
+    upper = name.upper()
+    if upper.endswith("_ON_NPU"):
+        return "npu"
+    if upper.endswith("_ON_GPU"):
+        return "gpu"
+    if upper.endswith("_ON_CPU"):
+        return "cpu"
+    return "any"
 
 
 def get_pipeline_display_name(pipeline_name: str) -> str:
@@ -41,20 +77,23 @@ def _default_pipeline_names(gpu_available: bool) -> set[str]:
     return {"GenAI_Pipeline_on_CPU", "GenAI_Camera_Pipeline_on_CPU"}
 
 
-def discover_models(root: Path) -> List[str]:
-    """Discover available models from the models directory."""
+def discover_models(root: Path) -> List[ModelInfo]:
+    """Discover available models from the models directory.
+
+    Returns a list of ModelInfo objects with name and inferred device tag.
+    """
     if not root.exists():
         return []
-    models: List[str] = []
+    models: List[ModelInfo] = []
     for entry in sorted(root.iterdir()):
         if entry.name.startswith("."):
             continue
         if entry.is_dir():
-            models.append(entry.name)
+            models.append(ModelInfo(name=entry.name, device=_infer_model_device(entry.name)))
         else:
             # Allow flat exports placed directly under ov_models
             if entry.suffix in {".xml", ".bin", ".json"}:
-                models.append(entry.name)
+                models.append(ModelInfo(name=entry.name, device=_infer_model_device(entry.name)))
     return models
 
 
@@ -103,9 +142,10 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
     Discover available pipelines from the pipeline server and return a List of dicts:
     {
       "pipeline_name": <name>,
-            "pipeline_display_name": <display_name>,
-      "pipeline_type": "detection" | "non-detection"
-            "pipeline_default": bool
+      "pipeline_display_name": <display_name>,
+      "pipeline_type": "detection" | "non-detection",
+      "pipeline_default": true | false,
+      "device": "cpu" | "gpu" | "npu" | "any"
     }
 
     Behavior:
@@ -113,6 +153,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
     - Classifies using is_detection_pipeline(item) when item is a dict
     - Defaults string-only items to 'non-detection' (no metadata to inspect)
     - Optionally filters out detection pipelines when ENABLE_DETECTION_PIPELINE is False
+    - Infers device from pipeline name suffix (_on_CPU/GPU/NPU)
     """
     url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines"
     try:
@@ -135,6 +176,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
                     "pipeline_name": PIPELINE_NAME,
                     "pipeline_display_name": get_pipeline_display_name(PIPELINE_NAME),
                     "pipeline_type": "non-detection",
+                    "device": _infer_pipeline_device(PIPELINE_NAME),
                 }
             ]
 
@@ -168,6 +210,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
                     "pipeline_name": name,
                     "pipeline_display_name": get_pipeline_display_name(name),
                     "pipeline_type": pipeline_type,
+                    "device": _infer_pipeline_device(name),
                 }
             )
 
@@ -215,6 +258,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
                     "pipeline_display_name": get_pipeline_display_name(PIPELINE_NAME),
                     "pipeline_type": "non-detection",
                     "pipeline_default": True,
+                    "device": _infer_pipeline_device(PIPELINE_NAME),
                 }
             ]
 
@@ -230,5 +274,6 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
                 "pipeline_display_name": get_pipeline_display_name(PIPELINE_NAME),
                 "pipeline_type": "non-detection",
                 "pipeline_default": True,
+                "device": _infer_pipeline_device(PIPELINE_NAME),
             }
         ]

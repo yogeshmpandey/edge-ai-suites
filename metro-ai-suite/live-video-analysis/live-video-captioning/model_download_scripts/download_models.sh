@@ -217,7 +217,15 @@ if [[ "${MODEL_TYPE}" == "vlm" || "${MODEL_TYPE}" == "llm" ]]; then
   fi
 
   if [[ "${MODEL_TYPE}" == "vlm" ]]; then
-    TARGET_DIR="${FINAL_DIR}/${MODEL_BASENAME}"
+    DEVICE_UPPER="${DEVICE^^}"
+    if [[ "$DEVICE_UPPER" == "NPU" ]]; then
+        DEVICE_SUFFIX="-npu"
+      elif [[ "$DEVICE_UPPER" == "GPU" ]]; then
+        DEVICE_SUFFIX="-gpu"
+      else
+        DEVICE_SUFFIX=""
+      fi
+    TARGET_DIR="${FINAL_DIR}/${MODEL_BASENAME}${DEVICE_SUFFIX}"
   elif [[ "${MODEL_TYPE}" == "llm" ]]; then
     # For LLMs, preserve the org/model structure if present
     TARGET_DIR="${FINAL_DIR}/${MODEL}"

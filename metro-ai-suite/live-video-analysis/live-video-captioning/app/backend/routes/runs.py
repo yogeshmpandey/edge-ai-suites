@@ -16,6 +16,7 @@ from ..config import (
     MQTT_TOPIC_PREFIX,
     WEBRTC_BITRATE,
     ENABLE_EMBEDDING,
+    NPU_FORCED_RESOLUTION,
 )
 from ..models import RunInfo, StartRunRequest
 from ..models.requests import DEFAULT_PROMPT
@@ -136,11 +137,25 @@ def _build_pipeline_parameters(req: StartRunRequest, run_id: str) -> dict:
         },
     }
 
+    # TODO: This is a temporary workaround to force lower resolution for NPU pipelines that don't support higher resolutions.
+    # This requires changes to the dlstreamer pipeline server API and will remove once the fix is available.
+    is_npu_pipeline = "npu" in (req.pipelineName or "").lower()
+
+    if is_npu_pipeline:
+        frame_width = NPU_FORCED_RESOLUTION
+        frame_height = NPU_FORCED_RESOLUTION
+        logger.debug(
+            f"NPU pipeline detected: forcing resolution to {NPU_FORCED_RESOLUTION}x{NPU_FORCED_RESOLUTION}"
+        )
+    else:
+        frame_width = req.frameWidth
+        frame_height = req.frameHeight
+
     optional_parameters = {
         "captioner_frame_rate": req.frameRate,
         "captioner_chunk_size": req.chunkSize,
-        "frame_width": req.frameWidth,
-        "frame_height": req.frameHeight,
+        "frame_width": frame_width,
+        "frame_height": frame_height,
     }
     parameters.update(
         {key: value for key, value in optional_parameters.items() if value is not None}

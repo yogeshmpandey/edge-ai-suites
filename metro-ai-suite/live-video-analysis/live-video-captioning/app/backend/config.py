@@ -57,3 +57,6 @@ EMBEDDING_API_URL = os.environ.get(
 
 # Enable/Disable Embedding
 ENABLE_EMBEDDING = os.environ.get("ENABLE_EMBEDDING", "false").lower() in ("true", "1", "yes")
+
+# Forced NPU resolution
+NPU_FORCED_RESOLUTION = os.environ.get("NPU_FORCED_RESOLUTION", 150)

@@ -23,8 +23,17 @@ class RunInfo(BaseModel):
     frameHeight: Optional[int] = None
 
 
+class ModelInfo(BaseModel):
+    name: str
+    device: Literal["cpu", "gpu", "npu"]
+
+
 class ModelList(BaseModel):
-    models: list[str]
+    models: list[ModelInfo]
+
+
+class DetectionModelList(BaseModel):
+    models: List[str]
 
 
 class PipelineInfo(BaseModel):
@@ -32,6 +41,7 @@ class PipelineInfo(BaseModel):
     pipeline_display_name: Optional[str] = None
     pipeline_type: Literal["detection", "non-detection"]
     pipeline_default: bool = False
+    device: Literal["cpu", "gpu", "npu", "any"] = "any"
 
 
 class PipelineInfoList(BaseModel):

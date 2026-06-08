@@ -38,6 +38,7 @@
         alertRulesList: document.getElementById('alertRulesList'),
         addAlertRuleBtn: document.getElementById('addAlertRuleBtn'),
         pipelineServerError: document.getElementById('pipelineServerError'),
+        modelCompatibilityWarning: document.getElementById('modelCompatibilityWarning'),
     };
 
     const state = {
@@ -354,19 +355,92 @@
         });
     }
 
-    function setModelOptions(models) {
+    function setModelOptions(models, previousSelection) {
         const select = els.modelNameSelect;
         if (!select) return;
         select.innerHTML = '';
-        const list = Array.isArray(models) && models.length ? models : [ApiService.DEFAULT_MODEL];
-        for (const name of list) {
+
+        // Accept both ModelInfo objects {name, device} and legacy plain strings
+        const list = Array.isArray(models)
+            ? models.map((m) => (typeof m === 'string' ? { name: m, device: 'cpu' } : m))
+            : [];
+
+        // Hide warning by default; will be shown below if needed
+        if (els.modelCompatibilityWarning) {
+            els.modelCompatibilityWarning.style.display = 'none';
+            els.modelCompatibilityWarning.textContent = '';
+        }
+
+        if (!list.length) {
+            // Show disabled placeholder so the select is not empty
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'No compatible models';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            select.appendChild(placeholder);
+
+            // Determine the right warning message
+            let msg;
+            const pipelineOpt = els.pipelineSelect?.options[els.pipelineSelect.selectedIndex];
+            const pipelineDevice = pipelineOpt?.dataset?.device;
+            if (ApiService.didModelsFetchFail()) {
+                msg = '⚠ Could not load model list. Is the backend running?';
+            } else if (pipelineDevice && pipelineDevice !== 'any') {
+                msg = `⚠ No ${pipelineDevice.toUpperCase()} models found. ` +
+                    `Download a ${pipelineDevice}-optimised model first (see model-preparation guide).`;
+            } else {
+                msg = '⚠ No models found in the models directory. Download a model first.';
+            }
+
+            if (els.modelCompatibilityWarning) {
+                els.modelCompatibilityWarning.textContent = msg;
+                els.modelCompatibilityWarning.style.display = '';
+            }
+
+            // Disable start button — no model to run with
+            if (els.startBtn) els.startBtn.disabled = true;
+            return;
+        }
+
+        // Re-enable start button now that we have models
+        if (els.startBtn) els.startBtn.disabled = false;
+
+        for (const { name } of list) {
             const opt = document.createElement('option');
             opt.value = name;
             opt.textContent = name;
             select.appendChild(opt);
         }
-        const preferred = list.includes(ApiService.DEFAULT_MODEL) ? ApiService.DEFAULT_MODEL : list[0];
-        select.value = preferred;
+
+        // Restore previous selection if still compatible, otherwise pick first
+        const names = list.map((m) => m.name);
+        const restore = previousSelection && names.includes(previousSelection)
+            ? previousSelection
+            : names[0];
+        select.value = restore;
+    }
+
+    /**
+     * Filter the full model list to those compatible with the given pipeline device.
+     * Strict one-to-one matching: cpu↔cpu, gpu↔gpu, npu↔npu.
+     * "any" pipeline device means show all models.
+     */
+    function getCompatibleModels(pipelineDevice) {
+        const all = ApiService.getAllModels();
+        if (!pipelineDevice || pipelineDevice === 'any') return all;
+        return all.filter((m) => m.device === pipelineDevice);
+    }
+
+    /** Re-populate the model dropdown based on the currently selected pipeline device. */
+    function refreshModelsBySelectedPipeline() {
+        const select = els.pipelineSelect;
+        if (!select || select.selectedIndex < 0) return;
+        const selectedOpt = select.options[select.selectedIndex];
+        const pipelineDevice = selectedOpt?.dataset?.device || 'any';
+        const previousModel = els.modelNameSelect?.value || null;
+        const compatible = getCompatibleModels(pipelineDevice);
+        setModelOptions(compatible, previousModel);
     }
 
     function setDetectionModelOptions(models) {
@@ -491,7 +565,9 @@
         if (!select) return;
         select.innerHTML = '';
 
-        const list = Array.isArray(pipelines) ? pipelines : [];
+        const list = Array.isArray(pipelines)
+            ? pipelines
+            : [{ pipeline_name: ApiService.DEFAULT_PIPELINE, pipeline_type: 'non-detection', device: 'cpu' }];
 
         if (list.length === 0) {
             const opt = document.createElement('option');
@@ -512,11 +588,13 @@
             const displayName = (typeof it.pipeline_display_name === 'string' && it.pipeline_display_name.trim())
                 ? it.pipeline_display_name
                 : it.pipeline_name;
+            const d = ['cpu', 'gpu', 'npu', 'any'].includes(it.device) ? it.device : 'any';
             map.set(it.pipeline_name, {
                 pipeline_name: it.pipeline_name,
                 pipeline_display_name: displayName,
                 pipeline_type: t,
                 pipeline_default: it.pipeline_default === true,
+                device: d,
             });
         }
         const normalized = Array.from(map.values()).sort((a, b) => {
@@ -526,13 +604,14 @@
             return a.pipeline_name.localeCompare(b.pipeline_name);
         });
 
-        for (const { pipeline_name, pipeline_display_name, pipeline_type } of normalized) {
+        for (const { pipeline_name, pipeline_display_name, pipeline_type, device } of normalized) {
             const opt = document.createElement('option');
             opt.value = pipeline_name;
             opt.textContent = pipeline_type === 'detection'
                 ? `${pipeline_display_name}  [Detection]`
                 : pipeline_display_name;
             opt.dataset.pipelineType = pipeline_type;
+            opt.dataset.device = device;
             select.appendChild(opt);
         }
 
@@ -542,18 +621,20 @@
         }
 
         toggleDetectionFieldsByText();
+        refreshModelsBySelectedPipeline();
     }
 
     async function loadModels() {
         try {
-            const models = await ApiService.fetchModels();
-            setModelOptions(models);
+            await ApiService.fetchModels();
+            // Initial model population is driven by pipeline selection
+            refreshModelsBySelectedPipeline();
             SettingsManager.restoreSelectValues(els);
             updatePipelineInfo('Models loaded');
         } catch (_err) {
-            setModelOptions([ApiService.DEFAULT_MODEL]);
+            setModelOptions([]);
             SettingsManager.restoreSelectValues(els);
-            updatePipelineInfo('Model list unavailable, using default');
+            updatePipelineInfo('Model list unavailable');
         }
     }
 
@@ -831,7 +912,7 @@
             : (els.rtspInput?.value || '').trim();
         const defaultPrompt = cfg.defaultPrompt || 'Describe what you see in one sentence.';
         const prompt = (els.promptInput.value || '').trim() || defaultPrompt;
-        const modelName = (els.modelNameSelect?.value || '').trim() || ApiService.DEFAULT_MODEL;
+        const modelName = (els.modelNameSelect?.value || '').trim();
         const pipelineName = (els.pipelineSelect?.value || '').trim();
         if (!pipelineName) {
             updatePipelineInfo('No compatible pipeline available for selected stream source type.');
@@ -1012,7 +1093,10 @@
         }
 
         if (els.pipelineSelect) {
-            els.pipelineSelect.addEventListener('change', toggleDetectionFieldsByText);
+            els.pipelineSelect.addEventListener('change', () => {
+                toggleDetectionFieldsByText();
+                refreshModelsBySelectedPipeline();
+            });
         }
 
         if (els.streamSourceTypeSelect) {
