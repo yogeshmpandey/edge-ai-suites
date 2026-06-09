@@ -741,6 +741,50 @@ iframe {
     min-height: 0;
 }
 
+/* Video wrapper hosts the iframe plus the "Connecting…" overlay */
+.video-wrap {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #000;
+}
+
+.video-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(5, 8, 20, 0.82);
+    color: var(--text);
+    z-index: 2;
+    border-radius: 8px;
+}
+
+.video-overlay-text {
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+}
+
+.video-overlay-spinner {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.18);
+    border-top-color: var(--accent);
+    animation: video-overlay-spin 0.9s linear infinite;
+}
+
+@keyframes video-overlay-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Alert rules sub-box */
 .alert-rules-box {
     background: var(--input-bg);

@@ -51,6 +51,12 @@ env:
   hls: "no"
   webrtcTrackGatherTimeout: "30s"
   webrtcAddress: ":8889"
+  # Networks allowed to call the mediamtx HTTP API (api/metrics/pprof actions).
+  # mediamtx's default auth grants these only to localhost, so cross-pod calls
+  # from video-caption-service get 401 and the stream-readiness probe never sees
+  # a publisher.
+  # Type: string (comma-separated CIDRs)
+  apiAllowedIPs: "127.0.0.1,::1,172.16.0.0/12"
   # coturn service name used for TURN URL.
   # Type: string
   coturnServiceName: "coturn"

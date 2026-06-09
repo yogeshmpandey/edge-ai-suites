@@ -38,7 +38,7 @@ const MetricsCollectorService = (function () {
     }
 
     function processCollectorMetrics(metrics, elements) {
-        const { cpuVal, ramVal, gpuVal, gpuDetail, gpuEngines, gpuFreq, gpuPower, gpuTemp, gpuError, npuVal, npuStat } = elements;
+        const { cpuVal, ramVal, gpuVal, gpuStat, gpuDetail, gpuEngines, gpuFreq, gpuPower, gpuTemp, gpuError, npuVal, npuStat } = elements;
 
         // Per-batch accumulators
         const gpuEngineData = new Map();
@@ -135,6 +135,8 @@ const MetricsCollectorService = (function () {
             ChartManager.pushStatSample('gpu', maxGpuUsage);
             if (gpuVal) gpuVal.textContent = `${maxGpuUsage.toFixed(1)}%`;
 
+            // Reveal the GPU stat only once data is present
+            if (gpuStat) gpuStat.style.display = '';
             // Mark GPU as available
             if (gpuDetail) gpuDetail.style.display = 'block';
             if (gpuError) gpuError.style.display = 'none';

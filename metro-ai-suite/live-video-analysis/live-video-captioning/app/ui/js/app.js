@@ -593,6 +593,8 @@
 
     function tearDownRun(runId, current, message) {
         console.log(`Tearing down run ${runId}`);
+        // Cancel any in-flight stream-readiness polling for this run
+        if (typeof current?.cancelVideoPolling === 'function') current.cancelVideoPolling();
         // Remove UI reference from multiplexed stream handler
         MetadataStreamService.unregisterRunUI(runId);
         if (current?.wrap) current.wrap.remove();
@@ -634,12 +636,76 @@
         }
     }
 
-    function attachRunStreams(run, ui) {
+    function loadRunVideo(run, ui) {
         const base = resolveSignalingBase(cfg.signalingUrl);
         if (base) {
             ui.video.src = `${base}/${run.peerId}`;
         }
+        if (ui.videoOverlay) ui.videoOverlay.style.display = 'none';
+    }
 
+    function showStreamStartupError(runId, ui) {
+        // Guard against double-application: the SSE status heartbeat may also
+        // report this run as errored. The flag is shared with the metadata
+        // stream service so whichever path fires first wins.
+        if (ui._errorStateShown) return;
+        ui._errorStateShown = true;
+        RunCardComponent.setRunErrorState(ui, 'Stream failed to start, click Remove to clear');
+        RunCardComponent.setVideoOverlayError(ui, 'Stream failed to start');
+    }
+
+    function waitForStreamThenLoad(run, ui) {
+        // Poll the backend until the DL Streamer pipeline is RUNNING and the
+        // mediamtx WebRTC path has a publisher, then load the iframe. This avoids
+        // showing mediamtx's raw "stream not found, retrying" page while the
+        // pipeline spins up. If the pipeline leaves the RUNNING/QUEUED states
+        // (i.e. it failed to start the stream) the card is switched to an error
+        // state instead of loading the video.
+        const POLL_INTERVAL_MS = 1000;
+        const MAX_WAIT_MS = 45000;
+        const started = Date.now();
+        let cancelled = false;
+
+        if (ui.videoOverlay) ui.videoOverlay.style.display = '';
+
+        const poll = async () => {
+            if (cancelled) return;
+            // Stop polling if the run card was removed (e.g. user clicked Stop).
+            if (!state.runs.has(run.runId)) return;
+
+            const result = await ApiService.checkStreamReady(run.runId);
+            if (cancelled || !state.runs.has(run.runId)) return;
+
+            // Pipeline is no longer RUNNING/QUEUED – the stream will never come
+            // up, so surface an error instead of waiting indefinitely.
+            if (result.error) {
+                showStreamStartupError(run.runId, ui);
+                return;
+            }
+
+            if (result.ready) {
+                loadRunVideo(run, ui);
+                return;
+            }
+
+            if (Date.now() - started >= MAX_WAIT_MS) {
+                // Timed out. If the pipeline is still running, mediamtx is just
+                // slow – load the iframe anyway. Otherwise show an error.
+                if (result.state === 'running') {
+                    loadRunVideo(run, ui);
+                } else {
+                    showStreamStartupError(run.runId, ui);
+                }
+                return;
+            }
+            setTimeout(poll, POLL_INTERVAL_MS);
+        };
+
+        poll();
+        return () => { cancelled = true; };
+    }
+
+    function attachRunStreams(run, ui) {
         // Store UI reference for the multiplexed metadata stream
         MetadataStreamService.registerRunUI(run.runId, ui);
 
@@ -651,6 +717,13 @@
         // Keep references for UI teardown
         state.runs.get(run.runId).wrap = ui.wrap;
         state.runs.get(run.runId).stopBtn = ui.stopBtn;
+
+        // Gate the iframe load on real stream readiness instead of loading it
+        // immediately (the pipeline needs a few seconds to start publishing).
+        // Must run after the run is registered in state.runs so the poller's
+        // liveness check passes.
+        const cancelPolling = waitForStreamThenLoad(run, ui);
+        state.runs.get(run.runId).cancelVideoPolling = cancelPolling;
     }
 
     async function restoreActiveRuns() {
@@ -711,6 +784,7 @@
             cpuVal: document.getElementById('cpuVal'),
             ramVal: document.getElementById('ramVal'),
             gpuVal: document.getElementById('gpuVal'),
+            gpuStat: document.getElementById('gpuStat'),
             gpuDetail: document.getElementById('gpuDetail'),
             gpuEngines: document.getElementById('gpuEngines'),
             gpuFreq: document.getElementById('gpuFreq'),

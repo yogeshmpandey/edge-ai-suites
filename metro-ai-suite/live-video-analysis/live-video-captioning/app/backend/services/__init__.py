@@ -4,7 +4,7 @@ from .discovery import (
     discover_detection_models,
     discover_pipelines_remote,
 )
-from .http_client import http_json, try_get_json
+from .http_client import http_json, try_get_json, mediamtx_path_ready
 from .mqtt_subscriber import (
     MQTTSubscriber,
     get_mqtt_subscriber,
@@ -12,6 +12,7 @@ from .mqtt_subscriber import (
 )
 from .pipeline_health import (
     check_pipeline_health,
+    get_pipeline_state,
     start_pipeline_health_monitor,
     stop_pipeline_health_monitor,
 )
@@ -23,10 +24,12 @@ __all__ = [
     "discover_pipelines_remote",
     "http_json",
     "try_get_json",
+    "mediamtx_path_ready",
     "MQTTSubscriber",
     "get_mqtt_subscriber",
     "shutdown_mqtt_subscriber",
     "check_pipeline_health",
+    "get_pipeline_state",
     "start_pipeline_health_monitor",
     "stop_pipeline_health_monitor",
     "discover_capture_cameras",

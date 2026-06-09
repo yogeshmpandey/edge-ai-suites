@@ -19,7 +19,13 @@ from ..config import (
 )
 from ..models import RunInfo, StartRunRequest
 from ..models.requests import DEFAULT_PROMPT
-from ..services import discover_pipelines_remote, http_json, get_mqtt_subscriber
+from ..services import (
+    discover_pipelines_remote,
+    http_json,
+    get_mqtt_subscriber,
+    mediamtx_path_ready,
+    get_pipeline_state,
+)
 from ..state import RUNS
 
 router = APIRouter(prefix="/api", tags=["captions"])
@@ -27,6 +33,12 @@ logger = logging.getLogger("app.runs")
 WEBRTC_PEER_ID_MAX_LENGTH = 8
 WEBRTC_PEER_ID_PREFIX = "s"
 DEFAULT_RESOLUTION_SUFFIX = "_Default_Resolution"
+
+# Pipeline states reported by the DL Streamer pipeline server that are considered
+# healthy while a stream is starting up. ``running`` means frames are flowing;
+# ``queued`` means the instance is scheduled and about to run. Any other state
+# (error, aborted, completed, …) means the stream has failed to come up.
+_HEALTHY_PIPELINE_STATES = {"running", "queued"}
 
 
 def _is_linux_video_device(source_uri: str) -> bool:
@@ -346,6 +358,74 @@ async def multiplexed_metadata_stream() -> StreamingResponse:
         media_type="text/event-stream",
         headers=headers,
     )
+
+
+@router.get("/generate_captions_alerts/{run_id}/stream-ready")
+async def stream_ready(run_id: str) -> dict[str, object]:
+    """Report whether the WebRTC stream for a run is publishing yet.
+
+    The DL Streamer pipeline needs a few seconds after start before it begins
+    publishing frames to mediamtx. The UI polls this endpoint and only loads the
+    video iframe once mediamtx has a publisher, avoiding mediamtx's "stream not
+    found, retrying" page.
+
+    Readiness is decided by mediamtx alone: an existing publisher is proof the
+    pipeline is running and pushing frames, so the common success path returns
+    immediately without waiting on ``/pipelines/status``. The pipeline state is
+    consulted *only* while the stream is not yet publishing, to fail fast when
+    the pipeline has left the ``RUNNING``/``QUEUED`` states (or vanished) instead
+    of leaving the UI stuck on "Connecting…".
+    """
+    info = RUNS.get(run_id)
+    if not info:
+        raise HTTPException(status_code=404, detail={"message": "Run not found"})
+
+    # Fast path: a mediamtx publisher means the stream is live. Report ready
+    # right away regardless of what /pipelines/status currently says.
+    if await asyncio.to_thread(mediamtx_path_ready, info.peerId):
+        return {
+            "runId": run_id,
+            "peerId": info.peerId,
+            "ready": True,
+            "state": "running",
+            "error": False,
+        }
+
+    # Not publishing yet – consult the pipeline state to decide whether to keep
+    # waiting or to surface a startup failure.
+    reachable, state = await asyncio.to_thread(get_pipeline_state, info.pipelineId)
+
+    # Pipeline server temporarily unreachable – treat as "still starting" and
+    # let the UI keep waiting; the health monitor handles persistent outages.
+    if not reachable:
+        return {
+            "runId": run_id,
+            "peerId": info.peerId,
+            "ready": False,
+            "state": None,
+            "error": False,
+        }
+
+    # The instance has vanished or entered a non-healthy state (error, aborted,
+    # completed, …). The stream will never come up – report a hard error.
+    if state is None or state not in _HEALTHY_PIPELINE_STATES:
+        info.status = "error"
+        return {
+            "runId": run_id,
+            "peerId": info.peerId,
+            "ready": False,
+            "state": state,
+            "error": True,
+        }
+
+    # Healthy (running or queued) but no publisher yet – keep waiting.
+    return {
+        "runId": run_id,
+        "peerId": info.peerId,
+        "ready": False,
+        "state": state,
+        "error": False,
+    }
 
 
 @router.get("/generate_captions_alerts/{run_id}")
