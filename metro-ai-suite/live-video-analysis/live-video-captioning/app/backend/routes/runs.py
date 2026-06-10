@@ -33,6 +33,22 @@ logger = logging.getLogger("app.runs")
 WEBRTC_PEER_ID_MAX_LENGTH = 8
 WEBRTC_PEER_ID_PREFIX = "s"
 DEFAULT_RESOLUTION_SUFFIX = "_Default_Resolution"
+TARGET_VLM_OVERRIDE_PIPELINES = {
+    "GenAI_RTSP_Pipeline_Software",
+    "GenAI_RTSP_Pipeline_Software_Default_Resolution",
+    "GenAI_RTSP_Pipeline_Hardware",
+    "GenAI_RTSP_Pipeline_Hardware_Default_Resolution",
+    "GenAI_Camera_Pipeline_Software",
+    "GenAI_Camera_Pipeline_Software_Default_Resolution",
+    "GenAI_Camera_Pipeline_Hardware",
+    "GenAI_Camera_Pipeline_Hardware_Default_Resolution",
+    "GenAI_Detection_RTSP_Pipeline_Software",
+    "GenAI_Detection_RTSP_Pipeline_Hardware",
+    "GenAI_Camera_Detection_Pipeline_Software",
+    "GenAI_Camera_Detection_Pipeline_Hardware",
+}
+CPU_SCHEDULER_CONFIG = "max_num_batched_tokens=256,cache_size=4,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
+GPU_SCHEDULER_CONFIG = "max_num_batched_tokens=512,cache_size=8,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
 
 # Pipeline states reported by the DL Streamer pipeline server that are considered
 # healthy while a stream is starting up. ``running`` means frames are flowing;
@@ -84,6 +100,22 @@ def _resolve_pipeline_name(requested_pipeline: str) -> str:
     )
 
 
+# TODO: This is a temporary workaround to force lower resolution for NPU runs that don't support higher resolutions.
+# This requires changes to the dlstreamer pipeline server API and will remove once the fix is available.
+def _normalize_pipeline_name_for_vlm_device(pipeline_name: str, vlm_device: str) -> str:
+    """Normalize pipeline aliases based on VLM device constraints.
+
+    NPU runs must avoid internal *_Default_Resolution aliases because NPU
+    resolution is enforced internally by backend parameters.
+    """
+    if (vlm_device or "").strip().lower() != "npu":
+        return pipeline_name
+    if not (pipeline_name or "").endswith(DEFAULT_RESOLUTION_SUFFIX):
+        return pipeline_name
+    return pipeline_name[: -len(DEFAULT_RESOLUTION_SUFFIX)]
+
+
+
 def _sanitize_run_name(run_name: str) -> str:
     """Normalize a user-supplied run name into a safe run identifier."""
     sanitized = re.sub(r"\s+", "_", run_name.strip())
@@ -121,14 +153,12 @@ def _generate_peer_id() -> str:
             return candidate
 
 
-def _build_pipeline_parameters(req: StartRunRequest, run_id: str) -> dict:
+def _build_pipeline_parameters(req: StartRunRequest, run_id: str, pipeline_name: str) -> dict:
+    selected_vlm_device = (req.vlmDevice or "").strip().lower()
+    selected_detection_device = (req.detectionDevice or "").strip().lower()
+    detection_model_name = (req.detectionModelName or "").strip() or "yolov8s"
+
     parameters = {
-        "captioner-prompt": (req.prompt or "").strip() or DEFAULT_PROMPT,
-        "captioner_model_name": (req.modelName or "").strip()
-        or "OpenGVLab/InternVL2-2B",
-        "captioner_max_new_tokens": req.maxNewTokens,
-        "detection_model_name": (req.detectionModelName or "").strip() or "yolov8s",
-        "detection_threshold": req.detectionThreshold,
         "mqtt_publisher": {
             "topic": f"{MQTT_TOPIC_PREFIX}/{run_id}",
             "publish_frame": bool(
@@ -137,23 +167,22 @@ def _build_pipeline_parameters(req: StartRunRequest, run_id: str) -> dict:
         },
     }
 
-    # TODO: This is a temporary workaround to force lower resolution for NPU pipelines that don't support higher resolutions.
+    # TODO: This is a temporary workaround to force lower resolution for NPU runs that don't support higher resolutions.
     # This requires changes to the dlstreamer pipeline server API and will remove once the fix is available.
-    is_npu_pipeline = "npu" in (req.pipelineName or "").lower()
+    is_npu_pipeline = selected_vlm_device == "npu"
 
     if is_npu_pipeline:
         frame_width = NPU_FORCED_RESOLUTION
         frame_height = NPU_FORCED_RESOLUTION
         logger.debug(
-            f"NPU pipeline detected: forcing resolution to {NPU_FORCED_RESOLUTION}x{NPU_FORCED_RESOLUTION}"
+            f"NPU device selected: forcing resolution to {NPU_FORCED_RESOLUTION}x{NPU_FORCED_RESOLUTION}"
         )
     else:
         frame_width = req.frameWidth
         frame_height = req.frameHeight
 
     optional_parameters = {
-        "captioner_frame_rate": req.frameRate,
-        "captioner_chunk_size": req.chunkSize,
+        "frame_rate": req.frameRate,
         "frame_width": frame_width,
         "frame_height": frame_height,
     }
@@ -162,24 +191,127 @@ def _build_pipeline_parameters(req: StartRunRequest, run_id: str) -> dict:
     )
 
     if req.chunkSize is not None:
-        parameters["captioner_queue_size"] = max(1, req.chunkSize)
+        parameters["queue_size"] = max(1, req.chunkSize)
+
+    if req.captionerProperties:
+        # Forward gvagenai element-properties as a dedicated pipeline parameter.
+        captioner_properties = dict(req.captionerProperties)
+        # NPU captioner initialization fails when scheduler-config is injected.
+        if is_npu_pipeline:
+            captioner_properties.pop("scheduler-config", None)
+        if captioner_properties:
+            parameters["captioner-properties"] = captioner_properties
+
+    # Detection device / pre-process-backend are substituted directly into the
+    # gvadetect element in the pipeline string (caps-affecting properties must be
+    # set before gst_parse_launch links the pipeline, otherwise hardware pipelines
+    # fail to link gvadetect to the VAMemory queue).
+    if selected_detection_device in {"cpu", "gpu", "npu"}:
+        # Hardware detection pipelines run gvadetect on VAMemory surfaces, which the
+        # CPU pre-process backend cannot consume; Software detection pipelines run on
+        # SYSTEM memory and only support CPU. Reject incompatible combinations so the
+        # pipeline does not fail later with an opaque gst_parse link error.
+        is_detection_pipeline = "Detection" in pipeline_name
+        if is_detection_pipeline:
+            if pipeline_name.endswith("_Hardware") and selected_detection_device == "cpu":
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": (
+                            f"Detection device 'cpu' is not supported by hardware "
+                            f"detection pipeline '{pipeline_name}'. Use 'gpu' or 'npu'."
+                        ),
+                    },
+                )
+            if pipeline_name.endswith("_Software") and selected_detection_device != "cpu":
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": (
+                            f"Detection device '{selected_detection_device}' is not "
+                            f"supported by software detection pipeline '{pipeline_name}'. "
+                            "Use 'cpu'."
+                        ),
+                    },
+                )
+        pre_process_backend = {
+            "cpu": "opencv",
+            "gpu": "va-surface-sharing",
+            "npu": "va",
+        }[selected_detection_device]
+        parameters.update(
+            {
+                "detection_model_name": detection_model_name,
+                "detection_threshold": req.detectionThreshold,
+                "detection_device": selected_detection_device.upper(),
+                "detection_pre_process_backend": pre_process_backend,
+            }
+        )
+
+    if (
+        selected_vlm_device in {"cpu", "gpu", "npu"}
+        and pipeline_name in TARGET_VLM_OVERRIDE_PIPELINES
+    ):
+        model_name = (req.modelName or "").strip() or "OpenGVLab/InternVL2-2B"
+        prompt = (req.prompt or "").strip() or DEFAULT_PROMPT
+
+        captioner_properties: dict[str, object] = {
+            "device": selected_vlm_device.upper(),
+            "model-path": f"/home/pipeline-server/models/{model_name}",
+            "prompt": prompt,
+            "chunk-size": req.chunkSize or 1,
+        }
+
+        if selected_vlm_device == "npu":
+            captioner_properties["generation-config"] = (
+                f"max_new_tokens={req.maxNewTokens},num_beams=1,do_sample=false,"
+                "temperature=0.1,repetition_penalty=1.1,MAX_PROMPT_LEN=4096"
+            )
+            # NPU/VLM must not receive scheduler configuration.
+            captioner_properties.pop("scheduler-config", None)
+
+        scheduler_config = None
+        if selected_vlm_device == "cpu":
+            scheduler_config = CPU_SCHEDULER_CONFIG
+        elif selected_vlm_device == "gpu":
+            scheduler_config = GPU_SCHEDULER_CONFIG
+
+        if scheduler_config is not None:
+            # Element-properties use hyphenated GStreamer property names.
+            captioner_properties["scheduler-config"] = scheduler_config
+
+        if selected_vlm_device == "gpu":
+            captioner_properties["model-cache-path"] = "/tmp/ov_cache"
+
+        parameters["captioner-properties"] = captioner_properties
 
     return parameters
 
 
-def _build_start_payload(req: StartRunRequest, run_id: str, peer_id: str) -> dict:
+def _build_start_payload(
+    req: StartRunRequest, run_id: str, peer_id: str, pipeline_name: str
+) -> dict:
     source_uri = (req.rtspUrl or "").strip()
     if _is_linux_video_device(source_uri):
         source = {"device": source_uri, "type": "webcam"}
     else:
         source = {"uri": source_uri, "type": "uri"}
 
+    frame_destination = {
+        "type": "webrtc",
+        "peer-id": peer_id,
+        "bitrate": WEBRTC_BITRATE,
+    }
+    # Keep previous default behavior (no bounding boxes) unless explicitly enabled.
+    if not bool(req.includeRoiBoundingBox):
+        frame_destination["overlay"] = False
+
     return {
         "source": source,
         "destination": {
-            "frame": {"type": "webrtc", "peer-id": peer_id, "bitrate": WEBRTC_BITRATE},
+            "frame": frame_destination,
         },
-        "parameters": _build_pipeline_parameters(req, run_id),
+        "parameters": _build_pipeline_parameters(req, run_id, pipeline_name),
     }
 
 
@@ -204,6 +336,9 @@ async def start_run(req: StartRunRequest) -> RunInfo:
     using_camera_source = _is_linux_video_device(requested_source)
 
     pipeline_name = _resolve_pipeline_name(requested_pipeline)
+    pipeline_name = _normalize_pipeline_name_for_vlm_device(
+        pipeline_name, (req.vlmDevice or "")
+    )
     if using_camera_source and not _is_camera_pipeline_name(pipeline_name):
         if requested_pipeline:
             detail_message = (
@@ -244,7 +379,7 @@ async def start_run(req: StartRunRequest) -> RunInfo:
 
     encoded_pipeline_name = quote(pipeline_name, safe="")
     start_url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines/user_defined_pipelines/{encoded_pipeline_name}"
-    payload = _build_start_payload(req, run_id, peer_id)
+    payload = _build_start_payload(req, run_id, peer_id, pipeline_name)
 
     logger.debug("Starting caption pipeline request")
 
@@ -260,6 +395,8 @@ async def start_run(req: StartRunRequest) -> RunInfo:
         peerId=peer_id,
         mqttTopic=mqtt_topic,
         modelName=model_name,
+        vlmDevice=((req.vlmDevice or "").strip().lower() or None),
+        detectionDevice=((req.detectionDevice or "").strip().lower() or None),
         pipelineName=pipeline_name,
         runName=run_name,
         prompt=(req.prompt or "").strip() or DEFAULT_PROMPT,

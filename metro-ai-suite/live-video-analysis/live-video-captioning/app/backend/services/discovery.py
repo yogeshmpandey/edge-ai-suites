@@ -6,14 +6,6 @@ from ..config import PIPELINE_NAME, PIPELINE_SERVER_URL, ENABLE_DETECTION_PIPELI
 from ..models import ModelInfo, PipelineInfo, ModelList, PipelineInfoList
 from .http_client import http_json
 
-_PIPELINE_DISPLAY_NAME_MAP = {
-    "GenAI_Camera_Pipeline_on_CPU": "GenAI_Pipeline_on_CPU",
-    "GenAI_Camera_Pipeline_on_GPU": "GenAI_Pipeline_on_GPU",
-    "GenAI_Camera_Detection_Pipeline_on_CPU": "GenAI_Detection_Pipeline_on_CPU",
-    "GenAI_Camera_Detection_Pipeline_on_GPU": "GenAI_Detection_Pipeline_on_GPU",
-}
-
-
 def _infer_model_device(name: str) -> str:
     """Infer target device from the model directory name suffix convention.
 
@@ -34,24 +26,24 @@ def _infer_pipeline_device(name: str) -> str:
     """Infer target device from the pipeline name.
 
     DL Streamer pipeline naming convention:
-      *_on_NPU  → npu
-      *_on_GPU  → gpu
-      *_on_CPU  → cpu
+      *_NPU       → npu
+      *_Hardware  → gpu
+      *_Software  → cpu
       anything else → any
     """
     upper = name.upper()
-    if upper.endswith("_ON_NPU"):
+    if upper.endswith("_NPU"):
         return "npu"
-    if upper.endswith("_ON_GPU"):
+    if upper.endswith("_HARDWARE"):
         return "gpu"
-    if upper.endswith("_ON_CPU"):
+    if upper.endswith("_SOFTWARE"):
         return "cpu"
     return "any"
 
 
 def get_pipeline_display_name(pipeline_name: str) -> str:
-    """Resolve a UI display name for a pipeline while preserving internal IDs."""
-    return _PIPELINE_DISPLAY_NAME_MAP.get(pipeline_name, pipeline_name)
+    """Return pipeline identifier as display name for UI consumers."""
+    return pipeline_name
 
 
 def _gpu_device_exists() -> bool:
@@ -64,17 +56,24 @@ def _gpu_device_exists() -> bool:
     # where GPU compute is not usable for this workload.
     return any(dri_dir.glob("renderD*"))
 
-
-def _is_gpu_pipeline(pipeline_name: str) -> bool:
-    """Whether a pipeline targets the GPU, by naming convention (e.g. *_on_GPU)."""
-    return "_GPU" in pipeline_name.upper()
+def has_gpu_device() -> bool:
+    """Public helper for GPU capability checks used by API routes."""
+    return _gpu_device_exists()
 
 
 def _default_pipeline_names(gpu_available: bool) -> set[str]:
     """Return preferred default pipeline names for current hardware."""
     if gpu_available:
-        return {"GenAI_Pipeline_on_GPU", "GenAI_Camera_Pipeline_on_GPU"}
-    return {"GenAI_Pipeline_on_CPU", "GenAI_Camera_Pipeline_on_CPU"}
+        return {
+            "GenAI_Pipeline_Hardware",
+            "GenAI_RTSP_Pipeline_Hardware",
+            "GenAI_Camera_Pipeline_Hardware",
+        }
+    return {
+        "GenAI_Pipeline_Software",
+        "GenAI_RTSP_Pipeline_Software",
+        "GenAI_Camera_Pipeline_Software",
+    }
 
 
 def discover_models(root: Path) -> List[ModelInfo]:
@@ -95,6 +94,14 @@ def discover_models(root: Path) -> List[ModelInfo]:
             if entry.suffix in {".xml", ".bin", ".json"}:
                 models.append(ModelInfo(name=entry.name, device=_infer_model_device(entry.name)))
     return models
+
+
+def _infer_detection_from_name(pipeline_name: str) -> bool:
+    """Best-effort fallback when payload lacks structured parameter metadata."""
+    name = (pipeline_name or "").strip().lower()
+    if not name:
+        return False
+    return "_detection_" in name or name.startswith("detection_") or name.endswith("_detection")
 
 
 def discover_detection_models(root: Path) -> List[str]:
@@ -153,7 +160,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
     - Classifies using is_detection_pipeline(item) when item is a dict
     - Defaults string-only items to 'non-detection' (no metadata to inspect)
     - Optionally filters out detection pipelines when ENABLE_DETECTION_PIPELINE is False
-    - Infers device from pipeline name suffix (_on_CPU/GPU/NPU)
+    - Infers device from pipeline name suffix (_Software/_Hardware/_NPU)
     """
     url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines"
     try:
@@ -186,7 +193,8 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
             # Determine pipeline name
             if isinstance(item, str):
                 name = item
-                pipeline_type = "non-detection"  # No metadata available
+                # String-only payloads have no parameter schema; infer by name.
+                pipeline_type = "detection" if _infer_detection_from_name(name) else "non-detection"
             elif isinstance(item, dict):
                 # Preserve your original preference for 'version' as name
                 if isinstance(item.get("version"), str):
@@ -202,6 +210,8 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
                 pipeline_type = (
                     "detection" if is_detection_pipeline(item) else "non-detection"
                 )
+                if pipeline_type == "non-detection" and _infer_detection_from_name(name):
+                    pipeline_type = "detection"
             else:
                 continue
 

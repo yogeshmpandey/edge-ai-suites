@@ -151,6 +151,123 @@ class TestStartRun:
         assert payload["parameters"]["frame_height"] == 720
         assert payload["parameters"]["captioner_queue_size"] == 4
 
+    def test_start_run_forwards_captioner_element_properties(self, client):
+        """captioner-properties are passed through to gvagenai as element-properties."""
+        with patch("backend.routes.runs.http_json", return_value='"p1"') as mock_http:
+            resp = client.post(
+                "/api/generate_captions_alerts",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "captioner-properties": {
+                        "device": "CPU",
+                        "scheduler-config": "max_num_batched_tokens=128",
+                    },
+                },
+            )
+
+        assert resp.status_code == 200
+        payload = mock_http.call_args.kwargs["payload"]
+        assert payload["parameters"]["captioner-properties"] == {
+            "device": "CPU",
+            "scheduler-config": "max_num_batched_tokens=128",
+        }
+
+    def test_start_run_strips_captioner_scheduler_config_for_npu(self, client):
+        """NPU pipelines must not receive scheduler-config in captioner-properties."""
+        with patch(
+            "backend.routes.runs.discover_pipelines_remote",
+            return_value=[
+                {
+                    "pipeline_name": "GenAI_Pipeline_on_NPU",
+                    "pipeline_type": "non-detection",
+                }
+            ],
+        ), patch("backend.routes.runs.http_json", return_value='"p1"') as mock_http:
+            resp = client.post(
+                "/api/generate_captions_alerts",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "pipelineName": "GenAI_Pipeline_on_NPU",
+                    "vlmDevice": "npu",
+                    "captioner-properties": {
+                        "device": "NPU",
+                        "scheduler-config": "max_num_batched_tokens=128",
+                        "scheduler_config": "max_num_batched_tokens=256",
+                    },
+                },
+            )
+
+        assert resp.status_code == 200
+        payload = mock_http.call_args.kwargs["payload"]
+        assert payload["parameters"]["captioner-properties"] == {"device": "NPU"}
+
+    def test_start_run_gpu_injects_scheduler_config_into_captioner_properties(self, client):
+        """GPU runs inject scheduler_config via captioner-properties for override pipelines."""
+        with patch(
+            "backend.routes.runs.discover_pipelines_remote",
+            return_value=[
+                {
+                    "pipeline_name": "GenAI_RTSP_Pipeline_Hardware",
+                    "pipeline_type": "non-detection",
+                }
+            ],
+        ), patch("backend.routes.runs.http_json", return_value='"p-gpu"') as mock_http:
+            resp = client.post(
+                "/api/generate_captions_alerts",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "pipelineName": "GenAI_RTSP_Pipeline_Hardware",
+                    "vlmDevice": "gpu",
+                },
+            )
+
+        assert resp.status_code == 200
+        payload = mock_http.call_args.kwargs["payload"]
+        captioner_properties = payload["parameters"]["captioner-properties"]
+        assert captioner_properties["scheduler-config"] == runs_module.GPU_SCHEDULER_CONFIG
+
+    @pytest.mark.parametrize(
+        "detection_device,expected_precision,expected_pre_process",
+        [
+            ("cpu", "FP32", "opencv"),
+            ("gpu", "FP16", "va-surface-sharing"),
+            ("npu", "FP16", "va"),
+        ],
+    )
+    def test_start_run_populates_detection_properties_by_detection_device(
+        self,
+        client,
+        detection_device,
+        expected_precision,
+        expected_pre_process,
+    ):
+        """detectionDevice maps to gvadetect element-properties in request payload."""
+        detection_model = "yolov8s"
+        threshold = 0.6
+        with patch("backend.routes.runs.http_json", return_value='"p-detect"') as mock_http:
+            resp = client.post(
+                "/api/generate_captions_alerts",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "detectionModelName": detection_model,
+                    "detectionThreshold": threshold,
+                    "detectionDevice": detection_device,
+                },
+            )
+
+        assert resp.status_code == 200
+        payload = mock_http.call_args.kwargs["payload"]
+        detection_properties = payload["parameters"]["detection-properties"]
+        assert detection_properties["device"] == detection_device.upper()
+        assert detection_properties["model"] == (
+            "/home/pipeline-server/detection_models/"
+            f"{detection_model}/public/{detection_model}/"
+            f"{expected_precision}/{detection_model}.xml"
+        )
+        assert detection_properties["threshold"] == threshold
+        assert detection_properties["pre-process-backend"] == expected_pre_process
+        assert detection_properties["pre_process_backend"] == expected_pre_process
+
     def test_start_run_invalid_rtsp_url(self, client):
         """An invalid RTSP URL returns 422 (validation error)."""
         resp = client.post(
@@ -220,7 +337,7 @@ class TestStartRun:
             "backend.routes.runs.discover_pipelines_remote",
             return_value=[
                 {
-                    "pipeline_name": "GenAI_Pipeline_on_CPU",
+                    "pipeline_name": "GenAI_RTSP_Pipeline_Software",
                     "pipeline_type": "non-detection",
                 }
             ],
@@ -229,14 +346,42 @@ class TestStartRun:
                 "/api/generate_captions_alerts",
                 json={
                     "rtspUrl": "rtsp://10.0.0.1/stream",
-                    "pipelineName": "GenAI_Pipeline_on_CPU_Default_Resolution",
+                    "pipelineName": "GenAI_RTSP_Pipeline_Software_Default_Resolution",
                 },
             )
 
         assert resp.status_code == 200
         called_url = mock_http.call_args.args[1]
         assert called_url.endswith(
-            "/pipelines/user_defined_pipelines/GenAI_Pipeline_on_CPU_Default_Resolution"
+            "/pipelines/user_defined_pipelines/GenAI_RTSP_Pipeline_Software_Default_Resolution"
+        )
+
+    def test_start_run_npu_normalizes_default_resolution_alias_to_base_pipeline(self, client):
+        """NPU runs must use base pipeline names instead of _Default_Resolution aliases."""
+        with patch(
+            "backend.routes.runs.discover_pipelines_remote",
+            return_value=[
+                {
+                    "pipeline_name": "GenAI_RTSP_Pipeline_Software",
+                    "pipeline_type": "non-detection",
+                }
+            ],
+        ), patch("backend.routes.runs.http_json", return_value='"p-npu"') as mock_http:
+            resp = client.post(
+                "/api/generate_captions_alerts",
+                json={
+                    "rtspUrl": "rtsp://10.0.0.1/stream",
+                    "pipelineName": "GenAI_RTSP_Pipeline_Software_Default_Resolution",
+                    "vlmDevice": "npu",
+                },
+            )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["pipelineName"] == "GenAI_RTSP_Pipeline_Software"
+        called_url = mock_http.call_args.args[1]
+        assert called_url.endswith(
+            "/pipelines/user_defined_pipelines/GenAI_RTSP_Pipeline_Software"
         )
 
     def test_start_run_with_usb_camera_source(self, client):
@@ -245,7 +390,7 @@ class TestStartRun:
             "backend.routes.runs.discover_pipelines_remote",
             return_value=[
                 {
-                    "pipeline_name": "GenAI_Camera_Pipeline_on_CPU",
+                    "pipeline_name": "GenAI_Camera_Pipeline_Software",
                     "pipeline_type": "non-detection",
                 }
             ],
@@ -256,7 +401,7 @@ class TestStartRun:
                 "/api/generate_captions_alerts",
                 json={
                     "rtspUrl": "/dev/video0",
-                    "pipelineName": "GenAI_Camera_Pipeline_on_CPU",
+                    "pipelineName": "GenAI_Camera_Pipeline_Software",
                 },
             )
 
@@ -315,7 +460,7 @@ class TestStartRun:
             "backend.routes.runs.discover_pipelines_remote",
             return_value=[
                 {
-                    "pipeline_name": "GenAI_Camera_Pipeline_on_CPU",
+                    "pipeline_name": "GenAI_Camera_Pipeline_Software",
                     "pipeline_type": "non-detection",
                 }
             ],
@@ -324,7 +469,7 @@ class TestStartRun:
                 "/api/generate_captions_alerts",
                 json={
                     "rtspUrl": "/dev/video0",
-                    "pipelineName": "GenAI_Camera_Pipeline_on_CPU",
+                    "pipelineName": "GenAI_Camera_Pipeline_Software",
                 },
             )
 

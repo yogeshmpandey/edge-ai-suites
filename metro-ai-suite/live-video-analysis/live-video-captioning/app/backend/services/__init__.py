@@ -3,6 +3,7 @@ from .discovery import (
     discover_models,
     discover_detection_models,
     discover_pipelines_remote,
+    has_gpu_device,
 )
 from .http_client import http_json, try_get_json
 from .mqtt_subscriber import (
@@ -22,6 +23,7 @@ __all__ = [
     "discover_models",
     "discover_detection_models",
     "discover_pipelines_remote",
+    "has_gpu_device",
     "http_json",
     "try_get_json",
     "MQTTSubscriber",

@@ -52,6 +52,26 @@ const RunCardComponent = (function () {
         return 'rtsp';
     }
 
+    function inferDeviceType(run) {
+        const selectedVlmDevice = (run.vlmDevice || '').toString().trim().toLowerCase();
+        if (selectedVlmDevice === 'npu') return 'NPU';
+        if (selectedVlmDevice === 'gpu') return 'GPU';
+        if (selectedVlmDevice === 'cpu') return 'CPU';
+
+        const pipelineNameLower = (run.pipelineName || '').toLowerCase();
+        if (pipelineNameLower.includes('npu')) return 'NPU';
+        if (pipelineNameLower.includes('gpu')) return 'GPU';
+        return 'CPU';
+    }
+
+    function formatDeviceLabel(deviceValue, fallback) {
+        const value = (deviceValue || '').toString().trim().toLowerCase();
+        if (value === 'npu') return 'NPU';
+        if (value === 'gpu') return 'GPU';
+        if (value === 'cpu') return 'CPU';
+        return fallback || 'N/A';
+    }
+
     function createRunElement(run, onStopCallback) {
         const wrap = document.createElement('div');
         wrap.className = 'card';
@@ -71,11 +91,8 @@ const RunCardComponent = (function () {
         headerLeft.style.fontSize = '0.85rem';
         headerLeft.style.flexWrap = 'wrap';
 
-        // Determine device from pipeline name
-        const pipelineNameLower = (run.pipelineName || '').toLowerCase();
-        const deviceType = pipelineNameLower.includes('npu') ? 'NPU'
-            : pipelineNameLower.includes('gpu') ? 'GPU'
-                : 'CPU';
+        // Determine device from selected VLM device (fallback to pipeline name for older runs)
+        const deviceType = inferDeviceType(run);
         const deviceIcon = deviceType === 'GPU'
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>'
             : deviceType === 'NPU'
@@ -138,6 +155,12 @@ const RunCardComponent = (function () {
         tooltip.appendChild(tooltipTitle);
         tooltip.appendChild(createTooltipRow('Pipeline', run.pipelineName || 'N/A'));
         tooltip.appendChild(createTooltipRow('Stream Source', run.rtspUrl || 'N/A'));
+        tooltip.appendChild(
+            createTooltipRow(
+                'VLM Device',
+                formatDeviceLabel(run.vlmDevice, inferDeviceType(run))
+            )
+        );
         tooltip.appendChild(createTooltipRow('Max Tokens', String(run.maxTokens ?? 'N/A')));
         tooltip.appendChild(createTooltipRow('Prompt', run.prompt || 'N/A', 'info-tooltip-prompt'));
 
@@ -157,6 +180,14 @@ const RunCardComponent = (function () {
         }
         if (run.isEnabledDetection && (run.detectionModelName ?? '') !== '') {
             tooltip.appendChild(createTooltipRow('Detection Model', run.detectionModelName));
+        }
+        if (run.isEnabledDetection) {
+            tooltip.appendChild(
+                createTooltipRow(
+                    'Detection Device',
+                    formatDeviceLabel(run.detectionDevice, formatDeviceLabel(run.vlmDevice, 'CPU'))
+                )
+            );
         }
         if (run.isEnabledDetection && (run.detectionThreshold ?? '') !== '') {
             tooltip.appendChild(createTooltipRow('Detection Threshold', String(run.detectionThreshold)));

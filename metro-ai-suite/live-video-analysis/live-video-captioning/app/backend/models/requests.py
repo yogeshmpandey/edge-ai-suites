@@ -1,9 +1,9 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urlparse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..config import ALERT_MODE
 import re
 import ipaddress
@@ -17,6 +17,8 @@ DEFAULT_PROMPT = (
 
 
 class StartRunRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     rtspUrl: str = Field(
         ...,
         min_length=1,
@@ -33,6 +35,20 @@ class StartRunRequest(BaseModel):
     chunkSize: Optional[int] = Field(default=None, ge=1)
     frameWidth: Optional[int] = Field(default=None, ge=1)
     frameHeight: Optional[int] = Field(default=None, ge=1)
+    vlmDevice: Optional[str] = Field(default=None)
+    detectionDevice: Optional[str] = Field(default=None)
+    includeRoiBoundingBox: Optional[bool] = Field(default=False)
+    captionerProperties: Optional[dict[str, Any]] = Field(
+        default=None,
+        alias="captioner-properties",
+        description="Optional gvagenai (captioner) element-properties override map",
+    )
+    detectionProperties: Optional[dict[str, Any]] = Field(
+        default=None,
+        alias="detection-properties",
+        description="Optional gvadetect element-properties override map",
+    )
+
 
     @field_validator("rtspUrl")
     @classmethod

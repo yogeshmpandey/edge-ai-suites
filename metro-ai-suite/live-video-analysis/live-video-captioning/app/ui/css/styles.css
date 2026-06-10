@@ -538,6 +538,25 @@ iframe {
     gap: 4px;
 }
 
+.checkbox-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+}
+
+.checkbox-field input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.checkbox-field .label {
+    font-size: 0.82rem;
+    color: var(--text);
+}
+
 /* Keep Start/Stop buttons on one row */
 .button-row {
     display: flex;
@@ -665,7 +684,7 @@ iframe {
 
 /* Reserve a stable width for the numeric value so labels don't jump
    as readings change (e.g. "—" -> "100.0%"). */
-.chart-value > span {
+.chart-value>span {
     display: inline-block;
     min-width: 2.6em;
     text-align: right;

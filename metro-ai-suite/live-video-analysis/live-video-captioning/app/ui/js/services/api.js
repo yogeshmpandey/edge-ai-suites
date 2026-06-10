@@ -4,7 +4,7 @@
 const ApiService = (function () {
     const DEFAULT_MODEL = 'InternVL2-1B';
     const DEFAULT_DETECTION_MODEL = 'yolov8s';
-    const DEFAULT_PIPELINE = 'GenAI_Pipeline_on_CPU';
+    const DEFAULT_PIPELINE = 'GenAI_RTSP_Pipeline_Software';
     let pipelineCache = [];
     // Full ModelInfo list cached for filtering: [{name, device}, ...]
     let allModels = [];
@@ -63,6 +63,17 @@ const ApiService = (function () {
             return Array.isArray(data?.cameras) ? data.cameras : [];
         } catch (_err) {
             return [];
+        }
+    }
+
+    async function fetchSystemCapabilities() {
+        try {
+            const resp = await fetch('/api/capabilities', { method: 'GET' });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            return { has_gpu: data?.has_gpu === true };
+        } catch (_err) {
+            return { has_gpu: null };
         }
     }
 
@@ -198,6 +209,7 @@ const ApiService = (function () {
         didModelsFetchFail,
         fetchDetectionModels,
         fetchCameras,
+        fetchSystemCapabilities,
         fetchPipelines,
         fetchRuns,
         startRun,

@@ -1,7 +1,7 @@
 /**
  * Settings persistence utilities
  */
-const SettingsManager = (function() {
+const SettingsManager = (function () {
     const SETTINGS_KEY = 'lvc-settings';
 
     function saveSettings(els) {
@@ -13,6 +13,9 @@ const SettingsManager = (function() {
                 prompt: els.promptInput?.value || '',
                 modelName: els.modelNameSelect?.value || '',
                 pipelineName: els.pipelineSelect?.value || '',
+                vlmDevice: els.vlmDeviceSelect?.value || 'cpu',
+                detectionDevice: els.detectionDeviceSelect?.value || 'cpu',
+                includeRoiBoundingBox: Boolean(els.includeRoiBoundingBoxCheckbox?.checked),
                 maxTokens: els.maxTokensInput?.value || '70',
                 captionHistory: els.captionHistoryInput?.value || '3',
                 runName: els.runNameInput?.value || '',
@@ -87,6 +90,21 @@ const SettingsManager = (function() {
         if (settings.streamSourceType && els.streamSourceTypeSelect) {
             els.streamSourceTypeSelect.value = settings.streamSourceType;
         }
+        if (settings.vlmDevice && els.vlmDeviceSelect) {
+            const options = Array.from(els.vlmDeviceSelect.options).map(o => o.value);
+            if (options.includes(settings.vlmDevice)) {
+                els.vlmDeviceSelect.value = settings.vlmDevice;
+            }
+        }
+        if (settings.detectionDevice && els.detectionDeviceSelect) {
+            const options = Array.from(els.detectionDeviceSelect.options).map(o => o.value);
+            if (options.includes(settings.detectionDevice)) {
+                els.detectionDeviceSelect.value = settings.detectionDevice;
+            }
+        }
+        if (els.includeRoiBoundingBoxCheckbox) {
+            els.includeRoiBoundingBoxCheckbox.checked = settings.includeRoiBoundingBox === true;
+        }
         // Model and pipeline will be restored after options are loaded
     }
 
@@ -117,9 +135,10 @@ const SettingsManager = (function() {
     function setupSettingsPersistence(els) {
         // Save settings on input changes
         const inputs = [els.rtspInput, els.streamSourceTypeSelect, els.cameraDeviceSelect,
-            els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect, els.runNameInput,
-            els.frameRateInput, els.chunkSizeInput, els.frameQualitySelect, els.customWidthInput, els.customHeightInput,
-            els.captionHistoryInput];
+        els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineSelect, els.vlmDeviceSelect, els.detectionDeviceSelect, els.runNameInput,
+        els.frameRateInput, els.chunkSizeInput, els.frameQualitySelect, els.customWidthInput, els.customHeightInput,
+        els.includeRoiBoundingBoxCheckbox,
+        els.captionHistoryInput];
         inputs.forEach(el => {
             if (el) {
                 el.addEventListener('change', () => saveSettings(els));

@@ -249,15 +249,38 @@ class TestDiscoverPipelinesRemote:
         # All detection pipelines filtered out; fallback returned
         assert all(r["pipeline_type"] == "non-detection" for r in result)
 
-    def test_camera_detection_display_names_are_mapped(self):
-        """Camera detection pipelines keep camera IDs but use non-camera UI labels."""
+    def test_string_pipeline_name_infers_detection_type(self):
+        """String-only payloads infer detection pipelines from naming convention."""
+        payload = ["GenAI_Detection_RTSP_Pipeline_Software"]
+        with self._mock_http(payload), patch(
+            "backend.services.discovery.ENABLE_DETECTION_PIPELINE", True
+        ):
+            result = discover_pipelines_remote()
+
+        assert len(result) == 1
+        assert result[0]["pipeline_name"] == "GenAI_Detection_RTSP_Pipeline_Software"
+        assert result[0]["pipeline_type"] == "detection"
+
+    def test_dict_without_detection_parameters_infers_from_name(self):
+        """Dict payloads without detection params still infer detection by name."""
+        payload = [{"name": "GenAI_Camera_Detection_Pipeline_Hardware", "parameters": {"properties": {}}}]
+        with self._mock_http(payload), patch(
+            "backend.services.discovery.ENABLE_DETECTION_PIPELINE", True
+        ):
+            result = discover_pipelines_remote()
+
+        assert len(result) == 1
+        assert result[0]["pipeline_type"] == "detection"
+
+    def test_camera_detection_display_names_use_pipeline_names(self):
+        """Pipeline display names are returned unchanged from pipeline identifiers."""
         payload = [
             {
-                "version": "GenAI_Camera_Detection_Pipeline_on_CPU",
+                "version": "GenAI_Camera_Detection_Pipeline_Software",
                 "parameters": {"properties": {"detection_model_name": {}}},
             },
             {
-                "version": "GenAI_Camera_Detection_Pipeline_on_GPU",
+                "version": "GenAI_Camera_Detection_Pipeline_Hardware",
                 "parameters": {"properties": {"detection_model_name": {}}},
             },
         ]
@@ -271,12 +294,12 @@ class TestDiscoverPipelinesRemote:
             item["pipeline_name"]: item["pipeline_display_name"] for item in result
         }
         assert (
-            display_by_name["GenAI_Camera_Detection_Pipeline_on_CPU"]
-            == "GenAI_Detection_Pipeline_on_CPU"
+            display_by_name["GenAI_Camera_Detection_Pipeline_Software"]
+            == "GenAI_Detection_Pipeline_Software"
         )
         assert (
-            display_by_name["GenAI_Camera_Detection_Pipeline_on_GPU"]
-            == "GenAI_Detection_Pipeline_on_GPU"
+            display_by_name["GenAI_Camera_Detection_Pipeline_Hardware"]
+            == "GenAI_Camera_Detection_Pipeline_Hardware"
         )
 
     def test_proxy_pipelines_are_hidden_from_results(self):
@@ -291,6 +314,32 @@ class TestDiscoverPipelinesRemote:
         with self._mock_http(payload):
             result = discover_pipelines_remote()
         assert [item["pipeline_name"] for item in result] == ["captioner_Custom"]
+
+    def test_gpu_available_prefers_generic_hardware_pipeline_name(self):
+        """When GPU is available, generic hardware alias is preferred as default."""
+        payload = ["GenAI_Pipeline_Hardware", "GenAI_Pipeline_Software"]
+
+        with self._mock_http(payload), patch(
+            "backend.services.discovery._gpu_device_exists", return_value=True
+        ):
+            result = discover_pipelines_remote()
+
+        defaults = [r for r in result if r["pipeline_default"]]
+        assert len(defaults) == 1
+        assert defaults[0]["pipeline_name"] == "GenAI_Pipeline_Hardware"
+
+    def test_non_gpu_prefers_generic_software_pipeline_name(self):
+        """When GPU is unavailable, generic software alias is preferred as default."""
+        payload = ["GenAI_Pipeline_Hardware", "GenAI_Pipeline_Software"]
+
+        with self._mock_http(payload), patch(
+            "backend.services.discovery._gpu_device_exists", return_value=False
+        ):
+            result = discover_pipelines_remote()
+
+        defaults = [r for r in result if r["pipeline_default"]]
+        assert len(defaults) == 1
+        assert defaults[0]["pipeline_name"] == "GenAI_Pipeline_Software"
 
     def test_non_list_items_payload_falls_back_to_default(self):
         """Non-list 'pipelines' payloads trigger default fallback response."""
@@ -420,8 +469,17 @@ class TestGpuHelpers:
     def test_default_pipeline_names_for_cpu(self):
         """CPU defaults are returned when GPU is unavailable."""
         assert _default_pipeline_names(False) == {
-            "GenAI_Pipeline_on_CPU",
-            "GenAI_Camera_Pipeline_on_CPU",
+            "GenAI_Pipeline_Software",
+            "GenAI_RTSP_Pipeline_Software",
+            "GenAI_Camera_Pipeline_Software",
+        }
+
+    def test_default_pipeline_names_for_gpu(self):
+        """GPU defaults include generic and source-specific hardware names."""
+        assert _default_pipeline_names(True) == {
+            "GenAI_Pipeline_Hardware",
+            "GenAI_RTSP_Pipeline_Hardware",
+            "GenAI_Camera_Pipeline_Hardware",
         }
 
     def test_is_gpu_pipeline_detects_gpu_names(self):

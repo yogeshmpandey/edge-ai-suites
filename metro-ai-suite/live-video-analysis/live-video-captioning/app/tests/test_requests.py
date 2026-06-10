@@ -53,6 +53,7 @@ class TestStartRunRequestValid:
             detectionThreshold=0.8,
             pipelineName="my_pipe",
             runName="demo_run",
+            captionerProperties={"device": "CPU", "max-context-len": 4096},
         )
         assert req.prompt == "What is happening?"
         assert req.modelName == "custom-model"
@@ -61,6 +62,31 @@ class TestStartRunRequestValid:
         assert req.detectionThreshold == 0.8
         assert req.pipelineName == "my_pipe"
         assert req.runName == "demo_run"
+        assert req.captionerProperties == {"device": "CPU", "max-context-len": 4096}
+
+    def test_captioner_properties_alias_accepted(self):
+        """Hyphenated captioner-properties key is accepted in request payloads."""
+        req = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            **{"captioner-properties": {"device": "CPU"}},
+        )
+        assert req.captionerProperties == {"device": "CPU"}
+
+    def test_detection_properties_alias_accepted(self):
+        """Hyphenated detection-properties key is accepted in request payloads."""
+        req = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            **{"detection-properties": {"device": "GPU"}},
+        )
+        assert req.detectionProperties == {"device": "GPU"}
+
+    def test_detection_device_field_accepted(self):
+        """Detection device value is parsed and stored."""
+        req = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            detectionDevice="npu",
+        )
+        assert req.detectionDevice == "npu"
 
     def test_linux_video_device_path_accepted(self):
         """Linux V4L2 camera paths are accepted."""

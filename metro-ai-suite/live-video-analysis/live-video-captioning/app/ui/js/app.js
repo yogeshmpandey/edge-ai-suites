@@ -10,6 +10,7 @@
         promptInput: document.getElementById('promptInput'),
         modelNameSelect: document.getElementById('modelNameSelect'),
         pipelineSelect: document.getElementById('pipelineSelect'),
+        vlmDeviceSelect: document.getElementById('vlmDeviceSelect'),
         maxTokensInput: document.getElementById('maxTokensInput'),
         captionHistoryInput: document.getElementById('captionHistoryInput'),
         streamSourceTypeSelect: document.getElementById('streamSourceTypeSelect'),
@@ -26,8 +27,10 @@
         chatToggle: document.getElementById('chatToggle'),
         detectionModelField: document.getElementById('detectionModelField'),
         detectionThresholdField: document.getElementById('detectionThresholdField'),
+        detectionDeviceSelect: document.getElementById('detectionDeviceSelect'),
         detectionModelNameSelect: document.getElementById('detectionModelNameSelect'),
         detectionThresholdInput: document.getElementById('detectionThresholdInput'),
+        includeRoiBoundingBoxCheckbox: document.getElementById('includeRoiBoundingBoxCheckbox'),
         frameRateInput: document.getElementById('frameRateInput'),
         chunkSizeInput: document.getElementById('chunkSizeInput'),
         frameQualitySelect: document.getElementById('frameQualitySelect'),
@@ -39,6 +42,8 @@
         addAlertRuleBtn: document.getElementById('addAlertRuleBtn'),
         pipelineServerError: document.getElementById('pipelineServerError'),
         modelCompatibilityWarning: document.getElementById('modelCompatibilityWarning'),
+        gpuCompatibilityWarning: document.getElementById('gpuCompatibilityWarning'),
+        npuResolutionWarning: document.getElementById('npuResolutionWarning'),
     };
 
     const state = {
@@ -46,6 +51,8 @@
         runs: new Map(),
         isStarting: false,
         allPipelines: [],
+        hasSavedVlmDevicePreference: false,
+        hasGpuDevice: null,
     };
     const CHAT_TAB_NAME = 'Live Caption RAG Dashboard';
 
@@ -250,8 +257,10 @@
 
         // Disable inputs when hidden to avoid accidental submission
         const toDisableSelectors = [
+            '#detectionDeviceSelect',
             '#detectionModelNameSelect',
-            '#detectionThresholdInput'
+            '#detectionThresholdInput',
+            '#includeRoiBoundingBoxCheckbox'
         ];
         for (const sel of toDisableSelectors) {
             const el = document.querySelector(sel);
@@ -272,6 +281,45 @@
         const isDetection = label.includes('[Detection]');
 
         showDetectionFields(isDetection);
+        filterDetectionDevicesByPipeline();
+    }
+
+    // Hardware detection pipelines run gvadetect on VAMemory surfaces, which the
+    // CPU pre-process backend cannot consume; Software detection pipelines run on
+    // SYSTEM memory and only support CPU. Restrict the Detection Device dropdown
+    // accordingly so users cannot pick an incompatible combination.
+    function filterDetectionDevicesByPipeline() {
+        const deviceSelect = els.detectionDeviceSelect;
+        const pipelineSelect = els.pipelineSelect;
+        if (!deviceSelect || !pipelineSelect) return;
+
+        const selectedOpt = pipelineSelect.options[pipelineSelect.selectedIndex];
+        const targetPipeline = (selectedOpt?.dataset?.targetPipeline || '').toLowerCase();
+        const isHardware = targetPipeline.endsWith('_hardware');
+        const isSoftware = targetPipeline.endsWith('_software');
+
+        // When the pipeline type is unknown, leave every option available.
+        const allowedByPipeline = (device) => {
+            if (isHardware) return device === 'gpu' || device === 'npu';
+            if (isSoftware) return device === 'cpu';
+            return true;
+        };
+
+        let selectedStillVisible = false;
+        for (const opt of Array.from(deviceSelect.options)) {
+            const allowed = allowedByPipeline(opt.value);
+            opt.hidden = !allowed;
+            opt.disabled = !allowed;
+            if (allowed && opt.value === deviceSelect.value) {
+                selectedStillVisible = true;
+            }
+        }
+
+        // If the current selection was hidden, fall back to the first visible one.
+        if (!selectedStillVisible) {
+            const firstVisible = Array.from(deviceSelect.options).find((o) => !o.hidden);
+            if (firstVisible) deviceSelect.value = firstVisible.value;
+        }
     }
 
     function getSelectedPipelineType() {
@@ -304,6 +352,17 @@
 
     function isCameraPipelineName(pipelineName) {
         return typeof pipelineName === 'string' && pipelineName.includes('_Camera_');
+    }
+
+    function getPipelineAliasFromName(pipelineName) {
+        if (typeof pipelineName !== 'string') return null;
+        if (pipelineName.endsWith('_Software')) return 'GenAI_Pipeline_Software';
+        if (pipelineName.endsWith('_Hardware')) return 'GenAI_Pipeline_Hardware';
+        return null;
+    }
+
+    function getPipelineOptionValue(alias, pipelineType) {
+        return `${alias}::${pipelineType}`;
     }
 
     function hasCameraSourceOption() {
@@ -382,13 +441,12 @@
 
             // Determine the right warning message
             let msg;
-            const pipelineOpt = els.pipelineSelect?.options[els.pipelineSelect.selectedIndex];
-            const pipelineDevice = pipelineOpt?.dataset?.device;
+            const selectedVlmDevice = getSelectedVlmDevice();
             if (ApiService.didModelsFetchFail()) {
                 msg = '⚠ Could not load model list. Is the backend running?';
-            } else if (pipelineDevice && pipelineDevice !== 'any') {
-                msg = `⚠ No ${pipelineDevice.toUpperCase()} models found. ` +
-                    `Download a ${pipelineDevice}-optimised model first (see model-preparation guide).`;
+            } else if (selectedVlmDevice && selectedVlmDevice !== 'any') {
+                msg = `⚠ No ${selectedVlmDevice.toUpperCase()} models found. ` +
+                    `Download a ${selectedVlmDevice}-optimised model first (see model-preparation guide).`;
             } else {
                 msg = '⚠ No models found in the models directory. Download a model first.';
             }
@@ -421,25 +479,97 @@
         select.value = restore;
     }
 
-    /**
-     * Filter the full model list to those compatible with the given pipeline device.
-     * Strict one-to-one matching: cpu↔cpu, gpu↔gpu, npu↔npu.
-     * "any" pipeline device means show all models.
-     */
-    function getCompatibleModels(pipelineDevice) {
-        const all = ApiService.getAllModels();
-        if (!pipelineDevice || pipelineDevice === 'any') return all;
-        return all.filter((m) => m.device === pipelineDevice);
+    function getSelectedVlmDevice() {
+        const selected = (els.vlmDeviceSelect?.value || '').trim().toLowerCase();
+        return ['cpu', 'gpu', 'npu'].includes(selected) ? selected : 'cpu';
     }
 
-    /** Re-populate the model dropdown based on the currently selected pipeline device. */
-    function refreshModelsBySelectedPipeline() {
-        const select = els.pipelineSelect;
-        if (!select || select.selectedIndex < 0) return;
-        const selectedOpt = select.options[select.selectedIndex];
-        const pipelineDevice = selectedOpt?.dataset?.device || 'any';
+    function getSelectedDetectionDevice() {
+        const selected = (els.detectionDeviceSelect?.value || '').trim().toLowerCase();
+        return ['cpu', 'gpu', 'npu'].includes(selected) ? selected : 'cpu';
+    }
+
+    function updateNpuResolutionWarning() {
+        if (!els.npuResolutionWarning) return;
+        const isNpuSelected = getSelectedVlmDevice() === 'npu';
+        els.npuResolutionWarning.style.display = isNpuSelected ? '' : 'none';
+    }
+
+    function isGpuPipelineSelected() {
+        const selectedOpt = els.pipelineSelect?.options?.[els.pipelineSelect.selectedIndex] || null;
+        if (!selectedOpt) return false;
+        if ((selectedOpt.dataset?.device || '').toLowerCase() === 'gpu') return true;
+        const targetPipeline = (selectedOpt.dataset?.targetPipeline || '').toLowerCase();
+        return targetPipeline.endsWith('_hardware');
+    }
+
+    function updateGpuCompatibilityWarning() {
+        const banner = els.gpuCompatibilityWarning;
+        if (!banner) return;
+
+        if (state.hasGpuDevice !== false) {
+            banner.style.display = 'none';
+            banner.textContent = '';
+            return;
+        }
+
+        const wantsGpuVlm = getSelectedVlmDevice() === 'gpu';
+        const wantsGpuPipeline = isGpuPipelineSelected();
+        if (!wantsGpuVlm && !wantsGpuPipeline) {
+            banner.style.display = 'none';
+            banner.textContent = '';
+            return;
+        }
+
+        const details = [];
+        if (wantsGpuPipeline) details.push('Hardware pipeline is selected');
+        if (wantsGpuVlm) details.push('VLM device is set to GPU');
+
+        banner.textContent = `GPU is not detected on this system, but ${details.join(' and ')}. Switch to a Software pipeline and/or CPU VLM device.`;
+        banner.style.display = '';
+    }
+
+    async function loadSystemCapabilities() {
+        const capabilities = await ApiService.fetchSystemCapabilities();
+        if (capabilities?.has_gpu === true || capabilities?.has_gpu === false) {
+            state.hasGpuDevice = capabilities.has_gpu;
+        } else {
+            state.hasGpuDevice = null;
+        }
+        updateGpuCompatibilityWarning();
+    }
+
+    function applyDefaultVlmDeviceFromPipelines(normalizedPipelines) {
+        if (!els.vlmDeviceSelect || state.hasSavedVlmDevicePreference) return;
+
+        const preferredDefault = Array.isArray(normalizedPipelines)
+            ? normalizedPipelines.find((p) => p?.pipeline_default === true)
+            : null;
+
+        // Keep VLM device default in sync with GPU-aware pipeline defaulting.
+        const desiredDevice = preferredDefault?.device === 'gpu' ? 'gpu' : 'cpu';
+        if (els.vlmDeviceSelect.value !== desiredDevice) {
+            els.vlmDeviceSelect.value = desiredDevice;
+            updateNpuResolutionWarning();
+            SettingsManager.saveSettings(els);
+        }
+    }
+
+    /**
+     * Filter the full model list to those compatible with the selected VLM device.
+     * Strict one-to-one matching: cpu↔cpu, gpu↔gpu, npu↔npu.
+     */
+    function getCompatibleModels(vlmDevice) {
+        const all = ApiService.getAllModels();
+        if (!vlmDevice) return all;
+        return all.filter((m) => m.device === vlmDevice);
+    }
+
+    /** Re-populate the model dropdown based on the currently selected VLM device. */
+    function refreshModelsBySelectedVlmDevice() {
+        const selectedVlmDevice = getSelectedVlmDevice();
         const previousModel = els.modelNameSelect?.value || null;
-        const compatible = getCompatibleModels(pipelineDevice);
+        const compatible = getCompatibleModels(selectedVlmDevice);
         setModelOptions(compatible, previousModel);
     }
 
@@ -585,15 +715,17 @@
         for (const it of list) {
             if (!it || typeof it !== 'object' || typeof it.pipeline_name !== 'string') continue;
             const t = it.pipeline_type === 'detection' ? 'detection' : 'non-detection';
-            const displayName = (typeof it.pipeline_display_name === 'string' && it.pipeline_display_name.trim())
-                ? it.pipeline_display_name
-                : it.pipeline_name;
+            const alias = getPipelineAliasFromName(it.pipeline_name);
+            if (!alias) continue;
             const d = ['cpu', 'gpu', 'npu', 'any'].includes(it.device) ? it.device : 'any';
-            map.set(it.pipeline_name, {
-                pipeline_name: it.pipeline_name,
-                pipeline_display_name: displayName,
+            const key = `${alias}::${t}`;
+            const existing = map.get(key);
+            map.set(key, {
+                option_value: getPipelineOptionValue(alias, t),
+                pipeline_alias: alias,
+                target_pipeline_name: it.pipeline_name,
                 pipeline_type: t,
-                pipeline_default: it.pipeline_default === true,
+                pipeline_default: (existing?.pipeline_default === true) || it.pipeline_default === true,
                 device: d,
             });
         }
@@ -601,34 +733,38 @@
             if (a.pipeline_type !== b.pipeline_type) {
                 return a.pipeline_type === 'non-detection' ? -1 : 1;
             }
-            return a.pipeline_name.localeCompare(b.pipeline_name);
+            return a.pipeline_alias.localeCompare(b.pipeline_alias);
         });
 
-        for (const { pipeline_name, pipeline_display_name, pipeline_type, device } of normalized) {
+        for (const { option_value, pipeline_alias, target_pipeline_name, pipeline_type, device } of normalized) {
             const opt = document.createElement('option');
-            opt.value = pipeline_name;
+            opt.value = option_value;
             opt.textContent = pipeline_type === 'detection'
-                ? `${pipeline_display_name}  [Detection]`
-                : pipeline_display_name;
+                ? `${pipeline_alias}  [Detection]`
+                : pipeline_alias;
             opt.dataset.pipelineType = pipeline_type;
             opt.dataset.device = device;
+            opt.dataset.targetPipeline = target_pipeline_name;
             select.appendChild(opt);
         }
 
+        applyDefaultVlmDeviceFromPipelines(normalized);
+
         if (normalized.length > 0) {
             const preferredDefault = normalized.find((p) => p.pipeline_default === true);
-            select.value = (preferredDefault || normalized[0]).pipeline_name;
+            select.value = (preferredDefault || normalized[0]).option_value;
         }
 
         toggleDetectionFieldsByText();
-        refreshModelsBySelectedPipeline();
+        updateGpuCompatibilityWarning();
+        refreshModelsBySelectedVlmDevice();
     }
 
     async function loadModels() {
         try {
             await ApiService.fetchModels();
-            // Initial model population is driven by pipeline selection
-            refreshModelsBySelectedPipeline();
+            // Initial model population is driven by selected VLM device.
+            refreshModelsBySelectedVlmDevice();
             SettingsManager.restoreSelectValues(els);
             updatePipelineInfo('Models loaded');
         } catch (_err) {
@@ -857,6 +993,8 @@
                     metadataFile: runData.metadataFile,
                     modelName: runData.modelName || 'Unknown',
                     pipelineName: runData.pipelineName || '',
+                    vlmDevice: runData.vlmDevice || 'cpu',
+                    detectionDevice: runData.detectionDevice || 'cpu',
                     prompt: runData.prompt || 'N/A',
                     maxTokens: runData.maxTokens || 'N/A',
                     rtspUrl: runData.rtspUrl || 'N/A',
@@ -913,7 +1051,10 @@
         const defaultPrompt = cfg.defaultPrompt || 'Describe what you see in one sentence.';
         const prompt = (els.promptInput.value || '').trim() || defaultPrompt;
         const modelName = (els.modelNameSelect?.value || '').trim();
-        const pipelineName = (els.pipelineSelect?.value || '').trim();
+        const selectedPipelineOpt = els.pipelineSelect?.options?.[els.pipelineSelect.selectedIndex] || null;
+        const pipelineName = (selectedPipelineOpt?.dataset?.targetPipeline || '').trim();
+        const selectedPipelineLabel = (selectedPipelineOpt?.textContent || '').trim();
+        const vlmDevice = (els.vlmDeviceSelect?.value || 'cpu').trim().toLowerCase();
         if (!pipelineName) {
             updatePipelineInfo('No compatible pipeline available for selected stream source type.');
             updateStartButtonAvailability();
@@ -924,6 +1065,7 @@
         const maxTokens = Number.isFinite(maxTokensParsed) && maxTokensParsed > 0 ? maxTokensParsed : 70;
         const selectedPipelineType = getSelectedPipelineType(); // 'detection' | 'non-detection'
         const isDetectionEnabled = (selectedPipelineType === 'detection');
+        const detectionDevice = isDetectionEnabled ? getSelectedDetectionDevice() : null;
         const detectionModelNameRaw = (els.detectionModelNameSelect?.value || '').trim();
         const detectionThresholdRaw = (els.detectionThresholdInput?.value || '').toString().trim();
         const detectionThresholdParsed = Number.parseFloat(detectionThresholdRaw);
@@ -935,6 +1077,9 @@
                 ? detectionThresholdParsed
                 : 0.5)
             : null;
+        const includeRoiBoundingBox = isDetectionEnabled
+            ? Boolean(els.includeRoiBoundingBoxCheckbox?.checked)
+            : false;
 
         // Frame rate, chunk size and frame dimensions
         const frameRateRaw = (els.frameRateInput?.value || '').toString().trim();
@@ -962,12 +1107,13 @@
 
         // Route to proxy pipeline when Default resolution is selected
         const PROXY_PIPELINE_MAP = {
-            'GenAI_Pipeline_on_CPU': 'GenAI_Pipeline_on_CPU_Default_Resolution',
-            'GenAI_Pipeline_on_GPU': 'GenAI_Pipeline_on_GPU_Default_Resolution',
-            'GenAI_Camera_Pipeline_on_CPU': 'GenAI_Camera_Pipeline_on_CPU_Default_Resolution',
-            'GenAI_Camera_Pipeline_on_GPU': 'GenAI_Camera_Pipeline_on_GPU_Default_Resolution',
+            'GenAI_RTSP_Pipeline_Software': 'GenAI_RTSP_Pipeline_Software_Default_Resolution',
+            'GenAI_RTSP_Pipeline_Hardware': 'GenAI_RTSP_Pipeline_Hardware_Default_Resolution',
+            'GenAI_Camera_Pipeline_Software': 'GenAI_Camera_Pipeline_Software_Default_Resolution',
+            'GenAI_Camera_Pipeline_Hardware': 'GenAI_Camera_Pipeline_Hardware_Default_Resolution',
         };
-        const effectivePipelineName = (qualityKey === 'default' && PROXY_PIPELINE_MAP[pipelineName])
+        // TODO: NPU pipelines currently don't support high resolution(only 150x150), so we route to the same pipeline regardless of quality selection. This can be updated once NPU pipelines support dynamic resolution.
+        const effectivePipelineName = (qualityKey === 'default' && vlmDevice !== 'npu' && PROXY_PIPELINE_MAP[pipelineName])
             ? PROXY_PIPELINE_MAP[pipelineName]
             : pipelineName;
 
@@ -993,7 +1139,18 @@
         updateStartButtonAvailability();
         updatePipelineInfo('Starting pipeline...');
         try {
-            const requestBody = { rtspUrl, prompt, detectionModelName, detectionThreshold, modelName, maxNewTokens: maxTokens, pipelineName: effectivePipelineName };
+            const requestBody = {
+                rtspUrl,
+                prompt,
+                detectionModelName,
+                detectionThreshold,
+                modelName,
+                maxNewTokens: maxTokens,
+                pipelineName: effectivePipelineName,
+                vlmDevice,
+                detectionDevice,
+                includeRoiBoundingBox,
+            };
             if (runName) {
                 requestBody.runName = runName;
             }
@@ -1012,7 +1169,9 @@
                 detectionModelName: detectionModelName,
                 detectionThreshold: detectionThreshold,
                 modelName: modelName,
-                pipelineName: pipelineName,
+                pipelineName: selectedPipelineLabel || pipelineName,
+                vlmDevice: vlmDevice,
+                detectionDevice: detectionDevice,
                 prompt: prompt,
                 maxTokens: maxTokens,
                 rtspUrl: rtspUrl,
@@ -1042,6 +1201,13 @@
     }
 
     function init() {
+        const initialSettings = SettingsManager.loadSettings();
+        state.hasSavedVlmDevicePreference = Boolean(
+            initialSettings
+            && typeof initialSettings.vlmDevice === 'string'
+            && ['cpu', 'gpu', 'npu'].includes(initialSettings.vlmDevice.trim().toLowerCase())
+        );
+
         // Set application title based on alert mode
         const appTitleEl = document.getElementById('appTitle');
         if (appTitleEl && cfg.alertMode) {
@@ -1095,7 +1261,16 @@
         if (els.pipelineSelect) {
             els.pipelineSelect.addEventListener('change', () => {
                 toggleDetectionFieldsByText();
-                refreshModelsBySelectedPipeline();
+                updateGpuCompatibilityWarning();
+                refreshModelsBySelectedVlmDevice();
+            });
+        }
+
+        if (els.vlmDeviceSelect) {
+            els.vlmDeviceSelect.addEventListener('change', () => {
+                refreshModelsBySelectedVlmDevice();
+                updateNpuResolutionWarning();
+                updateGpuCompatibilityWarning();
             });
         }
 
@@ -1111,6 +1286,7 @@
 
         loadCameraDevices();
         updateStreamSourceInputs();
+        updateNpuResolutionWarning();
 
         function updateCustomDimensionsVisibility() {
             const isCustom = els.frameQualitySelect?.value === 'custom';
@@ -1125,6 +1301,7 @@
 
         loadModels();
         loadPipelines();
+        loadSystemCapabilities();
         initCollectorMetrics();
 
         // Restore active runs from backend
