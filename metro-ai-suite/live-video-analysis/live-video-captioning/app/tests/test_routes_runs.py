@@ -386,16 +386,14 @@ class TestGetRun:
 class TestStreamReady:
     """GET /api/generate_captions_alerts/{run_id}/stream-ready endpoint."""
 
-    def test_stream_ready_true(self, client):
-        """Returns ready=True as soon as the mediamtx path is publishing."""
+    def test_stream_ready_true_when_frames_flowing(self, client):
+        """Returns ready=True when RUNNING and the pipeline reports fps > 0."""
         RUNS["r1"] = RunInfo(
             runId="r1", pipelineId="p1", peerId="peer1", mqttTopic="t/r1"
         )
-        # The pipeline-state lookup must not even be needed on the fast path.
         with patch.object(
-            runs_module, "get_pipeline_state",
-            side_effect=AssertionError("state should not be queried when publishing"),
-        ), patch.object(runs_module, "mediamtx_path_ready", return_value=True):
+            runs_module, "get_pipeline_state", return_value=(True, "running", 28.4)
+        ):
             resp = client.get("/api/generate_captions_alerts/r1/stream-ready")
         assert resp.status_code == 200
         body = resp.json()
@@ -407,14 +405,14 @@ class TestStreamReady:
             "error": False,
         }
 
-    def test_stream_ready_false(self, client):
-        """Returns ready=False when RUNNING but the path has no publisher yet."""
+    def test_stream_ready_false_while_no_frames_yet(self, client):
+        """Returns ready=False when RUNNING but no frames have been processed."""
         RUNS["r1"] = RunInfo(
             runId="r1", pipelineId="p1", peerId="peer1", mqttTopic="t/r1"
         )
         with patch.object(
-            runs_module, "get_pipeline_state", return_value=(True, "running")
-        ), patch.object(runs_module, "mediamtx_path_ready", return_value=False):
+            runs_module, "get_pipeline_state", return_value=(True, "running", 0.0)
+        ):
             resp = client.get("/api/generate_captions_alerts/r1/stream-ready")
         assert resp.status_code == 200
         body = resp.json()
@@ -422,13 +420,13 @@ class TestStreamReady:
         assert body["error"] is False
 
     def test_stream_ready_queued_keeps_waiting(self, client):
-        """A QUEUED pipeline without a publisher is not ready but not an error."""
+        """A QUEUED pipeline is not ready but not an error either."""
         RUNS["r1"] = RunInfo(
             runId="r1", pipelineId="p1", peerId="peer1", mqttTopic="t/r1"
         )
         with patch.object(
-            runs_module, "get_pipeline_state", return_value=(True, "queued")
-        ), patch.object(runs_module, "mediamtx_path_ready", return_value=False):
+            runs_module, "get_pipeline_state", return_value=(True, "queued", 0.0)
+        ):
             resp = client.get("/api/generate_captions_alerts/r1/stream-ready")
         body = resp.json()
         assert body["ready"] is False
@@ -441,8 +439,8 @@ class TestStreamReady:
             runId="r1", pipelineId="p1", peerId="peer1", mqttTopic="t/r1"
         )
         with patch.object(
-            runs_module, "get_pipeline_state", return_value=(True, "error")
-        ), patch.object(runs_module, "mediamtx_path_ready", return_value=False):
+            runs_module, "get_pipeline_state", return_value=(True, "error", 0.0)
+        ):
             resp = client.get("/api/generate_captions_alerts/r1/stream-ready")
         body = resp.json()
         assert body["ready"] is False
@@ -456,8 +454,8 @@ class TestStreamReady:
             runId="r1", pipelineId="p1", peerId="peer1", mqttTopic="t/r1"
         )
         with patch.object(
-            runs_module, "get_pipeline_state", return_value=(True, None)
-        ), patch.object(runs_module, "mediamtx_path_ready", return_value=False):
+            runs_module, "get_pipeline_state", return_value=(True, None, 0.0)
+        ):
             resp = client.get("/api/generate_captions_alerts/r1/stream-ready")
         body = resp.json()
         assert body["error"] is True
@@ -469,24 +467,24 @@ class TestStreamReady:
             runId="r1", pipelineId="p1", peerId="peer1", mqttTopic="t/r1"
         )
         with patch.object(
-            runs_module, "get_pipeline_state", return_value=(False, None)
-        ), patch.object(runs_module, "mediamtx_path_ready", return_value=False):
+            runs_module, "get_pipeline_state", return_value=(False, None, 0.0)
+        ):
             resp = client.get("/api/generate_captions_alerts/r1/stream-ready")
         body = resp.json()
         assert body["ready"] is False
         assert body["error"] is False
         assert RUNS["r1"].status != "error"
 
-    def test_stream_ready_uses_run_peer_id(self, client):
-        """The mediamtx probe is called with the run's peer ID."""
+    def test_stream_ready_uses_run_pipeline_id(self, client):
+        """The pipeline-state lookup is called with the run's pipeline ID."""
         RUNS["r1"] = RunInfo(
-            runId="r1", pipelineId="p1", peerId="peerXYZ", mqttTopic="t/r1"
+            runId="r1", pipelineId="pipeXYZ", peerId="peer1", mqttTopic="t/r1"
         )
         with patch.object(
-            runs_module, "mediamtx_path_ready", return_value=True
-        ) as mock_ready:
+            runs_module, "get_pipeline_state", return_value=(True, "running", 30.0)
+        ) as mock_state:
             client.get("/api/generate_captions_alerts/r1/stream-ready")
-        mock_ready.assert_called_once_with("peerXYZ")
+        mock_state.assert_called_once_with("pipeXYZ")
 
     def test_stream_ready_nonexistent_run_returns_404(self, client):
         """Returns 404 when the run ID does not exist."""

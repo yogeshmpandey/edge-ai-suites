@@ -2,10 +2,10 @@ import json
 from typing import Any, Optional, Tuple
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlsplit
+from urllib.parse import urlsplit
 
 from fastapi import HTTPException
-from ..config import MEDIAMTX_API_URL, PIPELINE_SERVER_URL
+from ..config import PIPELINE_SERVER_URL
 
 
 def _effective_port(scheme: str, port: Optional[int]) -> Optional[int]:
@@ -120,50 +120,3 @@ def try_get_json(url: str, timeout: int = 10) -> Tuple[Optional[int], Optional[d
         return None, None
 
 
-def _assert_trusted_mediamtx_url(url: str) -> None:
-    """Reject requests that do not target the configured mediamtx API host."""
-    candidate = urlsplit((url or "").strip())
-    trusted = urlsplit(MEDIAMTX_API_URL.strip())
-
-    if (
-        candidate.scheme not in {"http", "https"}
-        or candidate.scheme != trusted.scheme
-        or not candidate.hostname
-        or not trusted.hostname
-        or candidate.hostname.lower() != trusted.hostname.lower()
-        or _effective_port(candidate.scheme, candidate.port)
-        != _effective_port(trusted.scheme, trusted.port)
-    ):
-        raise ValueError("Outbound mediamtx URL is not allowed")
-
-
-def mediamtx_path_ready(peer_id: str, timeout: int = 3) -> bool:
-    """Return True when the mediamtx WebRTC path for ``peer_id`` has a publisher.
-
-    Queries the mediamtx control API (``/v3/paths/get/<peer_id>``) and reports
-    whether the path exists and is ready to be read. Never raises: any error
-    (path missing, API disabled, network failure, malformed body) yields False
-    so callers can treat "not ready yet" and "cannot tell" identically.
-    """
-    safe_peer_id = (peer_id or "").strip()
-    if not safe_peer_id:
-        return False
-
-    url = f"{MEDIAMTX_API_URL.rstrip('/')}/v3/paths/get/{quote(safe_peer_id, safe='')}"
-    try:
-        _assert_trusted_mediamtx_url(url)
-    except ValueError:
-        return False
-
-    req = urllib_request.Request(
-        url=url, headers={"Accept": "application/json"}, method="GET"
-    )
-    try:
-        with urllib_request.urlopen(req, timeout=timeout) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return False
-
-    if not isinstance(body, dict):
-        return False
-    return bool(body.get("ready"))

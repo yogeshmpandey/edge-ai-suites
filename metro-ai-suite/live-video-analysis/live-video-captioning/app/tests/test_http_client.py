@@ -10,11 +10,10 @@ from urllib.error import HTTPError, URLError
 import pytest
 from fastapi import HTTPException
 
-from backend.services.http_client import http_json, mediamtx_path_ready, try_get_json
+from backend.services.http_client import http_json, try_get_json
 
 
 TRUSTED_BASE = "http://dlstreamer-pipeline-server:8080"
-MEDIAMTX_BASE = "http://mediamtx:9997"
 
 
 def _mock_response(body: bytes, status: int = 200):
@@ -188,65 +187,3 @@ class TestTryGetJson:
         assert body is None
 
 
-class TestMediamtxPathReady:
-    """Tests for the mediamtx WebRTC path readiness probe."""
-
-    def test_ready_true_when_path_is_publishing(self):
-        with patch(
-            "backend.services.http_client.urllib_request.urlopen"
-        ) as mock_urlopen:
-            mock_urlopen.return_value = _mock_response(
-                b'{"name": "s123", "ready": true}'
-            )
-            assert mediamtx_path_ready("s123") is True
-
-    def test_ready_false_when_not_publishing(self):
-        with patch(
-            "backend.services.http_client.urllib_request.urlopen"
-        ) as mock_urlopen:
-            mock_urlopen.return_value = _mock_response(
-                b'{"name": "s123", "ready": false}'
-            )
-            assert mediamtx_path_ready("s123") is False
-
-    def test_empty_peer_id_returns_false_without_request(self):
-        with patch(
-            "backend.services.http_client.urllib_request.urlopen"
-        ) as mock_urlopen:
-            assert mediamtx_path_ready("") is False
-            assert mediamtx_path_ready("   ") is False
-        mock_urlopen.assert_not_called()
-
-    def test_path_not_found_returns_false(self):
-        err = HTTPError(
-            url=f"{MEDIAMTX_BASE}/v3/paths/get/s123",
-            code=404,
-            msg="not found",
-            hdrs=None,
-            fp=io.BytesIO(b"not found"),
-        )
-        with patch(
-            "backend.services.http_client.urllib_request.urlopen", side_effect=err
-        ):
-            assert mediamtx_path_ready("s123") is False
-
-    def test_connection_failure_returns_false(self):
-        with patch(
-            "backend.services.http_client.urllib_request.urlopen",
-            side_effect=URLError("connection refused"),
-        ):
-            assert mediamtx_path_ready("s123") is False
-
-    def test_malformed_body_returns_false(self):
-        with patch(
-            "backend.services.http_client.urllib_request.urlopen"
-        ) as mock_urlopen:
-            mock_urlopen.return_value = _mock_response(b"not json")
-            assert mediamtx_path_ready("s123") is False
-
-    def test_non_dict_body_returns_false(self):
-        with patch(
-            "backend.services.http_client.urllib_request.urlopen"
-        ) as mock_urlopen:
-            mock_urlopen.return_value = _mock_response(b'["unexpected"]')
-            assert mediamtx_path_ready("s123") is False

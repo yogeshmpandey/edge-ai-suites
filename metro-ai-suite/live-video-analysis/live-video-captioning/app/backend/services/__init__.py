@@ -4,7 +4,7 @@ from .discovery import (
     discover_detection_models,
     discover_pipelines_remote,
 )
-from .http_client import http_json, try_get_json, mediamtx_path_ready
+from .http_client import http_json, try_get_json
 from .mqtt_subscriber import (
     MQTTSubscriber,
     get_mqtt_subscriber,
@@ -24,7 +24,6 @@ __all__ = [
     "discover_pipelines_remote",
     "http_json",
     "try_get_json",
-    "mediamtx_path_ready",
     "MQTTSubscriber",
     "get_mqtt_subscriber",
     "shutdown_mqtt_subscriber",

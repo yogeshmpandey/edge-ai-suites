@@ -7,17 +7,17 @@ You are an AI assistant working on the Live Video Captioning project. This docum
 Live Video Captioning is an AI-powered application that processes live RTSP video streams using Deep Learning Streamer (DL Streamer) and OpenVINO™ Vision Language Models (VLMs) to generate real-time captions. The system includes:
 
 - **Backend**: FastAPI REST API with MQTT integration for pipeline management
-- **Frontend**: Web UI with WebRTC video streaming and real-time caption display
+- **Frontend**: Web UI (static files served by FastAPI) with WebRTC video streaming and real-time caption display over SSE
 - **Models**: OpenVINO-optimized VLMs (InternVL, MiniCPM) for video understanding
-- **Infrastructure**: Docker Compose setup with MQTT broker, RTSP sources, and pipeline servers
+- **Infrastructure**: Docker Compose setup with MQTT broker, mediamtx (WebRTC), and DL Streamer pipeline server; Helm charts under `charts/` for Kubernetes
 
 ## Tech Stack & Versions
 
-- **Python**: >=3.12
-- **FastAPI**: 0.128.0 (with standard extras)
-- **Uvicorn**: 0.40.0
+- **Python**: >=3.12 (dependencies pinned in `app/uv.lock`, managed with uv)
+- **FastAPI**: 0.136.1 (with standard extras)
+- **Uvicorn**: 0.46.0
 - **MQTT**: paho-mqtt 2.1.0
-- **Testing**: pytest >=8.0, pytest-asyncio >=0.24, pytest-cov >=6.0, httpx >=0.27
+- **Testing**: pytest >=8.0, pytest-asyncio >=0.24, pytest-cov >=6.0, httpx >=0.27 (uv dependency group `test`)
 - **Models**: OpenVINO Vision Language Models (InternVL2_5, InternVL3, MiniCPM-V)
 - **Inference Engine**: OpenVINO (Intel hardware optimized)
 
@@ -26,48 +26,51 @@ Live Video Captioning is an AI-powered application that processes live RTSP vide
 ```
 live-video-captioning/
 ├── app/                          # Main application package
-│   ├── main.py                   # FastAPI app entry point
+│   ├── main.py                   # FastAPI app entry point, router registration, UI mount
 │   ├── pyproject.toml            # Python package config and dependencies
+│   ├── uv.lock                   # Pinned dependency lockfile (uv)
 │   ├── Dockerfile                # Container image definition
 │   ├── backend/                  # Core API implementation
 │   │   ├── __init__.py
 │   │   ├── config.py             # Environment configuration and defaults
 │   │   ├── state.py              # Global application state (runs tracking)
-│   │   ├── models/               # Model loading and inference utilities
-│   │   ├── routes/               # FastAPI route handlers
-│   │   │   ├── config.py         # GET config, GET/PUT detection pipeline settings
-│   │   │   ├── health.py         # GET /health endpoint
-│   │   │   ├── models.py         # GET available models, GET model details
-│   │   │   ├── pipelines.py      # GET available pipelines, POST run
-│   │   │   └── runs.py           # GET/POST runs, WebSocket for captions
+│   │   ├── models/               # Pydantic request/response models
+│   │   ├── routes/               # FastAPI route handlers (all under /api except runtime-config.js)
+│   │   │   ├── cameras.py        # GET /api/cameras (local V4L2 device discovery)
+│   │   │   ├── config.py         # GET /runtime-config.js (frontend runtime settings)
+│   │   │   ├── health.py         # GET /api/health
+│   │   │   ├── models.py         # GET /api/vlm-models, GET /api/detection-models
+│   │   │   ├── pipelines.py      # GET /api/pipelines
+│   │   │   └── runs.py           # /api/generate_captions_alerts CRUD + SSE metadata stream
 │   │   └── services/             # Business logic and external integrations
-│   │       ├── mqtt_subscriber.py # MQTT connection and topic subscription
-│   │       └── http_client.py     # HTTP requests to pipeline server
+│   │       ├── camera_discovery.py # V4L2 camera enumeration (v4l2-ctl)
+│   │       ├── discovery.py        # Pipeline/model discovery against pipeline server
+│   │       ├── http_client.py      # HTTP requests to pipeline server
+│   │       ├── mqtt_subscriber.py  # MQTT connection and topic subscription
+│   │       └── pipeline_health.py  # Background poller of GET /pipelines/status; marks dead runs "error"
 │   ├── tests/                    # Test suite
 │   │   ├── conftest.py           # Shared fixtures and test configuration
-│   │   ├── test_*.py             # Unit and integration tests (one per module)
-│   │   └── __pycache__/          # Cached test artifacts (ignore)
-│   └── ui/                       # Frontend static files
+│   │   └── test_*.py             # Unit and integration tests (one per module)
+│   └── ui/                       # Frontend static files (served at / by FastAPI)
 │       ├── index.html
 │       ├── js/                   # JavaScript application code
 │       └── css/                  # Stylesheets
+├── charts/                       # Helm chart + subcharts (mediamtx, video-caption-service, ...)
 ├── docs/user-guide/              # User documentation
 │   ├── get-started.md
 │   ├── api-reference.md
 │   ├── how-it-works.md
 │   └── _assets/                  # Images and diagrams
-├── ov_models/                    # OpenVINO Vision Language Models
-│   ├── InternVL2_5-1B/
-│   ├── InternVL2_5-2B/
-│   ├── InternVL3-1B/
-│   └── ...                       # Tokenizer configs, model weights
+├── ov_models/                    # OpenVINO Vision Language Models (downloaded, not committed)
 ├── ov_detection_models/          # Object detection models (YOLOv8)
-│   └── yolov8s/
 ├── mosquitto/                    # MQTT broker configuration
-│   └── mosquitto.conf
+├── model_download_scripts/
+│   └── download_models.sh        # Model download helper script
+├── pipeline_server_patches/      # Patches applied to the DL Streamer pipeline server image
+├── scripts/                      # setup_env.sh, setup_proxy_rtsp.sh, setup.sh, setup_embeddings.sh
+├── user_scripts/                 # End-user helper scripts
 ├── compose.yaml                  # Docker Compose orchestration
 ├── config.json                   # Application configuration
-├── download_models.sh            # Model download helper script
 └── README.md                     # User-facing documentation
 ```
 

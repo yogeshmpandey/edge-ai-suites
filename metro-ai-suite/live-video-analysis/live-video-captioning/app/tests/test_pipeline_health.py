@@ -347,10 +347,27 @@ def test_get_pipeline_state_returns_running():
         "backend.services.pipeline_health._fetch_pipeline_statuses",
         return_value=(200, [_status_item("aabbccdd", "RUNNING")]),
     ):
-        reachable, state = get_pipeline_state("aabbccdd")
+        reachable, state, avg_fps = get_pipeline_state("aabbccdd")
 
     assert reachable is True
     assert state == "running"
+    assert avg_fps == 30.0
+
+
+def test_get_pipeline_state_missing_fps_reports_zero():
+    """A status item without a usable avg_fps yields 0.0 instead of raising."""
+    from backend.services.pipeline_health import get_pipeline_state
+
+    item = {"id": "aabbccdd", "state": "RUNNING", "avg_fps": None}
+    with patch(
+        "backend.services.pipeline_health._fetch_pipeline_statuses",
+        return_value=(200, [item]),
+    ):
+        reachable, state, avg_fps = get_pipeline_state("aabbccdd")
+
+    assert reachable is True
+    assert state == "running"
+    assert avg_fps == 0.0
 
 
 def test_get_pipeline_state_matches_case_insensitively():
@@ -361,7 +378,7 @@ def test_get_pipeline_state_matches_case_insensitively():
         "backend.services.pipeline_health._fetch_pipeline_statuses",
         return_value=(200, [_status_item("AABBCCDD", "QUEUED")]),
     ):
-        reachable, state = get_pipeline_state("aabbccdd")
+        reachable, state, avg_fps = get_pipeline_state("aabbccdd")
 
     assert reachable is True
     assert state == "queued"
@@ -375,7 +392,7 @@ def test_get_pipeline_state_absent_returns_none_state():
         "backend.services.pipeline_health._fetch_pipeline_statuses",
         return_value=(200, []),
     ):
-        reachable, state = get_pipeline_state("aabbccdd")
+        reachable, state, avg_fps = get_pipeline_state("aabbccdd")
 
     assert reachable is True
     assert state is None
@@ -389,7 +406,7 @@ def test_get_pipeline_state_unreachable_returns_false():
         "backend.services.pipeline_health._fetch_pipeline_statuses",
         return_value=(None, None),
     ):
-        reachable, state = get_pipeline_state("aabbccdd")
+        reachable, state, avg_fps = get_pipeline_state("aabbccdd")
 
     assert reachable is False
     assert state is None
@@ -403,7 +420,7 @@ def test_get_pipeline_state_unexpected_response_returns_false():
         "backend.services.pipeline_health._fetch_pipeline_statuses",
         return_value=(500, None),
     ):
-        reachable, state = get_pipeline_state("aabbccdd")
+        reachable, state, avg_fps = get_pipeline_state("aabbccdd")
 
     assert reachable is False
     assert state is None

@@ -23,7 +23,6 @@ from ..services import (
     discover_pipelines_remote,
     http_json,
     get_mqtt_subscriber,
-    mediamtx_path_ready,
     get_pipeline_state,
 )
 from ..state import RUNS
@@ -366,34 +365,29 @@ async def stream_ready(run_id: str) -> dict[str, object]:
 
     The DL Streamer pipeline needs a few seconds after start before it begins
     publishing frames to mediamtx. The UI polls this endpoint and only loads the
-    video iframe once mediamtx has a publisher, avoiding mediamtx's "stream not
+    video iframe once frames are flowing, avoiding mediamtx's "stream not
     found, retrying" page.
 
-    Readiness is decided by mediamtx alone: an existing publisher is proof the
-    pipeline is running and pushing frames, so the common success path returns
-    immediately without waiting on ``/pipelines/status``. The pipeline state is
-    consulted *only* while the stream is not yet publishing, to fail fast when
-    the pipeline has left the ``RUNNING``/``QUEUED`` states (or vanished) instead
-    of leaving the UI stuck on "Connecting…".
+    This endpoint is the backend half of a two-stage readiness gate: the
+    backend answers "is the pipeline alive and producing?", mediamtx answers
+    "can the browser watch it yet?" (the UI confirms the latter with a WHEP
+    probe before loading the iframe).
+
+    Readiness is derived from the pipeline server alone: the run is ready when
+    its instance is ``RUNNING`` and reports a positive ``avg_fps`` — frames
+    moving through the pipeline are being published to mediamtx by the WebRTC
+    sink. This deliberately avoids the mediamtx control API, so mediamtx can
+    run with its API disabled. The pipeline state also lets the UI fail fast
+    when the instance leaves the ``RUNNING``/``QUEUED`` states (or vanishes)
+    instead of staying stuck on "Connecting…".
     """
     info = RUNS.get(run_id)
     if not info:
         raise HTTPException(status_code=404, detail={"message": "Run not found"})
 
-    # Fast path: a mediamtx publisher means the stream is live. Report ready
-    # right away regardless of what /pipelines/status currently says.
-    if await asyncio.to_thread(mediamtx_path_ready, info.peerId):
-        return {
-            "runId": run_id,
-            "peerId": info.peerId,
-            "ready": True,
-            "state": "running",
-            "error": False,
-        }
-
-    # Not publishing yet – consult the pipeline state to decide whether to keep
-    # waiting or to surface a startup failure.
-    reachable, state = await asyncio.to_thread(get_pipeline_state, info.pipelineId)
+    reachable, state, avg_fps = await asyncio.to_thread(
+        get_pipeline_state, info.pipelineId
+    )
 
     # Pipeline server temporarily unreachable – treat as "still starting" and
     # let the UI keep waiting; the health monitor handles persistent outages.
@@ -418,11 +412,11 @@ async def stream_ready(run_id: str) -> dict[str, object]:
             "error": True,
         }
 
-    # Healthy (running or queued) but no publisher yet – keep waiting.
+    # Healthy: ready once frames are flowing; otherwise keep waiting.
     return {
         "runId": run_id,
         "peerId": info.peerId,
-        "ready": False,
+        "ready": state == "running" and avg_fps > 0,
         "state": state,
         "error": False,
     }

@@ -56,37 +56,14 @@ spec:
             - name: media-udp
               containerPort: {{ .Values.service.mediaUdpPort }}
               protocol: UDP
-            - name: api
-              containerPort: {{ .Values.service.apiContainerPort }}
-              protocol: TCP
           env:
             - name: MTX_LOGLEVEL
               value: {{ .Values.env.logLevel | quote }}
+            # The control API is not used: video-caption-service derives stream
+            # readiness from the pipeline server, so mediamtx runs with its API
+            # surface disabled.
             - name: MTX_API
               value: {{ .Values.env.api | quote }}
-            # mediamtx's default auth only grants the "api" permission to
-            # localhost, so cross-pod calls from video-caption-service (pod IP)
-            # get 401 and the stream-readiness probe never sees a publisher.
-            # Re-declare the internal users to also allow api/metrics/pprof from
-            # the cluster networks (env.apiAllowedIPs).
-            - name: MTX_AUTHINTERNALUSERS_0_USER
-              value: "any"
-            - name: MTX_AUTHINTERNALUSERS_0_PERMISSIONS_0_ACTION
-              value: "publish"
-            - name: MTX_AUTHINTERNALUSERS_0_PERMISSIONS_1_ACTION
-              value: "read"
-            - name: MTX_AUTHINTERNALUSERS_0_PERMISSIONS_2_ACTION
-              value: "playback"
-            - name: MTX_AUTHINTERNALUSERS_1_USER
-              value: "any"
-            - name: MTX_AUTHINTERNALUSERS_1_IPS
-              value: {{ .Values.env.apiAllowedIPs | quote }}
-            - name: MTX_AUTHINTERNALUSERS_1_PERMISSIONS_0_ACTION
-              value: "api"
-            - name: MTX_AUTHINTERNALUSERS_1_PERMISSIONS_1_ACTION
-              value: "metrics"
-            - name: MTX_AUTHINTERNALUSERS_1_PERMISSIONS_2_ACTION
-              value: "pprof"
             - name: MTX_RTSP
               value: {{ .Values.env.rtsp | quote }}
             - name: MTX_RTMP
@@ -109,12 +86,12 @@ spec:
             {{- include "lvc.proxyEnv" . | nindent 12 }}
           livenessProbe:
             tcpSocket:
-              port: api
+              port: whip
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
             tcpSocket:
-              port: api
+              port: whip
             initialDelaySeconds: 5
             periodSeconds: 10
           resources:

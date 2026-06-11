@@ -48,8 +48,10 @@ _HEALTHY_STATES = {"running", "queued"}
 _health_task: Optional[asyncio.Task] = None
 
 
-def get_pipeline_state(pipeline_id: str, timeout: int = 5) -> tuple[bool, Optional[str]]:
-    """Return the current state of a single pipeline instance.
+def get_pipeline_state(
+    pipeline_id: str, timeout: int = 5
+) -> tuple[bool, Optional[str], float]:
+    """Return the current state and frame rate of a single pipeline instance.
 
     Performs one ``GET /pipelines/status`` request and looks up *pipeline_id*.
 
@@ -59,7 +61,7 @@ def get_pipeline_state(pipeline_id: str, timeout: int = 5) -> tuple[bool, Option
             called from the interactive ``stream-ready`` poll.
 
     Returns:
-        A tuple ``(reachable, state)`` where:
+        A tuple ``(reachable, state, avg_fps)`` where:
         - ``reachable`` is ``False`` when the pipeline server cannot be reached
           or returns an unexpected response (caller should treat this as a
           transient "still starting" condition).
@@ -67,18 +69,27 @@ def get_pipeline_state(pipeline_id: str, timeout: int = 5) -> tuple[bool, Option
           (e.g. ``"running"``, ``"queued"``, ``"error"``), or ``None`` when the
           instance is absent from the status list even though the server is
           reachable.
+        - ``avg_fps`` is the average frame rate reported for the instance
+          (``0.0`` while no frames have been processed yet, or when the value
+          is missing/unreachable). A positive value while ``running`` means
+          frames are flowing through the pipeline and therefore being
+          published to mediamtx.
     """
     status_code, body = _fetch_pipeline_statuses(timeout=timeout)
 
     if status_code is None or status_code != 200 or not isinstance(body, list):
-        return False, None
+        return False, None, 0.0
 
     target = pipeline_id.lower()
     for item in body:
         if isinstance(item, dict) and str(item.get("id", "")).lower() == target:
-            return True, str(item.get("state", "")).lower()
+            try:
+                avg_fps = float(item.get("avg_fps") or 0.0)
+            except (TypeError, ValueError):
+                avg_fps = 0.0
+            return True, str(item.get("state", "")).lower(), avg_fps
 
-    return True, None
+    return True, None, 0.0
 
 
 def _fetch_pipeline_statuses(timeout: int = 10) -> tuple[Optional[int], Optional[list]]:

@@ -38,9 +38,6 @@ PIPELINE_SERVER_URL = os.environ.get(
 )
 PIPELINE_NAME = os.environ.get("PIPELINE_NAME", "genai_pipeline")
 
-# mediamtx control API base URL, used to check WebRTC path readiness before the
-# UI loads the video iframe (avoids the "stream not found, retrying" message).
-MEDIAMTX_API_URL = os.environ.get("MEDIAMTX_API_URL", "http://mediamtx:9997")
 # How often (in seconds) to poll the pipeline server for run health. 0 disables polling.
 # Keep this low (≤10 s) so the UI reflects a crashed pipeline server quickly.
 PIPELINE_POLL_INTERVAL = _read_non_negative_int("PIPELINE_POLL_INTERVAL", 8)

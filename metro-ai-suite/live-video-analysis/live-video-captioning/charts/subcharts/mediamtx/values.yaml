@@ -23,9 +23,6 @@ service:
   # NodePort exposed on the host for browser WebRTC connections.
   # Type: integer
   whipNodePort: 8889
-  # Internal API port.
-  # Type: integer
-  apiContainerPort: 9997
   # UDP port for WebRTC media.
   # Type: integer
   mediaUdpPort: 8189
@@ -42,8 +39,9 @@ webrtcIcePassword: "lvcpass"
 # MediaMTX application settings.
 env:
   logLevel: "info"
-  # Enable the HTTP API (used by liveness/readiness probes on port 9997).
-  api: "yes"
+  # The control API is unused (stream readiness is derived from the pipeline
+  # server) and disabled to reduce attack surface.
+  api: "no"
   # Disable unused protocol servers to reduce attack surface.
   rtsp: "no"
   rtmp: "no"
@@ -51,12 +49,6 @@ env:
   hls: "no"
   webrtcTrackGatherTimeout: "30s"
   webrtcAddress: ":8889"
-  # Networks allowed to call the mediamtx HTTP API (api/metrics/pprof actions).
-  # mediamtx's default auth grants these only to localhost, so cross-pod calls
-  # from video-caption-service get 401 and the stream-readiness probe never sees
-  # a publisher.
-  # Type: string (comma-separated CIDRs)
-  apiAllowedIPs: "127.0.0.1,::1,172.16.0.0/12"
   # coturn service name used for TURN URL.
   # Type: string
   coturnServiceName: "coturn"
