@@ -169,9 +169,34 @@ video-caption-service:
   # Shared models PVC name. Leave empty to auto-derive from release name.
   modelsPvcName: ""       # defaults to <release>-live-video-captioning-models
 
-# ── metrics-service ──────────────────────────────────────────────────────────
-metrics-service:
+# ── metrics-manager ──────────────────────────────────────────────────────────
+# Upstream metrics-manager chart (edge-ai-libraries) vendored under
+# ./subcharts/metrics-manager. It bundles Telegraf system telemetry with a
+# FastAPI REST surface and a Server-Sent Events stream consumed by the UI.
+metrics-manager:
+  # Keep the Kubernetes Service name fixed at "metrics-service" regardless of
+  # release name. The UI/backend reach the SSE stream at <node>:9090 and the
+  # no_proxy list references this name.
   fullnameOverride: "metrics-service"
+
+  service:
+    type: ClusterIP
+    metricsPort: 9090
+    telegrafPort: 9273
+    # Bind the SSE/REST port (and Prometheus port) on the node so the browser
+    # dashboard can reach the metrics stream directly at <node-ip>:9090.
+    hostPorts:
+      metrics: 9090
+      telegraf: 9273
+      telegrafHttp: ""
+
+  # Hardware metrics collection needs privileged access and the host PID
+  # namespace (qmassa GPU/NPU monitoring). Defaults already enable these; kept
+  # explicit here for visibility.
+  pod:
+    hostPID: true
+  securityContext:
+    privileged: true
 
 # ── multimodal-embedding ───────────────────────────────────────────────────
 multimodal-embedding:

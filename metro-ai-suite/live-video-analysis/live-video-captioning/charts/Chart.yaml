@@ -41,9 +41,9 @@ dependencies:
   - name: video-caption-service
     version: "0.1.0"
     repository: "file://subcharts/video-caption-service"
-  - name: metrics-service
-    version: "0.1.0"
-    repository: "file://subcharts/metrics-service"
+  - name: metrics-manager
+    version: "2026.1.0-helm"
+    repository: "file://subcharts/metrics-manager"
   - name: multimodal-embedding
     version: "0.1.0"
     repository: "file://subcharts/multimodal-embedding"
