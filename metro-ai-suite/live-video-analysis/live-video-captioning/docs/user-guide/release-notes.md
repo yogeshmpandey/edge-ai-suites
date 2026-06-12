@@ -11,9 +11,6 @@
 - Integration of model-download service to simplify downloading before preparing the model.
 - Added support for using the host machine's camera as an input source.
 - Dynamically selects the default pipeline based on detected hardware such as GPU.
-- Consolidated metrics collection into a single `metrics-service` (the metrics-manager
-  microservice), replacing the separate `live-metrics-service` and `collector` containers.
-- Added NPU utilization metrics to the dashboard when an Intel NPU is present.
 - Simplify the setup process of the application.
 - Deployment with Helm chart.
 - Enhancements in UI/UX for the Alert mode.
