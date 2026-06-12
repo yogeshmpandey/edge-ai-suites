@@ -59,9 +59,6 @@ spec:
           env:
             - name: MTX_LOGLEVEL
               value: {{ .Values.env.logLevel | quote }}
-            # The control API is not used: video-caption-service derives stream
-            # readiness from the pipeline server, so mediamtx runs with its API
-            # surface disabled.
             - name: MTX_API
               value: {{ .Values.env.api | quote }}
             - name: MTX_RTSP
