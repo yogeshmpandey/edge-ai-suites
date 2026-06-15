@@ -23,7 +23,7 @@ flowchart LR
 - **mediamtx**: WebRTC/WHIP signaling server for video streaming
 - **coturn**: TURN server for NAT traversal in WebRTC connections
 - **app**: Python FastAPI backend serving REST APIs, SSE metadata streams, and WebSocket caption streams
-- **metrics-service**: Bundled system metrics microservice (`intel/metrics-manager`, Telegraf collector + HTTP/SSE API) reporting CPU, GPU, NPU, memory, and power
+- **metrics-manager**: Bundled system metrics microservice (`intel/metrics-manager`, Telegraf collector + HTTP/SSE API) reporting CPU, GPU, NPU, memory, and power
 
 ## Learn More
 

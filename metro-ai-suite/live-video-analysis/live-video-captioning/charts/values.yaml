@@ -174,10 +174,10 @@ video-caption-service:
 # ./subcharts/metrics-manager. It bundles Telegraf system telemetry with a
 # FastAPI REST surface and a Server-Sent Events stream consumed by the UI.
 metrics-manager:
-  # Keep the Kubernetes Service name fixed at "metrics-service" regardless of
+  # Keep the Kubernetes Service name fixed at "metrics-manager" regardless of
   # release name. The UI/backend reach the SSE stream at <node>:9090 and the
   # no_proxy list references this name.
-  fullnameOverride: "metrics-service"
+  fullnameOverride: "metrics-manager"
 
   service:
     type: ClusterIP

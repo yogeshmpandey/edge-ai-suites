@@ -8,8 +8,8 @@ services:
     hostname: mqtt-broker
     container_name: mqtt-broker
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,${NO_PROXY:-}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,${NO_PROXY:-}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -41,8 +41,8 @@ services:
       - "${EVAM_HOST_PORT:-8040}:${EVAM_PORT:-8080}"
       - "8556:8554"
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,host.docker.internal,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,host.docker.internal,${NO_PROXY:-}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,host.docker.internal,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,host.docker.internal,${NO_PROXY:-}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -100,8 +100,8 @@ services:
     image: bluenviron/mediamtx:1.15.6
     container_name: mediamtx
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,${NO_PROXY:-}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,${NO_PROXY:-}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -131,8 +131,8 @@ services:
     image: coturn/coturn:4.12
     container_name: coturn
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,${NO_PROXY:-}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,${NO_PROXY:-}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -151,8 +151,8 @@ services:
         COPYLEFT_SOURCES: ${COPYLEFT_SOURCES:-false}
     container_name: video-caption-service
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,live-video-captioning-rag,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,live-video-captioning-rag,${NO_PROXY:-}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,live-video-captioning-rag,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,live-video-captioning-rag,${NO_PROXY:-}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -194,17 +194,17 @@ services:
         condition: service_started
       mqtt-broker:
         condition: service_started
-      metrics-service:
+      metrics-manager:
         condition: service_healthy
     networks:
       - app_network
 
-  metrics-service:
+  metrics-manager:
     image: docker.io/intel/metrics-manager:2026.1.0-rc2
-    container_name: metrics-service
+    container_name: metrics-manager
     environment:
-      - no_proxy=localhost,127.0.0.1,video-caption-service,metrics-service,${no_proxy}
-      - NO_PROXY=localhost,127.0.0.1,video-caption-service,metrics-service,${NO_PROXY:-}
+      - no_proxy=localhost,127.0.0.1,video-caption-service,metrics-manager,${no_proxy}
+      - NO_PROXY=localhost,127.0.0.1,video-caption-service,metrics-manager,${NO_PROXY:-}
       - http_proxy=$http_proxy
       - HTTP_PROXY=$http_proxy
       - https_proxy=$https_proxy
@@ -250,8 +250,8 @@ services:
       - EMBEDDING
     ipc: host
     environment:
-      no_proxy: localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,${no_proxy}
-      no_proxy_env: localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,${no_proxy}
+      no_proxy: localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,${no_proxy}
+      no_proxy_env: localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,${no_proxy}
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
       EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME}
@@ -289,8 +289,8 @@ services:
       - EMBEDDING
     ipc: host
     environment:
-      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,live-video-captioning-rag,${no_proxy}
-      - no_proxy_env=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,live-video-captioning-rag,${no_proxy}
+      - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,live-video-captioning-rag,${no_proxy}
+      - no_proxy_env=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-manager,mqtt-broker,vdms-vector-db,multimodal-embedding-serving,live-video-captioning-rag,${no_proxy}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
       - OVERRIDE_db_root_path=/db

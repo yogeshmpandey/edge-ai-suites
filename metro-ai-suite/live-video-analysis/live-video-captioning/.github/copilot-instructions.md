@@ -53,7 +53,7 @@ prefix. Core services (see `compose.yaml`):
 - **mqtt-broker** — eclipse-mosquitto; carries captions/metadata between the
   pipeline server and the backend.
 - **mediamtx** / **coturn** — WebRTC media + TURN for live video in the UI.
-- **metrics-service** — metrics manager.
+- **metrics-manager** — metrics manager.
 - **multimodal-embedding-serving**, **vdms-vector-db**,
   **live-video-captioning-rag** — embedding, vector DB, and RAG (EMBEDDING
   profile only; harmless "variable is not set" warnings appear when disabled).
