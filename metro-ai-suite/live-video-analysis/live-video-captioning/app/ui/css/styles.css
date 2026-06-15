@@ -626,9 +626,11 @@ iframe {
 .chart-values {
     display: flex;
     flex-wrap: nowrap;
-    justify-content: space-between;
-    gap: 2px;
-    width: 100%;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding-left: 6px;
+    border-left: 1px solid var(--border);
     font-size: 0.78rem;
 }
 
@@ -645,9 +647,10 @@ iframe {
 
 .chart-header {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
     font-size: 0.85rem;
     color: var(--muted);
     margin-bottom: 4px;
@@ -664,7 +667,7 @@ iframe {
    as readings change (e.g. "—" -> "100.0%"). */
 .chart-value > span {
     display: inline-block;
-    min-width: 2.9em;
+    min-width: 2.6em;
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
