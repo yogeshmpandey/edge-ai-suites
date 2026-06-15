@@ -97,7 +97,7 @@ services:
       - app_network
 
   mediamtx:
-    image: bluenviron/mediamtx:1.11.3
+    image: bluenviron/mediamtx:1.15.6
     container_name: mediamtx
     environment:
       - no_proxy=localhost,127.0.0.1,mediamtx,coturn,dlstreamer-pipeline-server,video-caption-service,metrics-service,${no_proxy}
@@ -114,6 +114,9 @@ services:
       - MTX_HLS=no
       - MTX_WEBRTCTRACKGATHERTIMEOUT=30s
       - MTX_WEBRTCADDRESS=:8889
+      # Advertise the host as a direct ICE candidate so same-host/LAN clients
+      # connect peer-to-peer; the TURN server below remains the NAT fallback.
+      - MTX_WEBRTCADDITIONALHOSTS=${HOST_IP:-localhost}
       - MTX_WEBRTCICESERVERS2_0_URL=turn:${HOST_IP:-localhost}:3478
       - MTX_WEBRTCICESERVERS2_0_USERNAME=${MTX_WEBRTCICESERVERS2_0_USERNAME:-localhost}
       - MTX_WEBRTCICESERVERS2_0_PASSWORD=${MTX_WEBRTCICESERVERS2_0_PASSWORD:-localpass}

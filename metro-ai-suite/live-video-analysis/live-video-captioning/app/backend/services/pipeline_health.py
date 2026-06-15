@@ -40,11 +40,6 @@ logger = logging.getLogger("app.pipeline_health")
 # lowercasing the value returned by the server.
 _TERMINAL_STATES = {"error", "aborted", "completed"}
 
-# States that indicate a pipeline instance is healthy: either actively
-# processing frames (``running``) or waiting to be scheduled (``queued``).
-# Any other state means the stream has failed to come up.
-_HEALTHY_STATES = {"running", "queued"}
-
 _health_task: Optional[asyncio.Task] = None
 
 

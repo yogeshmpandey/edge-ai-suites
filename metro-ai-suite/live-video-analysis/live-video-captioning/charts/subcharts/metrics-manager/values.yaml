@@ -13,8 +13,8 @@
 # -----------------------------------------------------------------------------
 image:
   repository: intel/metrics-manager
-  # tag defaults to .Chart.AppVersion (kept in sync with ./VERSION).
-  # Override only when running a custom build.
+  # Pinned release tag. Leave empty to fall back to .Chart.AppVersion
+  # (kept in sync with ./VERSION). Override when running a custom build.
   tag: "2026.1.0-rc2"
   pullPolicy: IfNotPresent
 

@@ -2,12 +2,14 @@
  * Metrics collector service for the bundled metrics-manager microservice.
  *
  * Consumes the Server-Sent Events stream exposed by metrics-manager
- * (GET /metrics/stream on port 9090) and renders CPU, RAM, GPU and NPU usage.
+ * (GET /metrics/stream on port 9090) and renders CPU, RAM, GPU and NPU
+ * utilization percentages.
  *
  * The stream emits events shaped as:
  *   { "timestamp": <ms>, "metrics": [ { "name", "labels", "value", "timestamp" }, ... ] }
- * where metric names are flattened (measurement + "_" + field), e.g.
- * "cpu_usage_user", "mem_used_percent", "gpu_engine_usage_usage", "npu_utilization".
+ * where metric names are flattened (measurement + "_" + field). Only the
+ * usage-percentage series are consumed: "cpu_usage_user", "mem_used_percent",
+ * "gpu_engine_usage_usage" and "npu_utilization".
  */
 const MetricsCollectorService = (function () {
     let metricsSource = null;
@@ -31,21 +33,11 @@ const MetricsCollectorService = (function () {
         return `${protocol}//${host}:${port}/metrics/stream`;
     }
 
-    function formatEngineName(name) {
-        // Format engine names for display (e.g., "rcs0" -> "RCS0", "video" -> "Video")
-        if (!name) return 'Unknown';
-        return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    }
-
     function processCollectorMetrics(metrics, elements) {
-        const { cpuVal, ramVal, gpuVal, gpuStat, gpuDetail, gpuEngines, gpuFreq, gpuPower, gpuTemp, gpuError, npuVal, npuStat } = elements;
+        const { cpuVal, ramVal, gpuVal, gpuStat, gpuError, npuVal, npuStat } = elements;
 
         // Per-batch accumulators
         const gpuEngineData = new Map();
-        let gpuPowerValue = null;
-        let pkgPowerValue = null;
-        let gpuFreqValue = null;
-        let gpuTempValue = null;
         let npuUtilization = null;
 
         metrics.forEach(metric => {
@@ -72,73 +64,20 @@ const MetricsCollectorService = (function () {
                     }
                     break;
 
-                case 'gpu_frequency':
-                    if (labels.type === undefined || labels.type === 'cur_freq') {
-                        gpuFreqValue = value;
-                    }
-                    break;
-
-                case 'gpu_power':
-                    if (labels.type === 'gpu_cur_power') {
-                        gpuPowerValue = value;
-                    } else if (labels.type === 'pkg_cur_power') {
-                        pkgPowerValue = value;
-                    } else if (gpuPowerValue === null) {
-                        gpuPowerValue = value;
-                    }
-                    break;
-
-                case 'temp_temp':
-                    if (typeof labels.sensor === 'string' && labels.sensor.includes('package')) {
-                        gpuTempValue = value;
-                    }
-                    break;
-
                 case 'npu_utilization':
                     npuUtilization = value;
                     break;
             }
         });
 
-        // GPU frequency / temperature detail lines
-        if (gpuFreq && gpuFreqValue !== null) {
-            gpuFreq.textContent = `Freq: ${gpuFreqValue} MHz`;
-            gpuFreq.style.display = 'block';
-        }
-        if (gpuTemp && gpuTempValue !== null) {
-            gpuTemp.textContent = `Temp: ${gpuTempValue}°C`;
-            gpuTemp.style.display = 'block';
-        }
-
-        // GPU power display
-        if (gpuPower && gpuPowerValue !== null) {
-            let powerText = `Power: ${gpuPowerValue.toFixed(1)}W`;
-            if (pkgPowerValue !== null) {
-                powerText += ` (Pkg: ${pkgPowerValue.toFixed(1)}W)`;
-            }
-            gpuPower.textContent = powerText;
-            gpuPower.style.display = 'block';
-        }
-
-        // GPU engines breakdown + overall usage (max across engines)
-        const engineNames = Array.from(gpuEngineData.keys());
-        if (engineNames.length > 0) {
-            if (gpuEngines) {
-                const engineList = engineNames
-                    .map(n => `${formatEngineName(n)}: ${gpuEngineData.get(n).toFixed(1)}%`)
-                    .join(' | ');
-                gpuEngines.textContent = engineList;
-                gpuEngines.style.display = 'block';
-            }
-
+        // GPU usage (max across engines)
+        if (gpuEngineData.size > 0) {
             const maxGpuUsage = Math.max(...Array.from(gpuEngineData.values()));
             ChartManager.pushStatSample('gpu', maxGpuUsage);
             if (gpuVal) gpuVal.textContent = `${maxGpuUsage.toFixed(1)}%`;
 
             // Reveal the GPU stat only once data is present
             if (gpuStat) gpuStat.style.display = '';
-            // Mark GPU as available
-            if (gpuDetail) gpuDetail.style.display = 'block';
             if (gpuError) gpuError.style.display = 'none';
         }
 

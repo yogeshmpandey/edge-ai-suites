@@ -133,7 +133,7 @@ These workloads are kept on the same worker because they rely on node-local acce
 - `dlstreamer-pipeline-server` and `metrics-service` need direct access to node hardware and host resources.
 - `mediamtx` and `coturn` expose browser-facing WebRTC and TURN endpoints that must match the selected node's reachable IP.
 
-Other supporting services such as `mqtt-broker`, `multimodal-embedding` (when RAG is enabled), and `vdmsvectordb` (when RAG is enabled) do not require pinning to the same worker node.
+Other supporting services such as `mqtt-broker`, `multimodal-embedding` (when RAG is enabled), and `vdms-vector-db` (when RAG is enabled) do not require pinning to the same worker node.
 
 For best performance, choose a worker node with a GPU. The chart can run with CPU-only inference, but a GPU-capable node is the preferred deployment target for DL Streamer and real-time media processing.
 
