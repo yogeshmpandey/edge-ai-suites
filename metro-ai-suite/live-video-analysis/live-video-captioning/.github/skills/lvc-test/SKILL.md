@@ -5,7 +5,7 @@ description: Run the Live Video Captioning unit test suite (pytest in app/). Use
 
 # Test Live Video Captioning
 
-Run from `live-video-captioning/app/`. Host Python 3.10 with deps already installed works; no venv needed on this box.
+Run from `live-video-captioning/app/`. Host Python 3.12 with deps already installed works; no venv needed on this box.
 
 ## Mandatory
 
