@@ -625,7 +625,8 @@ iframe {
 
 .chart-values {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 2px 12px;
     font-size: 0.8rem;
 }
 
@@ -644,6 +645,8 @@ iframe {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 2px 4px;
     font-size: 0.85rem;
     color: var(--muted);
     margin-bottom: 4px;
@@ -653,6 +656,16 @@ iframe {
 .chart-value {
     color: var(--text);
     font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Reserve a stable width for the numeric value so labels don't jump or wrap
+   as readings change (e.g. "—" -> "100.0%"). */
+.chart-value > span {
+    display: inline-block;
+    min-width: 3.6em;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 
 .chart-sub {
