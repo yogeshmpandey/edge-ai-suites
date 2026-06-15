@@ -625,11 +625,11 @@ iframe {
 
 .chart-values {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 8px 16px;
     min-width: 0;
-    padding-left: 6px;
+    padding-left: 12px;
     border-left: 1px solid var(--border);
     font-size: 0.78rem;
 }
@@ -648,9 +648,9 @@ iframe {
 .chart-header {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 2px;
-    white-space: nowrap;
+    gap: 6px 10px;
     font-size: 0.85rem;
     color: var(--muted);
     margin-bottom: 4px;
