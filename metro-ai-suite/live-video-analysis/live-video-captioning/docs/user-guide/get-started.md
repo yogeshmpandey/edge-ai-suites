@@ -97,7 +97,7 @@ By default the model is converted on CPU. To explicitly set the device:
 
 See [Model Preparation](./get-started/model-preparation.md) for detailed usage.
 
-### 4. Customize your deployment
+### 4. Customize your deployment (Optional)
 
 Before starting, edit `.env` to enable the features you need. The table below summarises the common customizations:
 

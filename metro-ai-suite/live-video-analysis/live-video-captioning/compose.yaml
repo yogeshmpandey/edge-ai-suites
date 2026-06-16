@@ -34,6 +34,10 @@ services:
     entrypoint: [ "./run.sh" ]
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      # Air-gapped: resolve the public Google STUN host to the local host so
+      # WebRTC ICE never reaches out to the internet (paired with coturn
+      # listening on the Google STUN port 19302 below).
+      - "stun.l.google.com:${HOST_IP:-127.0.0.1}"
     depends_on:
       - mediamtx
       - mqtt-broker
@@ -122,7 +126,7 @@ services:
       - MTX_WEBRTCICESERVERS2_0_PASSWORD=${MTX_WEBRTCICESERVERS2_0_PASSWORD:-localpass}
     ports:
       - "${WHIP_SERVER_PORT}:8889"
-      - "8189:8189"
+      - "8189:8189/udp"
     restart: unless-stopped
     networks:
       - app_network
@@ -139,6 +143,9 @@ services:
       - HTTPS_PROXY=$https_proxy
     ports:
       - "3478:3478/udp"
+      # Air-gapped: also answer STUN on Google's public port (stun.l.google.com:19302)
+      # so clients pointed at the default Google STUN endpoint stay on-host.
+      - "19302:3478/udp"
     command: [ "-v" ] # Verbose mode for logging
     networks:
       - app_network
