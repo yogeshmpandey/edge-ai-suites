@@ -56,7 +56,7 @@ This script sets these important values:
 | `EVAM_HOST_PORT` | `8040` | Port for the pipeline management REST API. |
 | `WHIP_SERVER_PORT` | `8889` | Port for WebRTC/WHIP signaling (mediamtx). |
 | `MQTT_PORT` | `1883` | Port for the internal MQTT broker. |
-| `WEBRTC_BITRATE` | `5000` | WebRTC stream bitrate in kbps. Lower values reduce bandwidth. |
+| `WEBRTC_BITRATE` | `2048` | WebRTC stream bitrate in kbps. Lower values reduce bandwidth. |
 | `ENABLE_DETECTION_PIPELINE` | `false` | Enables optional object-detection pre-filtering when set to `true`. |
 | `ALERT_MODE` | `false` | Enables alert-style visual highlighting based on keyword rules when set to `true`. |
 | `CAPTION_HISTORY` | `3` | Number of previous captions shown in the UI. |
