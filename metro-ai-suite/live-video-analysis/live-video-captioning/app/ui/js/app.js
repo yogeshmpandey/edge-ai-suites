@@ -53,6 +53,7 @@
         allPipelines: [],
         hasSavedVlmDevicePreference: false,
         hasGpuDevice: null,
+        hasNpuDevice: null,
     };
     const CHAT_TAB_NAME = 'Live Caption RAG Dashboard';
 
@@ -529,6 +530,39 @@
         banner.style.display = '';
     }
 
+    function setVlmDeviceOptionsByCapabilities() {
+        const select = els.vlmDeviceSelect;
+        if (!select) return;
+
+        const previous = (select.value || '').trim().toLowerCase();
+        const options = [{ value: 'cpu', label: 'CPU' }];
+
+        if (state.hasGpuDevice === true) {
+            options.push({ value: 'gpu', label: 'GPU' });
+        }
+        if (state.hasNpuDevice === true) {
+            options.push({ value: 'npu', label: 'NPU' });
+        }
+
+        select.innerHTML = '';
+        for (const option of options) {
+            const opt = document.createElement('option');
+            opt.value = option.value;
+            opt.textContent = option.label;
+            select.appendChild(opt);
+        }
+
+        const settings = SettingsManager.loadSettings();
+        const saved = (settings?.vlmDevice || '').trim().toLowerCase();
+        const availableValues = options.map((o) => o.value);
+        const selected = [previous, saved].find((value) => availableValues.includes(value)) || options[0].value;
+        select.value = selected;
+
+        updateNpuResolutionWarning();
+        updateGpuCompatibilityWarning();
+        SettingsManager.saveSettings(els);
+    }
+
     async function loadSystemCapabilities() {
         const capabilities = await ApiService.fetchSystemCapabilities();
         if (capabilities?.has_gpu === true || capabilities?.has_gpu === false) {
@@ -536,6 +570,14 @@
         } else {
             state.hasGpuDevice = null;
         }
+        if (capabilities?.has_npu === true || capabilities?.has_npu === false) {
+            state.hasNpuDevice = capabilities.has_npu;
+        } else {
+            state.hasNpuDevice = null;
+        }
+
+        setVlmDeviceOptionsByCapabilities();
+        refreshModelsBySelectedVlmDevice();
         updateGpuCompatibilityWarning();
     }
 
@@ -546,8 +588,13 @@
             ? normalizedPipelines.find((p) => p?.pipeline_default === true)
             : null;
 
-        // Keep VLM device default in sync with GPU-aware pipeline defaulting.
-        const desiredDevice = preferredDefault?.device === 'gpu' ? 'gpu' : 'cpu';
+        const availableDevices = Array.from(els.vlmDeviceSelect.options).map((o) => o.value);
+        const preferredDevice = ['cpu', 'gpu', 'npu'].includes(preferredDefault?.device)
+            ? preferredDefault.device
+            : 'cpu';
+        const desiredDevice = availableDevices.includes(preferredDevice)
+            ? preferredDevice
+            : (availableDevices[0] || 'cpu');
         if (els.vlmDeviceSelect.value !== desiredDevice) {
             els.vlmDeviceSelect.value = desiredDevice;
             updateNpuResolutionWarning();
@@ -1299,9 +1346,10 @@
             updateCustomDimensionsVisibility();
         }
 
-        loadModels();
-        loadPipelines();
-        loadSystemCapabilities();
+        loadSystemCapabilities().finally(() => {
+            loadModels();
+            loadPipelines();
+        });
         initCollectorMetrics();
 
         // Restore active runs from backend

@@ -17,6 +17,7 @@ from backend.services.discovery import (
     discover_pipelines_remote,
     _default_pipeline_names,
     _gpu_device_exists,
+    _npu_device_exists,
     _is_gpu_pipeline,
 )
 
@@ -341,6 +342,8 @@ class TestDiscoverPipelinesRemote:
         assert len(defaults) == 1
         assert defaults[0]["pipeline_name"] == "GenAI_Pipeline_Software"
 
+
+
     def test_non_list_items_payload_falls_back_to_default(self):
         """Non-list 'pipelines' payloads trigger default fallback response."""
         with self._mock_http({"pipelines": "not-a-list"}):
@@ -457,6 +460,25 @@ class TestDiscoverPipelinesRemote:
         assert result[0]["pipeline_name"] == "genai_pipeline"
         assert result[0]["pipeline_default"] is True
 
+    def test_non_gpu_filters_out_hardware_pipelines(self):
+        """When GPU is unavailable, only software/CPU pipelines are exposed."""
+        payload = [
+            "GenAI_Pipeline_Hardware",
+            "GenAI_Detection_Pipeline_Hardware",
+            "GenAI_Pipeline_Software",
+            "GenAI_Detection_Pipeline_Software",
+        ]
+
+        with self._mock_http(payload), patch(
+            "backend.services.discovery.ENABLE_DETECTION_PIPELINE", True
+        ), patch("backend.services.discovery._gpu_device_exists", return_value=False):
+            result = discover_pipelines_remote()
+
+        names = {r["pipeline_name"] for r in result}
+        assert "GenAI_Pipeline_Hardware" not in names
+        assert "GenAI_Detection_Pipeline_Hardware" not in names
+        assert "GenAI_Pipeline_Software" in names
+        assert "GenAI_Detection_Pipeline_Software" in names
 
 class TestGpuHelpers:
     """Tests for GPU-related helper functions in discovery."""
@@ -491,3 +513,11 @@ class TestGpuHelpers:
         """Non-GPU pipeline names are not classified as GPU pipelines."""
         assert _is_gpu_pipeline("GenAI_Pipeline_on_CPU") is False
         assert _is_gpu_pipeline("genai_pipeline") is False
+
+class TestNpuHelpers:
+    """Tests for NPU-related helper functions in discovery."""
+
+    def test_npu_device_exists_returns_false_when_accel_missing(self):
+        """Returns False when /dev/accel path does not exist."""
+        with patch("backend.services.discovery.Path.exists", return_value=False):
+            assert _npu_device_exists() is False

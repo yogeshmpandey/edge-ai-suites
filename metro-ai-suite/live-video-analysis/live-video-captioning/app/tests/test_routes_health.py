@@ -25,16 +25,20 @@ class TestCapabilities:
 
     def test_capabilities_reports_gpu_available(self, client):
         """Capabilities endpoint reports has_gpu=true when GPU is detected."""
-        with patch("backend.routes.health.has_gpu_device", return_value=True):
+        with patch("backend.routes.health.has_gpu_device", return_value=True), patch(
+            "backend.routes.health.has_npu_device", return_value=False
+        ):
             resp = client.get("/api/capabilities")
 
         assert resp.status_code == 200
-        assert resp.json() == {"has_gpu": True}
+        assert resp.json() == {"has_gpu": True, "has_npu": False}
 
     def test_capabilities_reports_gpu_unavailable(self, client):
         """Capabilities endpoint reports has_gpu=false when GPU is not detected."""
-        with patch("backend.routes.health.has_gpu_device", return_value=False):
+        with patch("backend.routes.health.has_gpu_device", return_value=False), patch(
+            "backend.routes.health.has_npu_device", return_value=False
+        ):
             resp = client.get("/api/capabilities")
 
         assert resp.status_code == 200
-        assert resp.json() == {"has_gpu": False}
+        assert resp.json() == {"has_gpu": False, "has_npu": False}
