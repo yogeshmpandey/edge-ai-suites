@@ -1,7 +1,10 @@
 # Quick Start Guide
 
+> **Important:** Use **Windows PowerShell** (not Command Prompt/CMD) for all steps in this guide.
+> PowerShell scripts (`.ps1` files) will not execute in CMD — they will only open as text files.
+
 ## Step 1: Clone Repository
- 
+
 Go to the target directory of your choice and clone the suite.
 If you want to clone a specific release branch, replace `main` with the desired tag.
 To learn more on partial cloning, check the [Repository Cloning guide](https://docs.openedgeplatform.intel.com/dev/OEP-articles/contribution-guide.html#repository-cloning-partial-cloning).
@@ -10,8 +13,7 @@ To learn more on partial cloning, check the [Repository Cloning guide](https://d
   git clone --filter=blob:none --sparse --branch main https://github.com/open-edge-platform/edge-ai-suites.git
   cd edge-ai-suites
   git sparse-checkout set education-ai-suite
-  cd education-ai-suite
-  cd smart-classroom
+  cd education-ai-suite\smart-classroom
 ```
 ## Step 2: Run Setup Script (First-Time Only)
 
@@ -53,6 +55,7 @@ If you encounter issues during automated setup, refer to the manual steps below:
 
 | Issue | Solution |
 |-------|----------|
+| `PSSecurityException` when running `.ps1` scripts | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in PowerShell |
 | FFmpeg installation fails | See [Manual Step 1A](advance-setup-guide.md#a-install-ffmpeg-required-for-audio-processing) |
 | DL Streamer download fails | See [Manual Step 1B](advance-setup-guide.md#b-install-dl-streamer) |
 | Python dependencies fail | See [Manual Step 1D](advance-setup-guide.md#d-install-python-dependencies) |
@@ -89,6 +92,9 @@ Advance Setup guide covers:
 - **Step 2:** Configuration (config.yaml settings)
 - **Step 3-6:** Run Services & Access UI
 - **Step 7:** Speaker Diarization Setup (Optional)
+- **[Troubleshooting](advance-setup-guide.md#troubleshooting)** — solutions for common setup and runtime issues
+- **[Known Issues](advance-setup-guide.md#known-issues)** — current limitations and workarounds
+- **[Uninstall the Application](advance-setup-guide.md#uninstall-the-application)** — steps to cleanly remove the environment and models
 
 ---
 
@@ -99,3 +105,9 @@ Advance Setup guide covers:
 | Backend | 8000 | http://localhost:8000/health |
 | Content Search | 9011 | http://localhost:9011/api/v1/system/health |
 | Frontend | 5173 | http://localhost:5173 |
+
+## Learn More
+
+- [System Requirements](./get-started/system-requirements.md): Hardware, software, supported models, and weight formats.
+- [Application Flow](./application-flow.md): End-to-end application flow.
+- [Content Search Flow](./content-search-flow.md): The flow of the content search functionality.
