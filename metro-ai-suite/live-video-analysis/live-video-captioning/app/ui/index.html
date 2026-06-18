@@ -76,10 +76,16 @@
                     <div class="field-row">
                         <label class="field">
                             <span class="label"
-                                title="Select the pipeline for video processing. _Software_Pipeline uses software decode using CPU resources. _Hardware_Pipeline uses hardware-accelerated decode and works only when a compatible GPU is available.">Select
+                                title="Select the video processing pipeline. Software pipelines use CPU decoding, while Hardware pipelines use GPU-accelerated decoding. This selection also updates the Decoder field automatically.">Select
                                 Pipeline</span>
                             <select id="pipelineSelect" class="input"
-                                title="Select the pipeline for video processing. _Software_Pipeline uses software decode using CPU resources. _Hardware_Pipeline uses hardware-accelerated decode and works only when a compatible GPU is available."></select>
+                                title="Select the video processing pipeline. Software pipelines use CPU decoding, while Hardware pipelines use GPU-accelerated decoding. This selection also updates the Decoder field automatically."></select>
+                        </label>
+                        <label class="field">
+                            <span class="label"
+                                title="Read-only value derived from the selected pipeline: Software = CPU, Hardware = GPU.">Decoder</span>
+                            <input id="decoderInput" class="input decoder-display" type="text" value="CPU" readonly
+                                tabindex="-1" aria-readonly="true" />
                         </label>
                         <label class="field">
                             <span class="label"
@@ -92,28 +98,29 @@
                                 <option value="npu">NPU</option>
                             </select>
                         </label>
-                        <label class="field">
-                            <span class="label">Run Name</span>
-                            <input id="runNameInput" class="input" type="text"
-                                placeholder="Enter Run Name (Optional)" />
-                        </label>
                     </div>
                     <div class="field-row">
                         <label class="field">
-                            <span class="label">Select Model</span>
+                            <span class="label">Select Model
+                                <span id="modelCompatibilityWarningIcon"
+                                    class="inline-warning-tooltip critical-warning-tooltip" style="display:none;"
+                                    tabindex="0" role="img" aria-label="Model compatibility warning" title=""
+                                    data-tooltip="">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M12 3L2.8 19.5A1.2 1.2 0 0 0 3.8 21h16.4a1.2 1.2 0 0 0 1-1.5L12 3z"
+                                            fill="none" stroke="currentColor" stroke-width="1.8" />
+                                        <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" />
+                                        <circle cx="12" cy="17" r="1.1" fill="currentColor" />
+                                    </svg>
+                                </span>
+                            </span>
                             <select id="modelNameSelect" class="input"></select>
                         </label>
                         <label class="field">
                             <span class="label">Max New Tokens</span>
                             <input id="maxTokensInput" class="input" type="number" min="1" max="4096" value="70" />
                         </label>
-                    </div>
-                    <div id="modelCompatibilityWarning" class="pipeline-error-banner" style="display:none;"></div>
-                    <div id="gpuCompatibilityWarning" class="pipeline-error-banner" style="display:none;"></div>
-                    <div id="npuResolutionWarning" class="pipeline-error-banner" style="display:none;">
-                        NPU selection uses a fixed 150 x 150 input resolution internally for VLM frame captioning. Frame
-                        Resolution choices are ignored due to an OpenVINO NPU limitation currently, so frame detail and
-                        caption quality may be lower than CPU/GPU.
                     </div>
                     <div class="field-row">
                         <label class="field">
@@ -131,7 +138,20 @@
                     </div>
                     <div class="field-row">
                         <label class="field">
-                            <span class="label">Frame Resolution</span>
+                            <span class="label">Frame Resolution
+                                <span id="npuResolutionWarningIcon" class="inline-warning-tooltip" style="display:none;"
+                                    tabindex="0" role="img" aria-label="NPU frame resolution warning"
+                                    title="NPU selection uses a fixed 150 x 150 input resolution internally for VLM frame captioning. Frame Resolution choices are ignored due to an OpenVINO NPU limitation currently, so frame detail and caption quality may be lower than CPU/GPU."
+                                    data-tooltip="NPU selection uses a fixed 150 x 150 input resolution internally for VLM frame captioning. Frame Resolution choices are ignored due to an OpenVINO NPU limitation currently, so frame detail and caption quality may be lower than CPU/GPU.">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M12 3L2.8 19.5A1.2 1.2 0 0 0 3.8 21h16.4a1.2 1.2 0 0 0 1-1.5L12 3z"
+                                            fill="none" stroke="currentColor" stroke-width="1.8" />
+                                        <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.8"
+                                            stroke-linecap="round" />
+                                        <circle cx="12" cy="17" r="1.1" fill="currentColor" />
+                                    </svg>
+                                </span>
+                            </span>
                             <select id="frameQualitySelect" class="input">
                                 <option value="default" selected>Default</option>
                                 <option value="1280x720">1280 × 720</option>
@@ -153,13 +173,19 @@
                                 placeholder="e.g. 1080" />
                         </label>
                     </div>
+                    <div class="field-row">
+                        <label class="field">
+                            <span class="label">Run Name</span>
+                            <input id="runNameInput" class="input" type="text"
+                                placeholder="Enter Run Name (Optional)" />
+                        </label>
+                    </div>
                     <div id="detectionSection" class="field-group" style="display: none;">
                         <div class="field">
                             <span class="label">
                                 <label class="text-label">Detection Properties</label>
                             </span>
                         </div>
-
                         <div class="field-row">
                             <label class="checkbox-field" id="roiBoundingBoxField"
                                 title="Enable ROI/object bounding box overlay on output frame. Uncheck to hide bounding boxes.">
@@ -167,8 +193,24 @@
                                 <span class="label">Include ROI Bounding Box</span>
                             </label>
                         </div>
-
                         <div class="field-row">
+                            <label class="field" id="detectionModelField">
+                                <span class="label">Detection Model
+                                    <span id="detectionModelCompatibilityWarningIcon"
+                                        class="inline-warning-tooltip critical-warning-tooltip" style="display:none;"
+                                        tabindex="0" role="img" aria-label="Detection model compatibility warning"
+                                        title="" data-tooltip="">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M12 3L2.8 19.5A1.2 1.2 0 0 0 3.8 21h16.4a1.2 1.2 0 0 0 1-1.5L12 3z"
+                                                fill="none" stroke="currentColor" stroke-width="1.8" />
+                                            <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor"
+                                                stroke-width="1.8" stroke-linecap="round" />
+                                            <circle cx="12" cy="17" r="1.1" fill="currentColor" />
+                                        </svg>
+                                    </span>
+                                </span>
+                                <select id="detectionModelNameSelect" class="input"></select>
+                            </label>
                             <label class="field" id="detectionDeviceField">
                                 <span class="label">Detection Device</span>
                                 <select id="detectionDeviceSelect" class="input"
@@ -178,12 +220,6 @@
                                     <option value="npu">NPU</option>
                                 </select>
                             </label>
-
-                            <label class="field" id="detectionModelField">
-                                <span class="label">Detection Model</span>
-                                <select id="detectionModelNameSelect" class="input"></select>
-                            </label>
-
                             <label class="field" id="detectionThresholdField">
                                 <span class="label">Detection Threshold</span>
                                 <input id="detectionThresholdInput" class="input" type="number" min="0" max="1"
@@ -202,7 +238,6 @@
                                 Rule</button>
                         </div>
                     </div>
-
                     <div class="field-row" style="justify-content: space-between; align-items: center;">
                         <div class="status" style="margin: 0; flex-shrink: 0;">
                             <span class="dot active"></span>

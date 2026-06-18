@@ -151,6 +151,8 @@ main {
 
 /* Left sidebar card - scrollable */
 .panels>.card:first-child {
+    position: relative;
+    z-index: 2;
     overflow-y: auto;
     max-height: 100%;
     display: flex;
@@ -575,6 +577,79 @@ iframe {
     color: var(--muted);
 }
 
+.inline-warning-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    color: #f5b700;
+    background: rgba(245, 183, 0, 0.14);
+    border: 1px solid rgba(245, 183, 0, 0.5);
+    border-radius: 999px;
+    cursor: help;
+    z-index: 4000;
+}
+
+.inline-warning-tooltip svg {
+    width: 14px;
+    height: 14px;
+}
+
+.inline-warning-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 0;
+    right: auto;
+    top: calc(100% + 8px);
+    transform: none;
+    width: min(340px, calc(100vw - 32px));
+    min-width: 0;
+    background: var(--panel-strong);
+    color: var(--text);
+    border: 1px solid rgba(245, 183, 0, 0.5);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: var(--shadow);
+    font-size: 0.76rem;
+    line-height: 1.35;
+    white-space: normal;
+    z-index: 5000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+@media (max-width: 640px) {
+    .inline-warning-tooltip::after {
+        width: min(320px, calc(100vw - 32px));
+        min-width: 0;
+    }
+}
+
+.inline-warning-tooltip:hover::after,
+.inline-warning-tooltip:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+.critical-warning-tooltip {
+    color: #ff1f1f;
+    background: rgba(255, 31, 31, 0.2);
+    border: 1px solid rgba(255, 31, 31, 0.75);
+    box-shadow: 0 0 0 1px rgba(255, 31, 31, 0.22), 0 0 10px rgba(255, 31, 31, 0.3);
+}
+
+.critical-warning-tooltip::after {
+    background: color-mix(in srgb, var(--panel-strong) 86%, #7a0d0d 14%);
+    border: 1px solid rgba(255, 31, 31, 0.75);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 31, 31, 0.35);
+    font-weight: 600;
+}
+
 .input {
     padding: 5px 8px;
     border-radius: 8px;
@@ -603,6 +678,20 @@ iframe {
 .input[type="number"]::-webkit-outer-spin-button {
     opacity: 1;
     height: 1.8em;
+}
+
+/* Decoder is informational only; render it like plain text to avoid edit affordance. */
+.decoder-display {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding-left: 0;
+    pointer-events: none;
+    caret-color: transparent;
+}
+
+.decoder-display:focus {
+    outline: none;
 }
 
 .btn {
@@ -751,6 +840,8 @@ iframe {
 
 /* Make the right panel take remaining space */
 .live-layout {
+    position: relative;
+    z-index: 1;
     min-height: 0;
     overflow: hidden;
     display: flex;

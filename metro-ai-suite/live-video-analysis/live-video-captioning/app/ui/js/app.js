@@ -10,6 +10,7 @@
         promptInput: document.getElementById('promptInput'),
         modelNameSelect: document.getElementById('modelNameSelect'),
         pipelineSelect: document.getElementById('pipelineSelect'),
+        decoderInput: document.getElementById('decoderInput'),
         vlmDeviceSelect: document.getElementById('vlmDeviceSelect'),
         maxTokensInput: document.getElementById('maxTokensInput'),
         captionHistoryInput: document.getElementById('captionHistoryInput'),
@@ -41,9 +42,9 @@
         alertRulesList: document.getElementById('alertRulesList'),
         addAlertRuleBtn: document.getElementById('addAlertRuleBtn'),
         pipelineServerError: document.getElementById('pipelineServerError'),
-        modelCompatibilityWarning: document.getElementById('modelCompatibilityWarning'),
-        gpuCompatibilityWarning: document.getElementById('gpuCompatibilityWarning'),
-        npuResolutionWarning: document.getElementById('npuResolutionWarning'),
+        modelCompatibilityWarningIcon: document.getElementById('modelCompatibilityWarningIcon'),
+        detectionModelCompatibilityWarningIcon: document.getElementById('detectionModelCompatibilityWarningIcon'),
+        npuResolutionWarningIcon: document.getElementById('npuResolutionWarningIcon'),
     };
 
     const state = {
@@ -323,6 +324,25 @@
         }
     }
 
+    function updateDecoderBySelectedPipeline() {
+        if (!els.decoderInput || !els.pipelineSelect) return;
+
+        const selectedOpt = els.pipelineSelect.options[els.pipelineSelect.selectedIndex];
+        const targetPipeline = (selectedOpt?.dataset?.targetPipeline || '').toLowerCase();
+
+        if (targetPipeline.endsWith('_hardware')) {
+            els.decoderInput.value = 'GPU';
+            return;
+        }
+
+        if (targetPipeline.endsWith('_software')) {
+            els.decoderInput.value = 'CPU';
+            return;
+        }
+
+        els.decoderInput.value = '';
+    }
+
     function getSelectedPipelineType() {
         const select = els.pipelineSelect;
         if (!select || select.selectedIndex < 0) return 'non-detection';
@@ -426,16 +446,18 @@
             : [];
 
         // Hide warning by default; will be shown below if needed
-        if (els.modelCompatibilityWarning) {
-            els.modelCompatibilityWarning.style.display = 'none';
-            els.modelCompatibilityWarning.textContent = '';
+        if (els.modelCompatibilityWarningIcon) {
+            els.modelCompatibilityWarningIcon.style.display = 'none';
+            els.modelCompatibilityWarningIcon.setAttribute('title', '');
+            els.modelCompatibilityWarningIcon.setAttribute('data-tooltip', '');
+            els.modelCompatibilityWarningIcon.setAttribute('aria-label', 'Model compatibility warning');
         }
 
         if (!list.length) {
             // Show disabled placeholder so the select is not empty
             const placeholder = document.createElement('option');
             placeholder.value = '';
-            placeholder.textContent = 'No compatible models';
+            placeholder.textContent = 'No compatible models (required)';
             placeholder.disabled = true;
             placeholder.selected = true;
             select.appendChild(placeholder);
@@ -449,12 +471,14 @@
                 msg = `⚠ No ${selectedVlmDevice.toUpperCase()} models found. ` +
                     `Download a ${selectedVlmDevice}-optimised model first (see model-preparation guide).`;
             } else {
-                msg = '⚠ No models found in the models directory. Download a model first.';
+                msg = '⚠ No models were found in the models directory. Download one model first before starting.';
             }
 
-            if (els.modelCompatibilityWarning) {
-                els.modelCompatibilityWarning.textContent = msg;
-                els.modelCompatibilityWarning.style.display = '';
+            if (els.modelCompatibilityWarningIcon) {
+                els.modelCompatibilityWarningIcon.style.display = 'inline-flex';
+                els.modelCompatibilityWarningIcon.setAttribute('title', msg);
+                els.modelCompatibilityWarningIcon.setAttribute('data-tooltip', msg);
+                els.modelCompatibilityWarningIcon.setAttribute('aria-label', msg);
             }
 
             // Disable start button — no model to run with
@@ -491,43 +515,9 @@
     }
 
     function updateNpuResolutionWarning() {
-        if (!els.npuResolutionWarning) return;
+        if (!els.npuResolutionWarningIcon) return;
         const isNpuSelected = getSelectedVlmDevice() === 'npu';
-        els.npuResolutionWarning.style.display = isNpuSelected ? '' : 'none';
-    }
-
-    function isGpuPipelineSelected() {
-        const selectedOpt = els.pipelineSelect?.options?.[els.pipelineSelect.selectedIndex] || null;
-        if (!selectedOpt) return false;
-        if ((selectedOpt.dataset?.device || '').toLowerCase() === 'gpu') return true;
-        const targetPipeline = (selectedOpt.dataset?.targetPipeline || '').toLowerCase();
-        return targetPipeline.endsWith('_hardware');
-    }
-
-    function updateGpuCompatibilityWarning() {
-        const banner = els.gpuCompatibilityWarning;
-        if (!banner) return;
-
-        if (state.hasGpuDevice !== false) {
-            banner.style.display = 'none';
-            banner.textContent = '';
-            return;
-        }
-
-        const wantsGpuVlm = getSelectedVlmDevice() === 'gpu';
-        const wantsGpuPipeline = isGpuPipelineSelected();
-        if (!wantsGpuVlm && !wantsGpuPipeline) {
-            banner.style.display = 'none';
-            banner.textContent = '';
-            return;
-        }
-
-        const details = [];
-        if (wantsGpuPipeline) details.push('Hardware pipeline is selected');
-        if (wantsGpuVlm) details.push('VLM device is set to GPU');
-
-        banner.textContent = `GPU is not detected on this system, but ${details.join(' and ')}. Switch to a Software pipeline and/or CPU VLM device.`;
-        banner.style.display = '';
+        els.npuResolutionWarningIcon.style.display = isNpuSelected ? 'inline-flex' : 'none';
     }
 
     function setVlmDeviceOptionsByCapabilities() {
@@ -559,7 +549,6 @@
         select.value = selected;
 
         updateNpuResolutionWarning();
-        updateGpuCompatibilityWarning();
         SettingsManager.saveSettings(els);
     }
 
@@ -578,7 +567,6 @@
 
         setVlmDeviceOptionsByCapabilities();
         refreshModelsBySelectedVlmDevice();
-        updateGpuCompatibilityWarning();
     }
 
     function applyDefaultVlmDeviceFromPipelines(normalizedPipelines) {
@@ -620,19 +608,50 @@
         setModelOptions(compatible, previousModel);
     }
 
-    function setDetectionModelOptions(models) {
+    function setDetectionModelOptions(models, warningMessage = '') {
         const select = els.detectionModelNameSelect;
         if (!select) return;
         select.innerHTML = '';
-        const list = Array.isArray(models) && models.length ? models : [ApiService.DEFAULT_DETECTION_MODEL];
-        for (const name of list) {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            select.appendChild(opt);
+
+        if (els.detectionModelCompatibilityWarningIcon) {
+            els.detectionModelCompatibilityWarningIcon.style.display = 'none';
+            els.detectionModelCompatibilityWarningIcon.setAttribute('title', '');
+            els.detectionModelCompatibilityWarningIcon.setAttribute('data-tooltip', '');
+            els.detectionModelCompatibilityWarningIcon.setAttribute('aria-label', 'Detection model compatibility warning');
         }
-        const preferred = list.includes(ApiService.DEFAULT_DETECTION_MODEL) ? ApiService.DEFAULT_DETECTION_MODEL : list[0];
-        select.value = preferred;
+
+        const hasModels = Array.isArray(models) && models.length > 0;
+        if (!hasModels) {
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'No model found (required)';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            select.appendChild(placeholder);
+            select.disabled = true;
+        } else {
+            select.disabled = false;
+            for (const name of models) {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            }
+            select.value = models[0];
+        }
+
+        const message = warningMessage || (!hasModels
+            ? '⚠ No detection models found. Download a YOLO detection model first.(see model-preparation guide)'
+            : '');
+
+        if (message && els.detectionModelCompatibilityWarningIcon) {
+            els.detectionModelCompatibilityWarningIcon.style.display = 'inline-flex';
+            els.detectionModelCompatibilityWarningIcon.setAttribute('title', message);
+            els.detectionModelCompatibilityWarningIcon.setAttribute('data-tooltip', message);
+            els.detectionModelCompatibilityWarningIcon.setAttribute('aria-label', message);
+        }
+
+        updateStartButtonAvailability();
     }
 
     function setCameraOptions(cameras) {
@@ -686,8 +705,14 @@
         const noCompatiblePipeline = !els.pipelineSelect
             || els.pipelineSelect.disabled
             || !(els.pipelineSelect.value || '').trim();
+        const detectionRequired = getSelectedPipelineType() === 'detection';
+        const noDetectionModel = detectionRequired && (
+            !els.detectionModelNameSelect
+            || els.detectionModelNameSelect.disabled
+            || !(els.detectionModelNameSelect.value || '').trim()
+        );
 
-        els.startBtn.disabled = (isCameraMode && noUsableCamera) || noCompatiblePipeline;
+        els.startBtn.disabled = (isCameraMode && noUsableCamera) || noCompatiblePipeline || noDetectionModel;
     }
 
     async function loadCameraDevices() {
@@ -753,6 +778,7 @@
             select.appendChild(opt);
             select.disabled = true;
             toggleDetectionFieldsByText();
+            updateDecoderBySelectedPipeline();
             return;
         }
 
@@ -803,7 +829,7 @@
         }
 
         toggleDetectionFieldsByText();
-        updateGpuCompatibilityWarning();
+        updateDecoderBySelectedPipeline();
         refreshModelsBySelectedVlmDevice();
     }
 
@@ -824,13 +850,20 @@
     async function loadDetectionModels() {
         try {
             const detectionModels = await ApiService.fetchDetectionModels();
-            setDetectionModelOptions(detectionModels);
+            const fetchFailed = typeof ApiService.didDetectionModelsFetchFail === 'function'
+                ? ApiService.didDetectionModelsFetchFail()
+                : false;
+            const warning = fetchFailed
+                ? '⚠ Could not load detection model list. No detection model is available.'
+                : '';
+
+            setDetectionModelOptions(detectionModels, warning);
             SettingsManager.restoreSelectValues(els);
             updatePipelineInfo('Detection models loaded');
         } catch (_err) {
-            setDetectionModelOptions([ApiService.DEFAULT_DETECTION_MODEL]);
+            setDetectionModelOptions([], '⚠ Could not load detection model list. No detection model is available.');
             SettingsManager.restoreSelectValues(els);
-            updatePipelineInfo('Detection model list unavailable, using default');
+            updatePipelineInfo('Detection model list unavailable');
         }
     }
 
@@ -839,6 +872,7 @@
         setPipelineOptions(filtered);
         SettingsManager.restoreSelectValues(els);
         toggleDetectionFieldsByText();
+        updateDecoderBySelectedPipeline();
         updateStartButtonAvailability();
     }
 
@@ -1308,7 +1342,7 @@
         if (els.pipelineSelect) {
             els.pipelineSelect.addEventListener('change', () => {
                 toggleDetectionFieldsByText();
-                updateGpuCompatibilityWarning();
+                updateDecoderBySelectedPipeline();
                 refreshModelsBySelectedVlmDevice();
             });
         }
@@ -1317,7 +1351,6 @@
             els.vlmDeviceSelect.addEventListener('change', () => {
                 refreshModelsBySelectedVlmDevice();
                 updateNpuResolutionWarning();
-                updateGpuCompatibilityWarning();
             });
         }
 

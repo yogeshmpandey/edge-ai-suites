@@ -3,13 +3,13 @@
  */
 const ApiService = (function () {
     const DEFAULT_MODEL = 'InternVL2-1B';
-    const DEFAULT_DETECTION_MODEL = 'yolov8s';
     const DEFAULT_PIPELINE = 'GenAI_RTSP_Pipeline_Software';
     let pipelineCache = [];
     // Full ModelInfo list cached for filtering: [{name, device}, ...]
     let allModels = [];
     // Sentinel value stored in allModels when the API call itself failed
     let modelsFetchFailed = false;
+    let detectionModelsFetchFailed = false;
 
     async function fetchModels() {
         try {
@@ -49,10 +49,16 @@ const ApiService = (function () {
             const resp = await fetch('/api/detection-models');
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
-            return data?.models || [DEFAULT_DETECTION_MODEL];
+            detectionModelsFetchFailed = false;
+            return Array.isArray(data?.models) ? data.models : [];
         } catch (_err) {
-            return [DEFAULT_DETECTION_MODEL];
+            detectionModelsFetchFailed = true;
+            return [];
         }
+    }
+
+    function didDetectionModelsFetchFail() {
+        return detectionModelsFetchFailed;
     }
 
     async function fetchCameras() {
@@ -210,6 +216,7 @@ const ApiService = (function () {
         fetchModels,
         getAllModels,
         didModelsFetchFail,
+        didDetectionModelsFetchFail,
         fetchDetectionModels,
         fetchCameras,
         fetchSystemCapabilities,
