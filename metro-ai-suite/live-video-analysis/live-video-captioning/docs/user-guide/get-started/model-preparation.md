@@ -38,6 +38,8 @@ Use the helper script with the following arguments:
 
 **Weight format options:**
 
+Supported weight formats are `int4`, `int8`, and `fp16`. The default is `int8`.
+
 | Format | Memory use | Accuracy | When to use |
 |--------|-----------|----------|-------------|
 | `int4` | Lowest | Lower | Memory-constrained systems |
@@ -46,16 +48,59 @@ Use the helper script with the following arguments:
 
 ## Download a VLM model
 
+You can use the following commands to run conversion for the desired target device. The corresponding models are generated under `ov_models/`.
+
+- For CPU:
+
+    ```bash
+    ./model_download_scripts/download_models.sh \
+      --model OpenGVLab/InternVL2-1B \
+      --type vlm \
+      --weight-format int8 \
+      --device CPU
+    ```
+
+- For GPU:
+
+    ```bash
+    ./model_download_scripts/download_models.sh \
+      --model OpenGVLab/InternVL2-1B \
+      --type vlm \
+      --weight-format int8 \
+      --device GPU
+    ```
+
+- For NPU, use `int4` quantization:
+
+    ```bash
+    ./model_download_scripts/download_models.sh \
+      --model OpenGVLab/InternVL2-1B \
+      --type vlm \
+      --weight-format int4 \
+      --device NPU
+    ```
+
+    > Note: NPU currently requires `int4` quantization for VLM/LLM conversion. If you pass `--device NPU` with `int8` or `fp16`, the script automatically overrides it to `int4`.
+
+You can also download and convert for multiple target devices in a single command by passing a comma-separated `--device` list:
+
 ```bash
 ./model_download_scripts/download_models.sh \
   --model OpenGVLab/InternVL2-1B \
   --type vlm \
-  --weight-format int8
+  --weight-format int8 \
+  --device CPU,GPU,NPU
 ```
 
-The model is prepared under `ov_models/`.
+Downloaded models are stored in `ov_models/` (for example, `InternVL2-1B`, `InternVL2-1B-gpu`, or `InternVL2-1B-npu`, depending on the target device).
 
-Supported weight formats are `int4`, `int8`, and `fp16`. The default is `int8`.
+Each VLM output directory includes a device suffix so the UI can automatically associate models with the selected `VLM Device` in the UI:
+
+| `--device` flag | Example Output Directory | VLM Device tag |
+|---|---|---|
+| `CPU` (or omitted) | `ov_models/InternVL2-1B` | `CPU` |
+| `GPU` | `ov_models/InternVL2-1B-gpu` | `GPU` |
+| `NPU` | `ov_models/InternVL2-1B-npu` | `NPU` |
 
 ## Optional: Download an Object-Detection Model
 

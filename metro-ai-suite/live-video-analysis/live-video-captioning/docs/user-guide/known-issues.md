@@ -1,5 +1,19 @@
 # Known Issues
 
+## NPU pipeline ignores user-selected resolution and uses 150×150
+
+Symptoms:
+
+- When the `NPU` VLM Device is selected, the frame resolution shown or chosen in the UI is not applied. The backend always sends frames at 150×150 pixels regardless of what the user selects.
+
+Details:
+
+- This is a current limitation of the DLStreamer `gvagenai` element on Intel NPU: for VLM workloads, hardcoded prompt-token limits and the lack of exposed NPU-specific configuration in `gvagenai` element cause pipeline failures when higher frame resoulution generate input embeddings exceed the default 1024-token limit;for now, 150×150 is the only validated input size for the supported VLMs running on NPU as a workaround until the fixes is available.
+
+Impact:
+
+- When using the NPU pipeline, captioning frames are limited to 150×150 resolution, which can reduce visual quality and may result in lower caption quality than CPU or GPU pipelines that support higher frame resolutions.
+
 ## Pipeline server exits with 2 GPU streams
 
 Symptoms:

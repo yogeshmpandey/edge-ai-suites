@@ -12,21 +12,117 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
 
 ## REST Endpoints
 
+### Health & Capabilities
+
+- `GET /api/health` - Liveness check (`{"status": "healthy"}`)
+- `GET /api/capabilities` - Report host acceleration capability flags used by the UI (`has_gpu`, `has_npu`)
+
 ### Models
 
-- `GET /api/vlm-models` — List available VLM models discovered under `ov_models/`
+- `GET /api/vlm-models` - List available VLM models discovered under `ov_models/`
 - `GET /api/detection-models` - List available object detection models discovered under `ov_detection_models/`
+
+#### VLM Models Response Schema
+
+```json
+{
+  "models": [
+    {
+      "name": "InternVL2-1B",
+      "device": "cpu"
+    }
+  ]
+}
+```
+
+#### Detection Models Response Schema
+
+```json
+{
+  "models": ["yolov8s"]
+}
+```
 
 ### Pipelines
 
-- `GET /api/pipelines` — List available pipeline configurations
+- `GET /api/pipelines` - List available pipeline configurations
+
+#### Pipelines Response Schema
+
+```json
+{
+  "pipelines": [
+    {
+      "pipeline_name": "GenAI_RTSP_Pipeline_Software",
+      "pipeline_display_name": "RTSP (Software)",
+      "pipeline_type": "non-detection",
+      "pipeline_default": false,
+      "device": "cpu"
+    }
+  ]
+}
+```
+
+### Cameras
+
+- `GET /api/cameras` - List local capture-capable camera devices (`/dev/videoX`) and supported formats
+
+#### Cameras Response Schema
+
+```json
+{
+  "cameras": [
+    {
+      "device_path": "/dev/video0",
+      "device_name": "Integrated Camera",
+      "pixel_formats": ["MJPG", "YUYV"],
+      "usable_formats": ["MJPG"],
+      "has_usable_format": true
+    }
+  ]
+}
+```
 
 ### Captions & Alerts
 
-- `POST /api/generate_captions_alerts` — Generate captions and alerts for a live stream
-- `GET /api/generate_captions_alerts` — List all active caption generation runs
-- `GET /api/generate_captions_alerts/{run_id}` — Get details of a specific caption generation run (includes `mqttTopic` field)
-- `DELETE /api/generate_captions_alerts/{run_id}` — Stop caption generation for a stream
+- `POST /api/generate_captions_alerts` - Start a caption generation run for an RTSP stream or camera device
+- `GET /api/generate_captions_alerts` - List all active caption generation runs
+- `GET /api/generate_captions_alerts/{run_id}` - Get details of a specific caption generation run
+- `GET /api/generate_captions_alerts/{run_id}/stream-ready` - Check whether the run's WebRTC stream is ready to display
+- `DELETE /api/generate_captions_alerts/{run_id}` - Stop caption generation for a run
+
+#### Start Run Request Schema (`POST /api/generate_captions_alerts`)
+
+```json
+{
+  "rtspUrl": "rtsp://example.com/stream",
+  "prompt": "Describe what you see in one sentence.",
+  "detectionModelName": "yolov8s",
+  "detectionThreshold": 0.5,
+  "modelName": "InternVL2-1B",
+  "maxNewTokens": 70,
+  "pipelineName": "GenAI_RTSP_Pipeline_Software",
+  "runName": "Lobby Camera",
+  "frameRate": 5,
+  "chunkSize": 1,
+  "frameWidth": 1280,
+  "frameHeight": 720,
+  "vlmDevice": "cpu",
+  "detectionDevice": "cpu",
+  "includeRoiBoundingBox": false,
+  "captioner-properties": {
+    "scheduler-config": "max_num_batched_tokens=256"
+  },
+  "detection-properties": {
+    "inference-interval": 2
+  }
+}
+```
+
+Notes:
+- `rtspUrl` accepts either an RTSP URL (`rtsp://`/`rtsps://`) or a Linux camera device path such as `/dev/video0`.
+- `maxNewTokens` is the request field; the run response uses `maxTokens`.
+- `captioner-properties` and `detection-properties` are optional alias fields accepted by the API. Current backend behavior applies `captioner-properties`; `detection-properties` is reserved for future backend wiring.
 
 #### Run Response Schema
 
@@ -35,13 +131,41 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
   "runId": "string",
   "pipelineId": "string",
   "peerId": "string",
-  "mqttTopic": "live-video-captioning/{runId}",
+  "mqttTopic": "live-video-captioning",
+  "status": "running",
   "modelName": "string",
+  "vlmDevice": "cpu",
+  "detectionDevice": "cpu",
   "pipelineName": "string",
   "runName": "string",
   "prompt": "string",
   "maxTokens": 100,
-  "rtspUrl": "string"
+  "rtspUrl": "string",
+  "frameRate": 5,
+  "chunkSize": 1,
+  "frameWidth": 1280,
+  "frameHeight": 720
+}
+```
+
+#### Stream Ready Response Schema (`GET /api/generate_captions_alerts/{run_id}/stream-ready`)
+
+```json
+{
+  "runId": "string",
+  "peerId": "string",
+  "ready": false,
+  "state": "queued",
+  "error": false
+}
+```
+
+#### Stop Run Response Schema (`DELETE /api/generate_captions_alerts/{run_id}`)
+
+```json
+{
+  "status": "stopped",
+  "runId": "string"
 }
 ```
 
@@ -49,9 +173,11 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
 
 ### Server-Sent Events (SSE)
 
-- `GET /api/generate_captions_alerts/metadata-stream` — Multiplexed SSE stream for all active runs
+- `GET /api/generate_captions_alerts/metadata-stream` - Multiplexed SSE stream for all active runs
 
-The SSE stream provides real-time metadata received from the MQTT broker. Each message is an envelope containing:
+The SSE stream provides real-time metadata received from MQTT for all active runs.
+
+Inference metadata event envelope:
 
 ```json
 {
@@ -60,6 +186,20 @@ The SSE stream provides real-time metadata received from the MQTT broker. Each m
   "received_at": 1705432800.123
 }
 ```
+
+Heartbeat/status event (sent when no metadata arrives during the interval):
+
+```json
+{
+  "type": "status",
+  "runs": {
+    "run-id-1": "running",
+    "run-id-2": "error"
+  }
+}
+```
+
+The backend forwards only MQTT payloads containing inference `result` data in metadata events.
 
 ## Related docs
 

@@ -66,7 +66,7 @@ This script sets these important values:
 
 ### 3. Download Models (one-time)
 
-Download a VLM model that is required to generate captions. For example:
+Download a VLM model that is required to generate captions. For default CPU example:
 
 ```bash
 ./model_download_scripts/download_models.sh \
@@ -92,8 +92,9 @@ By default the model is converted on CPU. To explicitly set the device:
   --model <vlm-model-of-choice-from-huggingface> \
   --type vlm \
   --weight-format int8 \
-  --device <CPU|GPU>
+  --device <CPU|GPU|NPU>
 ```
+> Note: NPU currently requires `int4` quantization for VLM/LLM conversion. If you pass `--device NPU` with `int8` or `fp16`, the script automatically overrides it to `int4`.
 
 See [Model Preparation](./get-started/model-preparation.md) for detailed usage.
 
