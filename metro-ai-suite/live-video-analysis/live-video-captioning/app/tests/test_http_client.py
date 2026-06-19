@@ -10,7 +10,7 @@ from urllib.error import HTTPError, URLError
 import pytest
 from fastapi import HTTPException
 
-from backend.services.http_client import http_json, try_get_json
+from backend.services.http_client import _effective_port, http_json, try_get_json
 
 
 TRUSTED_BASE = "http://dlstreamer-pipeline-server:8080"
@@ -72,6 +72,25 @@ class TestHttpJsonErrors:
 
         assert exc_info.value.status_code == 502
         assert "Pipeline server error" in str(exc_info.value.detail)
+
+    def test_http_status_error_with_unreadable_body_sets_none(self):
+        """Unreadable upstream error bodies are reported as body=None."""
+        err = HTTPError(
+            url=f"{TRUSTED_BASE}/api",
+            code=500,
+            msg="Server Error",
+            hdrs=None,
+            fp=io.BytesIO(b"ignored"),
+        )
+        with patch.object(err, "read", side_effect=ValueError("cannot read")), patch(
+            "backend.services.http_client.urllib_request.urlopen", side_effect=err
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                http_json("GET", f"{TRUSTED_BASE}/api")
+
+        assert exc_info.value.status_code == 502
+        assert exc_info.value.detail["status"] == 500
+        assert exc_info.value.detail["body"] is None
 
     def test_request_error_raises_502(self):
         """A network-level URLError is wrapped in a 502 HTTPException."""
@@ -185,5 +204,18 @@ class TestTryGetJson:
         status, body = try_get_json("https://example.com/status")
         assert status is None
         assert body is None
+
+
+class TestEffectivePort:
+    """Unit tests for effective-port normalization."""
+
+    def test_infers_default_http_and_https_ports(self):
+        """Missing standard scheme ports map to defaults."""
+        assert _effective_port("http", None) == 80
+        assert _effective_port("https", None) == 443
+
+    def test_returns_none_for_unknown_scheme_without_port(self):
+        """Unknown schemes with no explicit port return None."""
+        assert _effective_port("ftp", None) is None
 
 

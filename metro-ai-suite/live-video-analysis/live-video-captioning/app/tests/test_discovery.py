@@ -16,9 +16,12 @@ from backend.services.discovery import (
     is_detection_pipeline,
     discover_pipelines_remote,
     _default_pipeline_names,
+    _fallback_pipeline_name,
+    _infer_detection_from_name,
     _gpu_device_exists,
+    has_gpu_device,
     _npu_device_exists,
-    _is_gpu_pipeline,
+    has_npu_device,
 )
 
 
@@ -41,10 +44,12 @@ class TestDiscoverModels:
         """Each subdirectory name is returned as a model name."""
         (models_dir / "InternVL2-1B").mkdir()
         (models_dir / "InternVL2-2B-gpu").mkdir()
+        (models_dir / "InternVL2-4B-npu").mkdir()
         result = discover_models(models_dir)
         assert result == [
             ModelInfo(name="InternVL2-1B", device="cpu"),
             ModelInfo(name="InternVL2-2B-gpu", device="gpu"),
+            ModelInfo(name="InternVL2-4B-npu", device="npu"),
         ]
 
     def test_discovers_flat_file_models(self, models_dir):
@@ -296,7 +301,7 @@ class TestDiscoverPipelinesRemote:
         }
         assert (
             display_by_name["GenAI_Camera_Detection_Pipeline_Software"]
-            == "GenAI_Detection_Pipeline_Software"
+            == "GenAI_Camera_Detection_Pipeline_Software"
         )
         assert (
             display_by_name["GenAI_Camera_Detection_Pipeline_Hardware"]
@@ -423,7 +428,7 @@ class TestDiscoverPipelinesRemote:
         assert defaults[0]["pipeline_name"] == "genai_pipeline"
 
     def test_gpu_pipelines_hidden_when_no_gpu(self):
-        """GPU pipelines are excluded from results on hosts without a GPU."""
+        """Pipelines without hardware/software suffix are retained as device-agnostic."""
         payload = ["GenAI_Pipeline_on_CPU", "GenAI_Pipeline_on_GPU"]
 
         with self._mock_http(payload), patch(
@@ -432,7 +437,7 @@ class TestDiscoverPipelinesRemote:
             result = discover_pipelines_remote()
 
         names = [r["pipeline_name"] for r in result]
-        assert names == ["GenAI_Pipeline_on_CPU"]
+        assert names == ["GenAI_Pipeline_on_CPU", "GenAI_Pipeline_on_GPU"]
 
     def test_gpu_pipelines_shown_when_gpu_available(self):
         """GPU pipelines are retained when a GPU is detected."""
@@ -447,7 +452,7 @@ class TestDiscoverPipelinesRemote:
         assert names == {"GenAI_Pipeline_on_CPU", "GenAI_Pipeline_on_GPU"}
 
     def test_gpu_only_payload_without_gpu_falls_back_to_default(self):
-        """If only GPU pipelines exist and no GPU, the configured default is returned."""
+        """If names are device-agnostic, non-GPU host does not force fallback."""
         payload = ["GenAI_Pipeline_on_GPU", "GenAI_Camera_Pipeline_on_GPU"]
 
         with self._mock_http(payload), patch(
@@ -455,10 +460,12 @@ class TestDiscoverPipelinesRemote:
         ):
             result = discover_pipelines_remote()
 
-        assert all(not _is_gpu_pipeline(r["pipeline_name"]) for r in result)
-        assert len(result) == 1
-        assert result[0]["pipeline_name"] == "genai_pipeline"
-        assert result[0]["pipeline_default"] is True
+        assert len(result) == 2
+        assert [r["pipeline_name"] for r in result] == [
+            "GenAI_Pipeline_on_GPU",
+            "GenAI_Camera_Pipeline_on_GPU",
+        ]
+        assert all(r["pipeline_default"] is False for r in result)
 
     def test_non_gpu_filters_out_hardware_pipelines(self):
         """When GPU is unavailable, only software/CPU pipelines are exposed."""
@@ -488,6 +495,13 @@ class TestGpuHelpers:
         with patch("backend.services.discovery.Path.exists", return_value=False):
             assert _gpu_device_exists() is False
 
+    def test_has_gpu_device_delegates_to_internal_helper(self):
+        """Public helper returns the private GPU detection result."""
+        with patch(
+            "backend.services.discovery._gpu_device_exists", return_value=True
+        ):
+            assert has_gpu_device() is True
+
     def test_default_pipeline_names_for_cpu(self):
         """CPU defaults are returned when GPU is unavailable."""
         assert _default_pipeline_names(False) == {
@@ -504,16 +518,6 @@ class TestGpuHelpers:
             "GenAI_Camera_Pipeline_Hardware",
         }
 
-    def test_is_gpu_pipeline_detects_gpu_names(self):
-        """Pipeline names ending in _GPU (any case) are classified as GPU pipelines."""
-        assert _is_gpu_pipeline("GenAI_Pipeline_on_GPU") is True
-        assert _is_gpu_pipeline("custom_gpu") is True
-
-    def test_is_gpu_pipeline_false_for_non_gpu_names(self):
-        """Non-GPU pipeline names are not classified as GPU pipelines."""
-        assert _is_gpu_pipeline("GenAI_Pipeline_on_CPU") is False
-        assert _is_gpu_pipeline("genai_pipeline") is False
-
 class TestNpuHelpers:
     """Tests for NPU-related helper functions in discovery."""
 
@@ -521,3 +525,35 @@ class TestNpuHelpers:
         """Returns False when /dev/accel path does not exist."""
         with patch("backend.services.discovery.Path.exists", return_value=False):
             assert _npu_device_exists() is False
+
+    def test_npu_device_exists_returns_true_when_accel_nodes_exist(self):
+        """Returns True when /dev/accel exists and has accel* entries."""
+        with patch("backend.services.discovery.Path.exists", return_value=True), patch(
+            "backend.services.discovery.Path.is_dir", return_value=True
+        ), patch(
+            "backend.services.discovery.Path.glob", return_value=iter(["accel0"])
+        ):
+            assert _npu_device_exists() is True
+
+    def test_has_npu_device_delegates_to_internal_helper(self):
+        """Public helper returns the private NPU detection result."""
+        with patch(
+            "backend.services.discovery._npu_device_exists", return_value=True
+        ):
+            assert has_npu_device() is True
+
+
+class TestDiscoveryFallbackHelpers:
+    """Tests for helper fallbacks not covered by remote discovery flows."""
+
+    def test_fallback_pipeline_converts_hardware_to_software_without_gpu(self):
+        """Configured hardware default falls back to software when no GPU."""
+        with patch(
+            "backend.services.discovery.PIPELINE_NAME", "GenAI_Pipeline_Hardware"
+        ):
+            assert _fallback_pipeline_name(False) == "GenAI_Pipeline_Software"
+
+    def test_infer_detection_from_empty_name_returns_false(self):
+        """Empty or whitespace pipeline names are not detection pipelines."""
+        assert _infer_detection_from_name("") is False
+        assert _infer_detection_from_name("   ") is False

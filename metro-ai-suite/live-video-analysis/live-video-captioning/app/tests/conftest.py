@@ -90,8 +90,11 @@ def client(mock_mqtt, monkeypatch, tmp_path):
     monkeypatch.setattr("main.start_pipeline_health_monitor", MagicMock(return_value=None))
     monkeypatch.setattr("main.stop_pipeline_health_monitor", AsyncMock())
 
-    # Also patch in the runs module
-    monkeypatch.setattr("backend.routes.runs.get_mqtt_subscriber", _noop_get)
+    # Runs router no longer depends on MQTT subscriber directly in current code,
+    # but keep this patch optional for compatibility with older module layouts.
+    monkeypatch.setattr(
+        "backend.routes.runs.get_mqtt_subscriber", _noop_get, raising=False
+    )
 
     # Import app after all patches are in place
     from main import app

@@ -20,7 +20,7 @@ class TestStartRunRequestValid:
         req = StartRunRequest(rtspUrl="rtsp://192.168.1.10:554/stream")
         assert req.rtspUrl == "rtsp://192.168.1.10:554/stream"
         assert req.maxNewTokens == 70
-        assert req.modelName == "OpenGVLab/InternVL2-2B"
+        assert req.modelName == "InternVL2-1B"
 
     def test_rtsps_scheme_accepted(self):
         """rtsps:// scheme is accepted as valid."""

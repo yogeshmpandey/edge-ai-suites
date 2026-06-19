@@ -26,14 +26,11 @@ def _infer_pipeline_device(name: str) -> str:
     """Infer target device from the pipeline name.
 
     DL Streamer pipeline naming convention:
-      *_NPU       → npu
       *_Hardware  → gpu
       *_Software  → cpu
       anything else → any
     """
     upper = name.upper()
-    if upper.endswith("_NPU"):
-        return "npu"
     if upper.endswith("_HARDWARE"):
         return "gpu"
     if upper.endswith("_SOFTWARE"):
@@ -181,7 +178,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
     - Classifies using is_detection_pipeline(item) when item is a dict
     - Defaults string-only items to 'non-detection' (no metadata to inspect)
     - Optionally filters out detection pipelines when ENABLE_DETECTION_PIPELINE is False
-    - Infers device from pipeline name suffix (_Software/_Hardware/_NPU)
+    - Infers device from pipeline name suffix (_Software/_Hardware)
     """
     url = f"{PIPELINE_SERVER_URL.rstrip('/')}/pipelines"
     try:
