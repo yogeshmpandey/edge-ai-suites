@@ -17,27 +17,46 @@ DEFAULT_PROMPT = (
 
 
 class StartRunRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "rtspUrl": "rtsp://example.com/stream",
+                "prompt": "Describe what you see in one sentence.",
+                "modelName": "InternVL2-1B",
+                "vlmDevice": "CPU",
+                "maxNewTokens": 70,
+            }
+        }
+    )
 
     rtspUrl: str = Field(
         ...,
         min_length=1,
         description="Valid RTSP URL or Linux video device path (for example /dev/video0)",
     )
-    prompt: str = Field(default=DEFAULT_PROMPT)
-    detectionModelName: Optional[str] = Field(default="yolov8s")
-    detectionThreshold: Optional[float] = Field(default=0.5, ge=0.0, le=1.0)
-    modelName: str = Field(default="InternVL2-1B")
-    maxNewTokens: int = Field(default=70, ge=1, le=4096)
-    pipelineName: Optional[str] = Field(default=None)
-    runName: Optional[str] = Field(default=None)
-    frameRate: Optional[int] = Field(default=None, ge=0)
-    chunkSize: Optional[int] = Field(default=None, ge=1)
-    frameWidth: Optional[int] = Field(default=None, ge=1)
-    frameHeight: Optional[int] = Field(default=None, ge=1)
-    vlmDevice: Optional[str] = Field(default=None)
-    detectionDevice: Optional[str] = Field(default=None)
-    includeRoiBoundingBox: Optional[bool] = Field(default=False)
+    modelName: str = Field(default="InternVL2-1B", description="Vision-language model name to use for caption generation.")
+    vlmDevice: str = Field(default="CPU", description="Device target for the VLM inference backend (for example CPU, GPU, or NPU).")
+    maxNewTokens: int = Field(default=70, ge=1, le=4096, description="Maximum number of tokens generated per caption response.")
+    prompt: str = Field(default=DEFAULT_PROMPT, description="Prompt sent to the captioning model for each processed frame/chunk.")
+    detectionModelName: Optional[str] = Field(default="yolov8s", description="Object detection model name used in the pipeline.")
+    detectionThreshold: Optional[float] = Field(default=0.5, ge=0.0, le=1.0, description="Confidence threshold for filtering detection results.")
+    pipelineName: Optional[str] = Field(default=None, description="Optional pipeline identifier to run a specific processing pipeline variant.")
+    runName: Optional[str] = Field(default=None, description="Optional human-readable name for the run/session.")
+    frameRate: Optional[int] = Field(default=None, ge=0, description="Optional output frame rate limit in frames per second; 0 disables frame processing.")
+    chunkSize: Optional[int] = Field(default=None, ge=1, description="Optional number of frames grouped together for a single captioning request.")
+    frameWidth: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Optional output frame width. If omitted, source width is used."
+    )
+    frameHeight: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Optional output frame height. If omitted, source height is used."
+    )
+    detectionDevice: Optional[str] = Field(default=None, description="Optional device target for object detection inference (for example CPU, GPU, or NPU).")
+    includeRoiBoundingBox: Optional[bool] = Field(default=False, description="Whether to include ROI bounding-box metadata in pipeline outputs.")
     captionerProperties: Optional[dict[str, Any]] = Field(
         default=None,
         alias="captioner-properties",
