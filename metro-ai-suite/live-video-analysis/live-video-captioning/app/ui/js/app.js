@@ -1193,7 +1193,7 @@
             'Video_Captioning_Camera_Software': 'Video_Captioning_Camera_Software_Default_Resolution',
             'Video_Captioning_Camera_Hardware': 'Video_Captioning_Camera_Hardware_Default_Resolution',
         };
-        // TODO: NPU pipelines currently don't support high resolution(only 150x150), so we route to the same pipeline regardless of quality selection. This can be updated once NPU pipelines support dynamic resolution.
+        // TODO: NPU pipelines currently don't support high resolution(only 160x160), so we route to the same pipeline regardless of quality selection. This can be updated once NPU pipelines support dynamic resolution.
         const effectivePipelineName = (qualityKey === 'default' && vlmDevice !== 'npu' && PROXY_PIPELINE_MAP[pipelineName])
             ? PROXY_PIPELINE_MAP[pipelineName]
             : pipelineName;

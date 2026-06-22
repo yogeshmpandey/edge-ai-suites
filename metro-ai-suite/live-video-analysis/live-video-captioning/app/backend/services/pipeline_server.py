@@ -160,6 +160,7 @@ class PipelineServer:
         }
 
         # TODO: This is a temporary workaround to force lower resolution for NPU runs that don't support higher resolutions.
+        # Currently, forced 160x160 for NPU inference to ensure stable frame encoding and MQTT image publishing.
         # This requires changes to the dlstreamer pipeline server API and will remove once the fix is available.
         is_npu_pipeline = selected_vlm_device == "npu"
 
