@@ -19,7 +19,7 @@ def _run_info(run_id: str = "r1") -> RunInfo:
         pipelineId=f"p-{run_id}",
         peerId=f"peer-{run_id}",
         mqttTopic=f"topic/{run_id}",
-        pipelineName="GenAI_RTSP_Pipeline_Software",
+        pipelineName="Video_Captioning_RTSP_Software",
     )
 
 

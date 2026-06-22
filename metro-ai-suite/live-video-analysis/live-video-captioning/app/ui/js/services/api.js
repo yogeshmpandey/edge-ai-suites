@@ -3,7 +3,7 @@
  */
 const ApiService = (function () {
     const DEFAULT_MODEL = 'InternVL2-1B';
-    const DEFAULT_PIPELINE = 'GenAI_RTSP_Pipeline_Software';
+    const DEFAULT_PIPELINE = 'Video_Captioning_RTSP_Software';
     let pipelineCache = [];
     // Full ModelInfo list cached for filtering: [{name, device}, ...]
     let allModels = [];

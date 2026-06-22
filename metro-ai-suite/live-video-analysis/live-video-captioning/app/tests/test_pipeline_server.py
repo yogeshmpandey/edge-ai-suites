@@ -33,7 +33,7 @@ def _running_run(
         mqttTopic=f"topic/{run_id}",
         status="running",
         rtspUrl=rtsp_url,
-        pipelineName="GenAI_RTSP_Pipeline_Software",
+        pipelineName="Video_Captioning_RTSP_Software",
     )
 
 
@@ -45,22 +45,22 @@ class TestPipelineServerHelpers:
         assert server._is_linux_video_device("rtsp://host/stream") is False
 
     def test_camera_pipeline_name_detection(self, server):
-        assert server._is_camera_pipeline_name("GenAI_Camera_Pipeline_Software") is True
-        assert server._is_camera_pipeline_name("GenAI_RTSP_Pipeline_Software") is False
+        assert server._is_camera_pipeline_name("Video_Captioning_Camera_Software") is True
+        assert server._is_camera_pipeline_name("Video_Captioning_RTSP_Software") is False
 
     def test_resolve_pipeline_name_empty_returns_default(self, server):
-        with patch("backend.services.pipeline_server.PIPELINE_NAME", "genai_pipeline"):
-            assert server._resolve_pipeline_name("  ") == "genai_pipeline"
+        with patch("backend.services.pipeline_server.PIPELINE_NAME", "video_captioning_pipeline"):
+            assert server._resolve_pipeline_name("  ") == "video_captioning_pipeline"
 
     def test_resolve_pipeline_name_accepts_discovered_default_resolution_alias(self, server):
         with patch(
             "backend.services.pipeline_server.discover_pipelines_remote",
-            return_value=[{"pipeline_name": "GenAI_RTSP_Pipeline_Software"}],
+            return_value=[{"pipeline_name": "Video_Captioning_RTSP_Software"}],
         ):
             name = server._resolve_pipeline_name(
-                "GenAI_RTSP_Pipeline_Software_Default_Resolution"
+                "Video_Captioning_RTSP_Software_Default_Resolution"
             )
-        assert name == "GenAI_RTSP_Pipeline_Software_Default_Resolution"
+        assert name == "Video_Captioning_RTSP_Software_Default_Resolution"
 
     def test_resolve_pipeline_name_unknown_raises_400(self, server):
         with patch(
@@ -76,25 +76,25 @@ class TestPipelineServerHelpers:
     def test_normalize_pipeline_name_for_npu_strips_default_resolution_suffix(self, server):
         assert (
             server._normalize_pipeline_name_for_vlm_device(
-                "GenAI_RTSP_Pipeline_Hardware_Default_Resolution", "npu"
+                "Video_Captioning_RTSP_Hardware_Default_Resolution", "npu"
             )
-            == "GenAI_RTSP_Pipeline_Hardware"
+            == "Video_Captioning_RTSP_Hardware"
         )
 
     def test_normalize_pipeline_name_for_non_npu_keeps_suffix(self, server):
         assert (
             server._normalize_pipeline_name_for_vlm_device(
-                "GenAI_RTSP_Pipeline_Hardware_Default_Resolution", "gpu"
+                "Video_Captioning_RTSP_Hardware_Default_Resolution", "gpu"
             )
-            == "GenAI_RTSP_Pipeline_Hardware_Default_Resolution"
+            == "Video_Captioning_RTSP_Hardware_Default_Resolution"
         )
 
     def test_normalize_pipeline_name_for_npu_without_suffix_keeps_name(self, server):
         assert (
             server._normalize_pipeline_name_for_vlm_device(
-                "GenAI_RTSP_Pipeline_Hardware", "npu"
+                "Video_Captioning_RTSP_Hardware", "npu"
             )
-            == "GenAI_RTSP_Pipeline_Hardware"
+            == "Video_Captioning_RTSP_Hardware"
         )
 
     def test_build_unique_run_name_sanitizes_and_avoids_collisions(self, server):
@@ -142,7 +142,7 @@ class TestPipelineParameterBuilding:
             server._build_pipeline_parameters(
                 req,
                 run_id="r1",
-                pipeline_name="GenAI_Detection_RTSP_Pipeline_Hardware",
+                pipeline_name="Video_Captioning_RTSP_Detection_Hardware",
             )
 
         assert exc_info.value.status_code == 400
@@ -159,7 +159,7 @@ class TestPipelineParameterBuilding:
             server._build_pipeline_parameters(
                 req,
                 run_id="r1",
-                pipeline_name="GenAI_Detection_RTSP_Pipeline_Software",
+                pipeline_name="Video_Captioning_RTSP_Detection_Software",
             )
 
         assert exc_info.value.status_code == 400
@@ -179,7 +179,7 @@ class TestPipelineParameterBuilding:
         params = server._build_pipeline_parameters(
             req,
             run_id="run1",
-            pipeline_name="GenAI_RTSP_Pipeline_Software",
+            pipeline_name="Video_Captioning_RTSP_Software",
         )
 
         assert params["detection_device"] == "CPU"
@@ -198,7 +198,7 @@ class TestPipelineParameterBuilding:
         params = server._build_pipeline_parameters(
             req,
             run_id="run1",
-            pipeline_name="GenAI_RTSP_Pipeline_Hardware",
+            pipeline_name="Video_Captioning_RTSP_Hardware",
         )
 
         assert params["captioner-properties"]["device"] == "GPU"
@@ -235,7 +235,7 @@ class TestPipelineParameterBuilding:
         params = server._build_pipeline_parameters(
             req,
             run_id="run1",
-            pipeline_name="GenAI_RTSP_Pipeline_Hardware",
+            pipeline_name="Video_Captioning_RTSP_Hardware",
         )
 
         assert params["captioner-properties"]["device"] == "NPU"
@@ -252,7 +252,7 @@ class TestPayloadAndExtraction:
                 req,
                 run_id="r1",
                 peer_id="peer1",
-                pipeline_name="GenAI_Camera_Pipeline_Software",
+                pipeline_name="Video_Captioning_Camera_Software",
             )
 
         assert payload["source"] == {"device": "/dev/video0", "type": "webcam"}
@@ -267,7 +267,7 @@ class TestPayloadAndExtraction:
                 req,
                 run_id="r1",
                 peer_id="peer1",
-                pipeline_name="GenAI_RTSP_Pipeline_Software",
+                pipeline_name="Video_Captioning_RTSP_Software",
             )
 
         assert payload["source"] == {"uri": "rtsp://host/stream", "type": "uri"}
@@ -290,7 +290,7 @@ class TestRunLifecycle:
         req = StartRunRequest(
             rtspUrl="rtsp://host/stream",
             runName="My Run",
-            pipelineName="GenAI_RTSP_Pipeline_Software",
+            pipelineName="Video_Captioning_RTSP_Software",
             vlmDevice="cpu",
             modelName="InternVL2-1B",
         )
@@ -298,7 +298,7 @@ class TestRunLifecycle:
         with patch.object(
             server,
             "_resolve_pipeline_name",
-            return_value="GenAI_RTSP_Pipeline_Software",
+            return_value="Video_Captioning_RTSP_Software",
         ), patch.object(
             server,
             "_generate_peer_id",
@@ -313,19 +313,19 @@ class TestRunLifecycle:
         assert info.pipelineId == "pipe-123"
         assert RUNS["My_Run"].peerId == "speer001"
         start_url = mock_http.call_args.args[1]
-        assert "/user_defined_pipelines/GenAI_RTSP_Pipeline_Software" in start_url
+        assert "/user_defined_pipelines/Video_Captioning_RTSP_Software" in start_url
 
     @pytest.mark.asyncio
     async def test_start_run_rejects_camera_source_for_non_camera_pipeline(self, server):
         req = StartRunRequest(
             rtspUrl="/dev/video0",
-            pipelineName="GenAI_RTSP_Pipeline_Software",
+            pipelineName="Video_Captioning_RTSP_Software",
         )
 
         with patch.object(
             server,
             "_resolve_pipeline_name",
-            return_value="GenAI_RTSP_Pipeline_Software",
+            return_value="Video_Captioning_RTSP_Software",
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await server.start_run(req)
@@ -343,7 +343,7 @@ class TestRunLifecycle:
         with patch.object(
             server,
             "_resolve_pipeline_name",
-            return_value="GenAI_RTSP_Pipeline_Software",
+            return_value="Video_Captioning_RTSP_Software",
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await server.start_run(req)
@@ -359,13 +359,13 @@ class TestRunLifecycle:
         )
         req = StartRunRequest(
             rtspUrl="/dev/video0",
-            pipelineName="GenAI_Camera_Pipeline_Software",
+            pipelineName="Video_Captioning_Camera_Software",
         )
 
         with patch.object(
             server,
             "_resolve_pipeline_name",
-            return_value="GenAI_Camera_Pipeline_Software",
+            return_value="Video_Captioning_Camera_Software",
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await server.start_run(req)
@@ -378,13 +378,13 @@ class TestRunLifecycle:
         req = StartRunRequest(
             rtspUrl="rtsp://host/stream",
             runName=None,
-            pipelineName="GenAI_RTSP_Pipeline_Software",
+            pipelineName="Video_Captioning_RTSP_Software",
         )
 
         with patch.object(
             server,
             "_resolve_pipeline_name",
-            return_value="GenAI_RTSP_Pipeline_Software",
+            return_value="Video_Captioning_RTSP_Software",
         ), patch.object(
             server,
             "_generate_peer_id",

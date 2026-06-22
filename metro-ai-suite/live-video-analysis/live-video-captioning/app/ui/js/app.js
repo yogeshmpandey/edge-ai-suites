@@ -377,8 +377,8 @@
 
     function getPipelineAliasFromName(pipelineName) {
         if (typeof pipelineName !== 'string') return null;
-        if (pipelineName.endsWith('_Software')) return 'GenAI_Pipeline_Software';
-        if (pipelineName.endsWith('_Hardware')) return 'GenAI_Pipeline_Hardware';
+        if (pipelineName.endsWith('_Software')) return 'Video_Captioning_Software';
+        if (pipelineName.endsWith('_Hardware')) return 'Video_Captioning_Hardware';
         return null;
     }
 
@@ -1188,10 +1188,10 @@
 
         // Route to proxy pipeline when Default resolution is selected
         const PROXY_PIPELINE_MAP = {
-            'GenAI_RTSP_Pipeline_Software': 'GenAI_RTSP_Pipeline_Software_Default_Resolution',
-            'GenAI_RTSP_Pipeline_Hardware': 'GenAI_RTSP_Pipeline_Hardware_Default_Resolution',
-            'GenAI_Camera_Pipeline_Software': 'GenAI_Camera_Pipeline_Software_Default_Resolution',
-            'GenAI_Camera_Pipeline_Hardware': 'GenAI_Camera_Pipeline_Hardware_Default_Resolution',
+            'Video_Captioning_RTSP_Software': 'Video_Captioning_RTSP_Software_Default_Resolution',
+            'Video_Captioning_RTSP_Hardware': 'Video_Captioning_RTSP_Hardware_Default_Resolution',
+            'Video_Captioning_Camera_Software': 'Video_Captioning_Camera_Software_Default_Resolution',
+            'Video_Captioning_Camera_Hardware': 'Video_Captioning_Camera_Hardware_Default_Resolution',
         };
         // TODO: NPU pipelines currently don't support high resolution(only 150x150), so we route to the same pipeline regardless of quality selection. This can be updated once NPU pipelines support dynamic resolution.
         const effectivePipelineName = (qualityKey === 'default' && vlmDevice !== 'npu' && PROXY_PIPELINE_MAP[pipelineName])

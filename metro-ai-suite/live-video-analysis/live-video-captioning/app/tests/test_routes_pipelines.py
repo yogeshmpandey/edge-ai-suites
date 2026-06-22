@@ -12,7 +12,7 @@ class TestListPipelines:
     def test_returns_pipelines(self, client):
         """Returns the list of pipelines from the remote server."""
         mock_data = [
-            {"pipeline_name": "genai_pipeline", "pipeline_type": "non-detection"},
+            {"pipeline_name": "video_captioning_pipeline", "pipeline_type": "non-detection"},
         ]
         with patch(
             "backend.routes.pipelines.discover_pipelines_remote",
@@ -22,7 +22,7 @@ class TestListPipelines:
         assert resp.status_code == 200
         body = resp.json()
         assert len(body["pipelines"]) == 1
-        assert body["pipelines"][0]["pipeline_name"] == "genai_pipeline"
+        assert body["pipelines"][0]["pipeline_name"] == "video_captioning_pipeline"
 
     def test_returns_multiple_pipelines(self, client):
         """Multiple pipelines are returned in the response."""

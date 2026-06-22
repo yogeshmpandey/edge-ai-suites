@@ -76,14 +76,14 @@ def _default_pipeline_names(gpu_available: bool) -> set[str]:
     """Return preferred default pipeline names for current hardware."""
     if gpu_available:
         return {
-            "GenAI_Pipeline_Hardware",
-            "GenAI_RTSP_Pipeline_Hardware",
-            "GenAI_Camera_Pipeline_Hardware",
+            "Video_Captioning_Hardware",
+            "Video_Captioning_RTSP_Hardware",
+            "Video_Captioning_Camera_Hardware",
         }
     return {
-        "GenAI_Pipeline_Software",
-        "GenAI_RTSP_Pipeline_Software",
-        "GenAI_Camera_Pipeline_Software",
+        "Video_Captioning_Software",
+        "Video_Captioning_RTSP_Software",
+        "Video_Captioning_Camera_Software",
     }
 
 

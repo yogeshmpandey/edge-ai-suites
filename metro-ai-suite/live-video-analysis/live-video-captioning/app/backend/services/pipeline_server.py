@@ -36,18 +36,18 @@ class PipelineServer:
     WEBRTC_PEER_ID_PREFIX = "s"
     DEFAULT_RESOLUTION_SUFFIX = "_Default_Resolution"
     TARGET_VLM_OVERRIDE_PIPELINES = {
-        "GenAI_RTSP_Pipeline_Software",
-        "GenAI_RTSP_Pipeline_Software_Default_Resolution",
-        "GenAI_RTSP_Pipeline_Hardware",
-        "GenAI_RTSP_Pipeline_Hardware_Default_Resolution",
-        "GenAI_Camera_Pipeline_Software",
-        "GenAI_Camera_Pipeline_Software_Default_Resolution",
-        "GenAI_Camera_Pipeline_Hardware",
-        "GenAI_Camera_Pipeline_Hardware_Default_Resolution",
-        "GenAI_Detection_RTSP_Pipeline_Software",
-        "GenAI_Detection_RTSP_Pipeline_Hardware",
-        "GenAI_Camera_Detection_Pipeline_Software",
-        "GenAI_Camera_Detection_Pipeline_Hardware",
+        "Video_Captioning_RTSP_Software",
+        "Video_Captioning_RTSP_Software_Default_Resolution",
+        "Video_Captioning_RTSP_Hardware",
+        "Video_Captioning_RTSP_Hardware_Default_Resolution",
+        "Video_Captioning_Camera_Software",
+        "Video_Captioning_Camera_Software_Default_Resolution",
+        "Video_Captioning_Camera_Hardware",
+        "Video_Captioning_Camera_Hardware_Default_Resolution",
+        "Video_Captioning_RTSP_Detection_Software",
+        "Video_Captioning_RTSP_Detection_Hardware",
+        "Video_Captioning_Camera_Detection_Software",
+        "Video_Captioning_Camera_Detection_Hardware",
     }
     CPU_SCHEDULER_CONFIG = "max_num_batched_tokens=256,cache_size=4,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
     GPU_SCHEDULER_CONFIG = "max_num_batched_tokens=512,cache_size=8,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"

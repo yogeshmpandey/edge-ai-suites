@@ -36,7 +36,7 @@ def _patch_config(monkeypatch, tmp_path):
     monkeypatch.setenv("MQTT_BROKER_PORT", "1883")
     monkeypatch.setenv("MQTT_TOPIC_PREFIX", "test-prefix")
     monkeypatch.setenv("PIPELINE_SERVER_URL", "http://mock-pipeline:8080")
-    monkeypatch.setenv("PIPELINE_NAME", "genai_pipeline")
+    monkeypatch.setenv("PIPELINE_NAME", "video_captioning_pipeline")
     monkeypatch.setenv("MODELS_DIR", str(tmp_path / "ov_models"))
     monkeypatch.setenv("DETECTION_MODELS_DIR", str(tmp_path / "ov_detection_models"))
 

@@ -53,7 +53,7 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
 {
   "pipelines": [
     {
-      "pipeline_name": "GenAI_RTSP_Pipeline_Software",
+      "pipeline_name": "Video_Captioning_RTSP_Software",
       "pipeline_display_name": "RTSP (Software)",
       "pipeline_type": "non-detection",
       "pipeline_default": false,
@@ -101,7 +101,7 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
   "detectionThreshold": 0.5,
   "modelName": "InternVL2-1B",
   "maxNewTokens": 70,
-  "pipelineName": "GenAI_RTSP_Pipeline_Software",
+  "pipelineName": "Video_Captioning_RTSP_Software",
   "runName": "Lobby Camera",
   "frameRate": 5,
   "chunkSize": 1,

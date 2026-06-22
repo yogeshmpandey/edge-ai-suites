@@ -2,7 +2,7 @@
     "config": {
         "pipelines": [
             {
-                "name": "GenAI_RTSP_Pipeline_Software",
+                "name": "Video_Captioning_RTSP_Software",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "rtspsrc location={source[uri]} protocols=tcp latency=100 name=source ! rtph264depay wait-for-keyframe=true ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGRA ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers={parameters[queue_size]} ! videorate drop-only=true ! video/x-raw,format=BGRA,framerate={parameters[frame_rate]}/1 ! videoscale ! video/x-raw,format=BGRA,width=[1,{parameters[frame_width]}],height=[1,{parameters[frame_height]}] ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 ! appsink name=appsink sync=false",
@@ -54,7 +54,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_RTSP_Pipeline_Hardware",
+                "name": "Video_Captioning_RTSP_Hardware",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "rtspsrc location={source[uri]} protocols=tcp latency=100 name=source ! rtph264depay wait-for-keyframe=true ! h264parse ! vah264dec ! vapostproc ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers={parameters[queue_size]} ! videorate drop-only=true ! video/x-raw,framerate={parameters[frame_rate]}/1 ! vapostproc ! video/x-raw,format=BGRA,width=[1,{parameters[frame_width]}],height=[1,{parameters[frame_height]}] ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" model-cache-path=\"/tmp/ov_cache\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 ! vapostproc ! video/x-raw,format=BGRA ! appsink name=appsink sync=false",
@@ -106,7 +106,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_Camera_Pipeline_Software",
+                "name": "Video_Captioning_Camera_Software",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "v4l2src device={source[device]} do-timestamp=true name=source ! videoconvert ! video/x-raw,format=BGRA ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers={parameters[queue_size]} ! videorate drop-only=true ! video/x-raw,format=BGRA,framerate={parameters[frame_rate]}/1 ! videoscale ! video/x-raw,format=BGRA,width=[1,{parameters[frame_width]}],height=[1,{parameters[frame_height]}] ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 ! appsink name=appsink sync=false",
@@ -158,7 +158,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_Camera_Pipeline_Hardware",
+                "name": "Video_Captioning_Camera_Hardware",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "v4l2src device={source[device]} do-timestamp=true name=source ! vapostproc ! video/x-raw(memory:VAMemory) ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers={parameters[queue_size]} ! videorate drop-only=true ! video/x-raw(memory:VAMemory),framerate={parameters[frame_rate]}/1 ! vapostproc ! video/x-raw,format=BGRA,width=[1,{parameters[frame_width]}],height=[1,{parameters[frame_height]}] ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" model-cache-path=\"/tmp/ov_cache\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 ! vapostproc ! video/x-raw,format=BGRA ! appsink name=appsink sync=false",
@@ -210,7 +210,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_Detection_RTSP_Pipeline_Software",
+                "name": "Video_Captioning_RTSP_Detection_Software",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "rtspsrc location={source[uri]} protocols=tcp latency=100 name=source ! rtph264depay wait-for-keyframe=true ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGRA ! gvadetect name=detection device={parameters[detection_device]} model=\"/home/pipeline-server/detection_models/{parameters[detection_model_name]}/public/{parameters[detection_model_name]}/FP32/{parameters[detection_model_name]}.xml\" threshold={parameters[detection_threshold]} pre-process-backend={parameters[detection_pre_process_backend]} ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! videorate drop-only=true ! video/x-raw,format=BGRA,framerate={parameters[frame_rate]}/1 ! gvametaconvert format=json add-empty-results=false ! gvapython class=DetectionFilter function=process module=/home/pipeline-server/gvapython/publisher/detection_filter.py name=detection_filter ! queue leaky=downstream max-size-buffers={parameters[queue_size]} max-size-time=0 max-size-bytes=0 ! videoscale ! video/x-raw,format=BGRA,width=[1,{parameters[frame_width]}],height=[1,{parameters[frame_height]}] ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! appsink name=appsink sync=false",
@@ -280,7 +280,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_Detection_RTSP_Pipeline_Hardware",
+                "name": "Video_Captioning_RTSP_Detection_Hardware",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "rtspsrc location={source[uri]} protocols=tcp latency=100 name=source ! rtph264depay wait-for-keyframe=true ! h264parse ! vah264dec ! vapostproc ! video/x-raw(memory:VAMemory) ! queue ! gvadetect name=detection device={parameters[detection_device]} model=\"/home/pipeline-server/detection_models/{parameters[detection_model_name]}/public/{parameters[detection_model_name]}/FP16/{parameters[detection_model_name]}.xml\" threshold={parameters[detection_threshold]} pre-process-backend={parameters[detection_pre_process_backend]} ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! videorate drop-only=true ! video/x-raw(memory:VAMemory),framerate={parameters[frame_rate]}/1 ! gvametaconvert format=json add-empty-results=false ! gvapython class=DetectionFilter function=process module=/home/pipeline-server/gvapython/publisher/detection_filter.py name=detection_filter ! queue leaky=downstream max-size-buffers={parameters[queue_size]} max-size-time=0 max-size-bytes=0 ! vapostproc ! video/x-raw,format=BGRA,width=[1,{parameters[frame_width]}],height=[1,{parameters[frame_height]}] ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" model-cache-path=\"/tmp/ov_cache\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! appsink name=appsink sync=false",
@@ -350,7 +350,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_Camera_Detection_Pipeline_Software",
+                "name": "Video_Captioning_Camera_Detection_Software",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "v4l2src device={source[device]} do-timestamp=true name=source ! videoconvert ! video/x-raw,format=BGRA ! gvadetect name=detection device={parameters[detection_device]} model=\"/home/pipeline-server/detection_models/{parameters[detection_model_name]}/public/{parameters[detection_model_name]}/FP32/{parameters[detection_model_name]}.xml\" threshold={parameters[detection_threshold]} pre-process-backend={parameters[detection_pre_process_backend]} ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! videorate drop-only=true ! video/x-raw,format=BGRA,framerate={parameters[frame_rate]}/1 ! gvametaconvert format=json add-empty-results=false ! gvapython class=DetectionFilter function=process module=/home/pipeline-server/gvapython/publisher/detection_filter.py name=detection_filter ! queue leaky=downstream max-size-buffers={parameters[queue_size]} max-size-time=0 max-size-bytes=0 ! videoscale ! video/x-raw,format=BGRA,width=[1,{parameters[frame_width]}],height=[1,{parameters[frame_height]}] ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! appsink name=appsink sync=false",
@@ -420,7 +420,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_Camera_Detection_Pipeline_Hardware",
+                "name": "Video_Captioning_Camera_Detection_Hardware",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "v4l2src device={source[device]} do-timestamp=true name=source ! vapostproc ! video/x-raw(memory:VAMemory) ! queue ! gvadetect name=detection device={parameters[detection_device]} model=\"/home/pipeline-server/detection_models/{parameters[detection_model_name]}/public/{parameters[detection_model_name]}/FP16/{parameters[detection_model_name]}.xml\" threshold={parameters[detection_threshold]} pre-process-backend={parameters[detection_pre_process_backend]} ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! videorate drop-only=true ! video/x-raw(memory:VAMemory),framerate={parameters[frame_rate]}/1 ! gvametaconvert format=json add-empty-results=false ! gvapython class=DetectionFilter function=process module=/home/pipeline-server/gvapython/publisher/detection_filter.py name=detection_filter ! queue leaky=downstream max-size-buffers={parameters[queue_size]} max-size-time=0 max-size-bytes=0 ! vapostproc ! video/x-raw,format=BGRA,width=[1,{parameters[frame_width]}],height=[1,{parameters[frame_height]}] ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" model-cache-path=\"/tmp/ov_cache\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! vapostproc ! video/x-raw,format=BGRA ! appsink name=appsink sync=false",
@@ -490,7 +490,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_RTSP_Pipeline_Software_Default_Resolution",
+                "name": "Video_Captioning_RTSP_Software_Default_Resolution",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "rtspsrc location={source[uri]} protocols=tcp latency=100 name=source ! rtph264depay wait-for-keyframe=true ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGRA ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers={parameters[queue_size]} ! videorate drop-only=true ! video/x-raw,format=BGRA,framerate={parameters[frame_rate]}/1 ! videoscale ! video/x-raw,format=BGRA ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 ! appsink name=appsink sync=false",
@@ -532,7 +532,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_RTSP_Pipeline_Hardware_Default_Resolution",
+                "name": "Video_Captioning_RTSP_Hardware_Default_Resolution",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "rtspsrc location={source[uri]} protocols=tcp latency=100 name=source ! rtph264depay wait-for-keyframe=true ! h264parse ! vah264dec ! vapostproc ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers={parameters[queue_size]} ! videorate drop-only=true ! video/x-raw,framerate={parameters[frame_rate]}/1 ! vapostproc ! video/x-raw,format=BGRA ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" model-cache-path=\"/tmp/ov_cache\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 ! vapostproc ! video/x-raw,format=BGRA ! appsink name=appsink sync=false",
@@ -574,7 +574,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_Camera_Pipeline_Software_Default_Resolution",
+                "name": "Video_Captioning_Camera_Software_Default_Resolution",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "v4l2src device={source[device]} do-timestamp=true name=source ! videoconvert ! video/x-raw,format=BGRA ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers={parameters[queue_size]} ! videorate drop-only=true ! video/x-raw,format=BGRA,framerate={parameters[frame_rate]}/1 ! videoscale ! video/x-raw,format=BGRA ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 ! appsink name=appsink sync=false",
@@ -616,7 +616,7 @@
                 "auto_start": false
             },
             {
-                "name": "GenAI_Camera_Pipeline_Hardware_Default_Resolution",
+                "name": "Video_Captioning_Camera_Hardware_Default_Resolution",
                 "source": "gstreamer",
                 "queue_maxsize": 50,
                 "pipeline": "v4l2src device={source[device]} do-timestamp=true name=source ! vapostproc ! video/x-raw(memory:VAMemory) ! tee name=split allow-not-linked=true split. ! queue leaky=downstream max-size-buffers={parameters[queue_size]} ! videorate drop-only=true ! video/x-raw(memory:VAMemory),framerate={parameters[frame_rate]}/1 ! vapostproc ! video/x-raw,format=BGRA ! gvagenai name=captioner generation-config=\"max_new_tokens={parameters[captioner_max_new_tokens]},num_beams=1,do_sample=false,temperature=0.1,repetition_penalty=1.1\" model-cache-path=\"/tmp/ov_cache\" frame-rate={parameters[frame_rate]} metrics=true ! gvametaconvert add-empty-results=true name=metaconvert ! gvapython class=MQTTPublisher function=process module=/home/pipeline-server/gvapython/mqtt_publisher/mqtt_publisher.py name=mqtt_publisher ! fakesink sync=false async=false split. ! queue leaky=downstream max-size-buffers=1 ! vapostproc ! video/x-raw,format=BGRA ! appsink name=appsink sync=false",
