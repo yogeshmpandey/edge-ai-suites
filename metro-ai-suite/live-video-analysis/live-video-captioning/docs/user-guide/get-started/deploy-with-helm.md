@@ -35,7 +35,7 @@ Before you begin, ensure that you have the following:
    | ENABLE_PLUGINS             | Comma-separated list of plugins to enable                                                                               | "openvino,ultralytics"                 |
    | OVMS_RELEASE_TAG           | OVMS release tag used by the script to enable support for newer models during OpenVINO conversion                           | default: `v2025.4.1`                   |
    | gpu.enabled                | For model-download service pod to be deployed on GPU                                                                    | true                                   |
-   | gpu.key                    | Label assigned to the GPU node on kubernetes cluster by the device plugin. Identify by running `kubectl describe node` | gpu.intel.com/i915 or gpu.intel.com/xe |
+   | gpu.key                    | The GPU node label that the device plugin assigns within the Kubernetes cluster. To find this label, execute `kubectl describe node <your_node_name>`. Ensure you're using the identical node specified in the affinity.value parameter below to get the label value. | gpu.intel.com/i915 or gpu.intel.com/xe |
    | affinity.enabled           | Set to true to deploy on dedicated node                                                                                 | true                                   |
    | affinity.value             | Your dedicated node name/value. Identify by running `kubectl get node`                                                  | <your_node_name>                       |
 
@@ -137,7 +137,9 @@ Other supporting services such as `mqtt-broker`, `multimodal-embedding` (when RA
 
 For best performance, choose a worker node with a GPU. The chart can run with CPU-only inference, but a GPU-capable node is the preferred deployment target for DL Streamer and real-time media processing.
 
-In [values-override.yaml](https://github.com/open-edge-platform/edge-ai-suites/blob/main/metro-ai-suite/live-video-analysis/live-video-captioning/charts/values-override.yaml), specify the Kubernetes node name by setting `global.nodeName`. This references the built-in `kubernetes.io/hostname` label, so no node labeling permissions are required.
+In [values-override.yaml](https://github.com/open-edge-platform/edge-ai-suites/blob/main/metro-ai-suite/live-video-analysis/live-video-captioning/charts/values-override.yaml), set `global.nodeName` to specify the target Kubernetes node. This value references the built-in `kubernetes.io/hostname` label and requires no additional node labeling permissions.
+
+Ensure you use the same node name as specified in your model-download chart deployment.
 
 Example:
 
@@ -148,35 +150,38 @@ global:
 
 #### Get the IP of the selected node
 
-Use the same node that you selected for the pinned media workloads. First list the nodes and labels:
+Use the same node that you selected for the pinned workloads above.
 
-```bash
-kubectl get nodes --show-labels
-```
+Set the `global.hostIP`. The `global.hostIP` should be set the IP address that your browser can actually reach.
 
-Then inspect the selected node:
+Here's how to find it:
 
-```bash
-kubectl get node <node-name> -o wide
-```
+- Check what IPs your node has
+    ```bash
+    # Example: `kubectl get node worker4 -owide`
+    kubectl get node <your_node_name> -owide
+    ```
+  Look at the `INTERNAL-IP` and `EXTERNAL-IP` columns.
 
-Set `global.hostIP` to the node address that is reachable by the browser:
+- Choose the right IP based on your setup
+    - Use **INTERNAL-IP** if:
+       - Your node has no EXTERNAL-IP assigned, OR
+       - You're accessing from within the same network as the cluster (VPN, same LAN, etc.)
+    - Use **EXTERNAL-IP** if:
+       - Your node shows an EXTERNAL-IP in the ouput command above, AND
+       - Your browser cannot reach the internal network directly.
 
-- In clusters without worker-node external IPs, use `INTERNAL-IP`.
-- Use `EXTERNAL-IP` only if the node actually has one and your browser reaches the application through it.
-- Use `INTERNAL-IP` when your browser is on the same LAN or VPN and can reach the node directly.
+- Optionally, you can also print the value directly using commands below:
+    - For INTERNAL-IP:
+       ```bash
+       kubectl get node <node-name> -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}'
+       ```
+    - For EXTERNAL-IP:
+       ```bash
+       kubectl get node <node-name> -o jsonpath='{.status.addresses[?(@.type=="ExternalIP")].address}'
+       ```
 
-To print the value directly:
-
-```bash
-kubectl get node <node-name> -o jsonpath='{.status.addresses[?(@.type=="ExternalIP")].address}'
-```
-
-If no external address is present, use:
-
-```bash
-kubectl get node <node-name> -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}'
-```
+💡 Tip: When in doubt, try Internal IP first - it works in most development setups where you're connected to the same network as your cluster.
 
 Set that value in `global.hostIP`.
 
@@ -200,7 +205,7 @@ Prior to deployment, edit the sample override file at `charts/values-override.ya
 
 | Key | Description | Example |
 | --- | --- | --- |
-| `global.hostIP` | Browser-reachable IP of the selected node that runs the pinned media workloads. In many on-prem clusters this is the node `INTERNAL-IP`. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
+| `global.hostIP` | Browser-reachable IP of the selected node that runs the pinned workloads. In many on-prem clusters this is the node `INTERNAL-IP`. Retrieve it with `kubectl get node <node-name> -o wide` | `192.168.1.20` |
 | `global.nodeName` | Kubernetes node name used to pin the media, TURN, and host-coupled workloads to one worker node. Prefer a GPU-capable node when available | `worker4` |
 | `global.models` | List of VLM models from HuggingFace to export to OpenVINO format (at least one VLM required) | `OpenGVLab/InternVL2-1B` |
 | `global.huggingface.apiToken` | HuggingfaceHub token to download gated model. | <your_huggingfacehub_token> |

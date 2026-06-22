@@ -34,13 +34,18 @@ global:
   # Parameters:
     # modelId: HuggingFace repo ID passed to optimum-cli for downloading the model, e.g. "OpenGVLab/InternVL2-1B"
     # outputName: directory created under /models/ in the PVC to show under the model selection dropdown in the UI. e.g. "InternVL2-1B".
+    #            Runtime output directory is suffixed by device, e.g. InternVL2-1B-cpu.
     # modelType: "vlm"
     # weightFormat: "int8", or "int4" or "fp16"
+    # device: target conversion device(s): "CPU", "GPU", "NPU", or CSV/list (for multiple).
+    #         Example CSV: "CPU,GPU". Example list: ["CPU", "NPU"].
+    #         If NPU is selected, weightFormat is automatically forced to "int4".
   models:
     - modelId: "OpenGVLab/InternVL2-1B"
       outputName: "InternVL2-1B"
       modelType: "vlm"
       weightFormat: "int8"
+      device: "CPU"
 
   # OPTIONAL: downloaded only when detection pipeline is enabled.
   detectionModels:

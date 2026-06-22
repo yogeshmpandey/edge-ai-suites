@@ -77,6 +77,10 @@ global:
   #   outputName  — directory created under /models/ in the PVC; must match the
   #                 captioner_model_name expected by the caption service
   #   weightFormat — "" (fp16 default), "int8", or "int4"
+  #   device      — target device(s) for conversion and output folder suffixing.
+  #                 Accepts either a CSV string (e.g. "CPU,GPU") or a list
+  #                 (e.g. ["CPU", "GPU", "NPU"]). Defaults to "CPU".
+  #                 When device includes NPU, weightFormat is forced to "int4".
   #
   # Type: list of objects
   models:
@@ -84,6 +88,7 @@ global:
       outputName: "InternVL2-1B"
       modelType: "vlm"
       weightFormat: ""
+      device: "CPU"
 
   # Detection models to download when the object-detection pipeline is enabled.
   # Each entry matches the model argument accepted by DL Streamer's
