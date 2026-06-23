@@ -44,7 +44,6 @@
         pipelineServerError: document.getElementById('pipelineServerError'),
         modelCompatibilityWarningIcon: document.getElementById('modelCompatibilityWarningIcon'),
         detectionModelCompatibilityWarningIcon: document.getElementById('detectionModelCompatibilityWarningIcon'),
-        npuResolutionWarningIcon: document.getElementById('npuResolutionWarningIcon'),
     };
 
     const state = {
@@ -476,7 +475,6 @@
 
             if (els.modelCompatibilityWarningIcon) {
                 els.modelCompatibilityWarningIcon.style.display = 'inline-flex';
-                els.modelCompatibilityWarningIcon.setAttribute('title', msg);
                 els.modelCompatibilityWarningIcon.setAttribute('data-tooltip', msg);
                 els.modelCompatibilityWarningIcon.setAttribute('aria-label', msg);
             }
@@ -514,12 +512,6 @@
         return ['cpu', 'gpu', 'npu'].includes(selected) ? selected : 'cpu';
     }
 
-    function updateNpuResolutionWarning() {
-        if (!els.npuResolutionWarningIcon) return;
-        const isNpuSelected = getSelectedVlmDevice() === 'npu';
-        els.npuResolutionWarningIcon.style.display = isNpuSelected ? 'inline-flex' : 'none';
-    }
-
     function setVlmDeviceOptionsByCapabilities() {
         const select = els.vlmDeviceSelect;
         if (!select) return;
@@ -548,7 +540,6 @@
         const selected = [previous, saved].find((value) => availableValues.includes(value)) || options[0].value;
         select.value = selected;
 
-        updateNpuResolutionWarning();
         SettingsManager.saveSettings(els);
     }
 
@@ -585,7 +576,6 @@
             : (availableDevices[0] || 'cpu');
         if (els.vlmDeviceSelect.value !== desiredDevice) {
             els.vlmDeviceSelect.value = desiredDevice;
-            updateNpuResolutionWarning();
             SettingsManager.saveSettings(els);
         }
     }
@@ -646,7 +636,6 @@
 
         if (message && els.detectionModelCompatibilityWarningIcon) {
             els.detectionModelCompatibilityWarningIcon.style.display = 'inline-flex';
-            els.detectionModelCompatibilityWarningIcon.setAttribute('title', message);
             els.detectionModelCompatibilityWarningIcon.setAttribute('data-tooltip', message);
             els.detectionModelCompatibilityWarningIcon.setAttribute('aria-label', message);
         }
@@ -1350,7 +1339,6 @@
         if (els.vlmDeviceSelect) {
             els.vlmDeviceSelect.addEventListener('change', () => {
                 refreshModelsBySelectedVlmDevice();
-                updateNpuResolutionWarning();
             });
         }
 
@@ -1366,7 +1354,6 @@
 
         loadCameraDevices();
         updateStreamSourceInputs();
-        updateNpuResolutionWarning();
 
         function updateCustomDimensionsVisibility() {
             const isCustom = els.frameQualitySelect?.value === 'custom';

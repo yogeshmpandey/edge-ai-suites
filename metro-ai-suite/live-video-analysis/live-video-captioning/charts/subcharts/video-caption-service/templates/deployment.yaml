@@ -77,7 +77,8 @@ spec:
                   run_weight_format="int4"
                 fi
 
-                model_output_name="{{ $model.outputName }}-$(echo "$device" | tr '[:upper:]' '[:lower:]')"
+                device_lower="$(echo "$device" | tr '[:upper:]' '[:lower:]')"
+                model_output_name="${device_lower}/{{ $model.outputName }}"
                 MODEL_TARGET_DIR="/opt/data/ov_models/${model_output_name}"
                 if [ -d "$MODEL_TARGET_DIR" ] && [ -n "$(ls -A "$MODEL_TARGET_DIR" 2>/dev/null)" ]; then
                   echo "Model output already exists at $MODEL_TARGET_DIR. Skipping download for {{ $model.modelId }} on device $device"

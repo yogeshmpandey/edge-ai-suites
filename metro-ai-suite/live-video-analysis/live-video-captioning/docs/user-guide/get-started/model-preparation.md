@@ -92,15 +92,15 @@ You can also download and convert for multiple target devices in a single comman
   --device CPU,GPU,NPU
 ```
 
-Downloaded models are stored in `ov_models/` (for example, `InternVL2-1B`, `InternVL2-1B-gpu`, or `InternVL2-1B-npu`, depending on the target device).
+Downloaded VLM models are stored under per-device directories in `ov_models/`.
 
-Each VLM output directory includes a device suffix so the UI can automatically associate models with the selected `VLM Device` in the UI:
+Each VLM output directory is placed under its target device path so the UI can automatically associate models with the selected `VLM Device`:
 
 | `--device` flag | Example Output Directory | VLM Device tag |
 |---|---|---|
-| `CPU` (or omitted) | `ov_models/InternVL2-1B` | `CPU` |
-| `GPU` | `ov_models/InternVL2-1B-gpu` | `GPU` |
-| `NPU` | `ov_models/InternVL2-1B-npu` | `NPU` |
+| `CPU` (or omitted) | `ov_models/cpu/InternVL2-1B` | `CPU` |
+| `GPU` | `ov_models/gpu/InternVL2-1B` | `GPU` |
+| `NPU` | `ov_models/npu/InternVL2-1B` | `NPU` |
 
 ## Optional: Download an Object-Detection Model
 

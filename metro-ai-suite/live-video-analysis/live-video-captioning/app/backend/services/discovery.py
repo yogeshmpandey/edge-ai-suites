@@ -6,22 +6,6 @@ from ..config import PIPELINE_NAME, PIPELINE_SERVER_URL, ENABLE_DETECTION_PIPELI
 from ..models import ModelInfo, PipelineInfo, ModelList, PipelineInfoList
 from .http_client import http_json
 
-def _infer_model_device(name: str) -> str:
-    """Infer target device from the model directory name suffix convention.
-
-    Naming convention written by download_models.sh:
-      <model>-npu  → npu
-      <model>-gpu  → gpu
-      <model>      → cpu  (default, no suffix)
-    """
-    lower = name.lower()
-    if lower.endswith("-npu"):
-        return "npu"
-    if lower.endswith("-gpu"):
-        return "gpu"
-    return "cpu"
-
-
 def _infer_pipeline_device(name: str) -> str:
     """Infer target device from the pipeline name.
 
@@ -97,20 +81,46 @@ def _fallback_pipeline_name(gpu_available: bool) -> str:
 def discover_models(root: Path) -> List[ModelInfo]:
     """Discover available models from the models directory.
 
-    Returns a list of ModelInfo objects with name and inferred device tag.
+        Expected layout:
+            - ov_models/<device>/<model>
+
+    Returns a list of ModelInfo objects with model name and device tag.
     """
     if not root.exists():
         return []
+
+    valid_devices = {"cpu", "gpu", "npu"}
+    model_file_suffixes = {".xml", ".bin", ".json"}
     models: List[ModelInfo] = []
+    seen: set[tuple[str, str]] = set()
+
+    def _append_model(name: str, device: str) -> None:
+        key = (name, device)
+        if key in seen:
+            return
+        seen.add(key)
+        models.append(ModelInfo(name=name, device=device))
+
     for entry in sorted(root.iterdir()):
         if entry.name.startswith("."):
             continue
-        if entry.is_dir():
-            models.append(ModelInfo(name=entry.name, device=_infer_model_device(entry.name)))
-        else:
-            # Allow flat exports placed directly under ov_models
-            if entry.suffix in {".xml", ".bin", ".json"}:
-                models.append(ModelInfo(name=entry.name, device=_infer_model_device(entry.name)))
+
+        # New flattened layout: ov_models/<device>/<model>
+        entry_device = entry.name.lower()
+        if entry.is_dir() and entry_device in valid_devices:
+            for model_entry in sorted(entry.iterdir()):
+                if model_entry.name.startswith("."):
+                    continue
+                if model_entry.is_dir():
+                    _append_model(model_entry.name, entry_device)
+                elif model_entry.suffix.lower() in model_file_suffixes:
+                    _append_model(model_entry.name, entry_device)
+            continue
+
+        # Ignore entries outside the expected per-device layout.
+        continue
+
+    models.sort(key=lambda m: (m.name.lower(), m.device))
     return models
 
 

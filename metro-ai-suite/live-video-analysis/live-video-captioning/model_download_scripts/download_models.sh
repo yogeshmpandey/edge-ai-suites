@@ -290,15 +290,7 @@ for DEVICE in "${DEVICE_LIST[@]}"; do
     fi
 
     if [[ "${MODEL_TYPE}" == "vlm" ]]; then
-      DEVICE_UPPER="${DEVICE^^}"
-      if [[ "$DEVICE_UPPER" == "NPU" ]]; then
-          DEVICE_SUFFIX="-npu"
-        elif [[ "$DEVICE_UPPER" == "GPU" ]]; then
-          DEVICE_SUFFIX="-gpu"
-        else
-          DEVICE_SUFFIX=""
-        fi
-      TARGET_DIR="${FINAL_DIR}/${MODEL_BASENAME}${DEVICE_SUFFIX}"
+      TARGET_DIR="${FINAL_DIR}/${DEVICE_LOWER}/${MODEL_BASENAME}"
     elif [[ "${MODEL_TYPE}" == "llm" ]]; then
       # For LLMs, preserve the org/model structure if present
       TARGET_DIR="${FINAL_DIR}/${MODEL}"

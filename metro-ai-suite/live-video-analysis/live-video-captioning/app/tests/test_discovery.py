@@ -40,32 +40,19 @@ class TestDiscoverModels:
         """Returns an empty list when the directory is empty."""
         assert discover_models(models_dir) == []
 
-    def test_discovers_subdirectory_models(self, models_dir):
-        """Each subdirectory name is returned as a model name."""
+    def test_ignores_legacy_top_level_models(self, models_dir):
+        """Top-level model directories/files are ignored in per-device-only mode."""
         (models_dir / "InternVL2-1B").mkdir()
         (models_dir / "InternVL2-2B-gpu").mkdir()
-        (models_dir / "InternVL2-4B-npu").mkdir()
-        result = discover_models(models_dir)
-        assert result == [
-            ModelInfo(name="InternVL2-1B", device="cpu"),
-            ModelInfo(name="InternVL2-2B-gpu", device="gpu"),
-            ModelInfo(name="InternVL2-4B-npu", device="npu"),
-        ]
-
-    def test_discovers_flat_file_models(self, models_dir):
-        """XML, BIN, and JSON files in the root are returned as models."""
         (models_dir / "model.xml").write_text("")
-        (models_dir / "model.bin").write_text("")
-        (models_dir / "config.json").write_text("")
-        result = discover_models(models_dir)
-        assert {m.name for m in result} == {"config.json", "model.bin", "model.xml"}
-        assert all(m.device == "cpu" for m in result)
+
+        assert discover_models(models_dir) == []
 
     def test_ignores_dotfiles(self, models_dir):
         """Hidden files/directories (starting with '.') are skipped."""
         (models_dir / ".hidden_dir").mkdir()
         (models_dir / ".hidden_file.json").write_text("")
-        (models_dir / "visible_model").mkdir()
+        (models_dir / "cpu" / "visible_model").mkdir(parents=True)
         result = discover_models(models_dir)
         assert result == [ModelInfo(name="visible_model", device="cpu")]
 
@@ -78,8 +65,31 @@ class TestDiscoverModels:
     def test_results_are_sorted(self, models_dir):
         """Returned model names are sorted alphabetically."""
         for name in ["Zeta", "Alpha", "Mid"]:
-            (models_dir / name).mkdir()
+            (models_dir / "cpu" / name).mkdir(parents=True)
         assert [m.name for m in discover_models(models_dir)] == ["Alpha", "Mid", "Zeta"]
+
+    def test_discovers_models_from_device_subdirectories(self, models_dir):
+        """Discovers models from the new ov_models/<device>/<model> layout."""
+        (models_dir / "cpu" / "InternVL2-1B").mkdir(parents=True)
+        (models_dir / "gpu" / "InternVL2-1B").mkdir(parents=True)
+        (models_dir / "npu" / "InternVL2-1B").mkdir(parents=True)
+
+        result = discover_models(models_dir)
+
+        assert result == [
+            ModelInfo(name="InternVL2-1B", device="cpu"),
+            ModelInfo(name="InternVL2-1B", device="gpu"),
+            ModelInfo(name="InternVL2-1B", device="npu"),
+        ]
+
+    def test_discovers_flat_files_from_device_subdirectories(self, models_dir):
+        """Discovers flattened model artifacts stored directly under a device directory."""
+        (models_dir / "gpu").mkdir()
+        (models_dir / "gpu" / "InternVL2-2B.xml").write_text("")
+
+        result = discover_models(models_dir)
+
+        assert result == [ModelInfo(name="InternVL2-2B.xml", device="gpu")]
 
 
 # ===================================================================

@@ -245,12 +245,12 @@ class PipelineServer:
             selected_vlm_device in {"cpu", "gpu", "npu"}
             and pipeline_name in self.TARGET_VLM_OVERRIDE_PIPELINES
         ):
-            model_name = (req.modelName or "").strip() or "OpenGVLab/InternVL2-2B"
+            model_name = (req.modelName or "").strip() or "InternVL2-1B"
             prompt = (req.prompt or "").strip() or DEFAULT_PROMPT
 
             captioner_properties: dict[str, object] = {
                 "device": selected_vlm_device.upper(),
-                "model-path": f"/home/pipeline-server/models/{model_name}",
+                "model-path": f"/home/pipeline-server/models/{selected_vlm_device}/{model_name}",
                 "prompt": prompt,
                 "chunk-size": req.chunkSize or 1,
             }

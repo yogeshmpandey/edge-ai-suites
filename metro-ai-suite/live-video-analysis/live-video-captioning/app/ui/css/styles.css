@@ -577,6 +577,63 @@ iframe {
     color: var(--muted);
 }
 
+.inline-help-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 999px;
+    cursor: help;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    z-index: 4000;
+}
+
+.inline-help-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 0;
+    right: auto;
+    top: calc(100% + 8px);
+    transform: none;
+    width: min(340px, calc(100vw - 32px));
+    min-width: 0;
+    background: var(--panel-strong);
+    color: var(--text);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: var(--shadow);
+    font-size: 0.76rem;
+    line-height: 1.35;
+    white-space: normal;
+    z-index: 5000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+@media (max-width: 640px) {
+    .inline-help-tooltip::after {
+        width: min(320px, calc(100vw - 32px));
+        min-width: 0;
+    }
+}
+
+.inline-help-tooltip:hover::after,
+.inline-help-tooltip:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+}
+
 .inline-warning-tooltip {
     position: relative;
     display: inline-flex;

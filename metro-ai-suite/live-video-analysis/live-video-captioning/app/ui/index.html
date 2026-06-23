@@ -138,20 +138,7 @@
                     </div>
                     <div class="field-row">
                         <label class="field">
-                            <span class="label">Frame Resolution
-                                <span id="npuResolutionWarningIcon" class="inline-warning-tooltip" style="display:none;"
-                                    tabindex="0" role="img" aria-label="NPU frame resolution warning"
-                                    title="NPU selection uses a fixed 160 x 160 input resolution internally for VLM frame captioning. Frame Resolution choices are ignored due to an OpenVINO NPU limitation currently, so frame detail and caption quality may be lower than CPU/GPU."
-                                    data-tooltip="NPU selection uses a fixed 160 x 160 input resolution internally for VLM frame captioning. Frame Resolution choices are ignored due to an OpenVINO NPU limitation currently, so frame detail and caption quality may be lower than CPU/GPU.">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                        <path d="M12 3L2.8 19.5A1.2 1.2 0 0 0 3.8 21h16.4a1.2 1.2 0 0 0 1-1.5L12 3z"
-                                            fill="none" stroke="currentColor" stroke-width="1.8" />
-                                        <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.8"
-                                            stroke-linecap="round" />
-                                        <circle cx="12" cy="17" r="1.1" fill="currentColor" />
-                                    </svg>
-                                </span>
-                            </span>
+                            <span class="label">Frame Resolution</span>
                             <select id="frameQualitySelect" class="input">
                                 <option value="default" selected>Default</option>
                                 <option value="1280x720">1280 × 720</option>
@@ -183,7 +170,11 @@
                     <div id="detectionSection" class="field-group" style="display: none;">
                         <div class="field">
                             <span class="label">
-                                <label class="text-label">Detection Properties</label>
+                                <label class="text-label">Detection Properties
+                                    <span class="inline-help-tooltip" tabindex="0" role="img"
+                                        aria-label="Detection properties help"
+                                        data-tooltip="These detection properties configure the selected YOLO detection model to detect labels that the selected model was trained on. Detection Device selects the hardware (CPU/GPU/NPU) used for detection, and Detection Threshold sets the minimum confidence score for showing detections.">?</span>
+                                </label>
                             </span>
                         </div>
                         <div class="field-row">
