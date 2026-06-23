@@ -16,7 +16,6 @@ from ..config import (
     ENABLE_EMBEDDING,
     MQTT_TOPIC_PREFIX,
     NPU_FORCED_RESOLUTION,
-    PIPELINE_NAME,
     PIPELINE_SERVER_URL,
     WEBRTC_BITRATE,
 )
@@ -35,20 +34,6 @@ class PipelineServer:
     WEBRTC_PEER_ID_MAX_LENGTH = 8
     WEBRTC_PEER_ID_PREFIX = "s"
     DEFAULT_RESOLUTION_SUFFIX = "_Default_Resolution"
-    TARGET_VLM_OVERRIDE_PIPELINES = {
-        "Video_Captioning_RTSP_Software",
-        "Video_Captioning_RTSP_Software_Default_Resolution",
-        "Video_Captioning_RTSP_Hardware",
-        "Video_Captioning_RTSP_Hardware_Default_Resolution",
-        "Video_Captioning_Camera_Software",
-        "Video_Captioning_Camera_Software_Default_Resolution",
-        "Video_Captioning_Camera_Hardware",
-        "Video_Captioning_Camera_Hardware_Default_Resolution",
-        "Video_Captioning_RTSP_Detection_Software",
-        "Video_Captioning_RTSP_Detection_Hardware",
-        "Video_Captioning_Camera_Detection_Software",
-        "Video_Captioning_Camera_Detection_Hardware",
-    }
     CPU_SCHEDULER_CONFIG = "max_num_batched_tokens=256,cache_size=4,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
     GPU_SCHEDULER_CONFIG = "max_num_batched_tokens=512,cache_size=8,enable_prefix_caching=true,dynamic_split_fuse=true,use_cache_eviction=true"
     HEALTHY_PIPELINE_STATES = {"running", "queued"}
@@ -63,11 +48,39 @@ class PipelineServer:
         """Best-effort check for camera-capable pipeline identifiers."""
         return "camera" in (pipeline_name or "").strip().lower()
 
-    def _resolve_pipeline_name(self, requested_pipeline: str) -> str:
-        """Resolve requested pipeline name against discovered pipeline identifiers."""
-        normalized = (requested_pipeline or "").strip()
-        if not normalized:
-            return PIPELINE_NAME
+    def _resolve_pipeline_name_from_ui(self, req: StartRunRequest, source_uri: str) -> str:
+        """Resolve pipeline from request controls (source type + decoder)."""
+        inferred_source_type = "camera" if self._is_linux_video_device(source_uri) else "rtsp"
+        selected_source_type = (req.streamSourceType or "").strip().lower()
+        source_type = (
+            selected_source_type
+            if selected_source_type in {"rtsp", "camera"}
+            else inferred_source_type
+        )
+
+        selected_decoder = (req.decoder or "").strip().lower()
+        decoder = selected_decoder if selected_decoder in {"cpu", "gpu"} else "cpu"
+
+        detection_requested = (
+            (req.detectionDevice or "").strip().lower() in {"cpu", "gpu", "npu"}
+            or bool(req.includeRoiBoundingBox)
+        )
+
+        source_segment = "Camera" if source_type == "camera" else "RTSP"
+        decoder_segment = "Hardware" if decoder == "gpu" else "Software"
+        detection_segment = "Detection_" if detection_requested else ""
+        base_name = f"Video_Captioning_{source_segment}_{detection_segment}{decoder_segment}"
+
+        is_default_resolution = (
+            req.frameWidth is None
+            and req.frameHeight is None
+            and (req.vlmDevice or "").strip().lower() != "npu"
+            and not detection_requested
+        )
+
+        candidates = [base_name]
+        if is_default_resolution:
+            candidates.insert(0, f"{base_name}{self.DEFAULT_RESOLUTION_SUFFIX}")
 
         discovered = discover_pipelines_remote()
         allowed_names = {
@@ -75,23 +88,17 @@ class PipelineServer:
             for item in discovered
             if isinstance(item, dict)
         }
-        # The /api/pipelines response intentionally hides proxy pipelines ending with
-        # _Default_Resolution. Accept those internal aliases only for discovered base names.
-        allowed_names.update(
-            {
-                f"{name}{self.DEFAULT_RESOLUTION_SUFFIX}"
-                for name in allowed_names
-                if name and not name.endswith(self.DEFAULT_RESOLUTION_SUFFIX)
-            }
-        )
-        for allowed_name in allowed_names:
-            if allowed_name == normalized:
-                return allowed_name
+        for candidate in candidates:
+            if candidate in allowed_names:
+                return candidate
 
         raise HTTPException(
             status_code=400,
             detail={
-                "message": f"Unknown pipelineName '{normalized}'. Choose one from /api/pipelines.",
+                "message": (
+                    "No matching backend pipeline found for the selected stream source "
+                    f"('{source_type}') and decoder ('{decoder}')."
+                )
             },
         )
 
@@ -241,10 +248,7 @@ class PipelineServer:
                 }
             )
 
-        if (
-            selected_vlm_device in {"cpu", "gpu", "npu"}
-            and pipeline_name in self.TARGET_VLM_OVERRIDE_PIPELINES
-        ):
+        if selected_vlm_device in {"cpu", "gpu", "npu"}:
             model_name = (req.modelName or "").strip() or "InternVL2-1B"
             prompt = (req.prompt or "").strip() or DEFAULT_PROMPT
 
@@ -325,25 +329,18 @@ class PipelineServer:
 
     async def start_run(self, req: StartRunRequest) -> RunInfo:
         requested_source = (req.rtspUrl or "").strip()
-        requested_pipeline = (req.pipelineName or "").strip()
         using_camera_source = self._is_linux_video_device(requested_source)
 
-        pipeline_name = self._resolve_pipeline_name(requested_pipeline)
+        pipeline_name = self._resolve_pipeline_name_from_ui(req, requested_source)
         pipeline_name = self._normalize_pipeline_name_for_vlm_device(
             pipeline_name,
             (req.vlmDevice or ""),
         )
         if using_camera_source and not self._is_camera_pipeline_name(pipeline_name):
-            if requested_pipeline:
-                detail_message = (
-                    f"Pipeline '{pipeline_name}' is not camera-compatible. "
-                    "Use a camera pipeline for /dev/videoN sources."
-                )
-            else:
-                detail_message = (
-                    "Camera sources require a camera-compatible pipelineName when the "
-                    "default PIPELINE_NAME is not camera-compatible."
-                )
+            detail_message = (
+                "Selected stream source requires a camera-compatible pipeline, "
+                "but no compatible camera pipeline was resolved."
+            )
             raise HTTPException(status_code=400, detail={"message": detail_message})
 
         if using_camera_source:

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List, Dict
 from fastapi import HTTPException
 from ..config import PIPELINE_NAME, PIPELINE_SERVER_URL, ENABLE_DETECTION_PIPELINE
-from ..models import ModelInfo, PipelineInfo, ModelList, PipelineInfoList
+from ..models import ModelInfo
 from .http_client import http_json
 
 def _infer_pipeline_device(name: str) -> str:
@@ -20,11 +20,6 @@ def _infer_pipeline_device(name: str) -> str:
     if upper.endswith("_SOFTWARE"):
         return "cpu"
     return "any"
-
-
-def get_pipeline_display_name(pipeline_name: str) -> str:
-    """Return pipeline identifier as display name for UI consumers."""
-    return pipeline_name
 
 
 def _gpu_device_exists() -> bool:
@@ -212,7 +207,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
             return [
                 {
                     "pipeline_name": fallback_name,
-                    "pipeline_display_name": get_pipeline_display_name(fallback_name),
+                    "pipeline_display_name": fallback_name,
                     "pipeline_type": "non-detection",
                     "pipeline_default": True,
                     "device": _infer_pipeline_device(fallback_name),
@@ -250,7 +245,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
             results.append(
                 {
                     "pipeline_name": name,
-                    "pipeline_display_name": get_pipeline_display_name(name),
+                    "pipeline_display_name": name,
                     "pipeline_type": pipeline_type,
                     "device": _infer_pipeline_device(name),
                 }
@@ -260,14 +255,9 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
         if not ENABLE_DETECTION_PIPELINE:
             results = [r for r in results if r["pipeline_type"] != "detection"]
 
-        # If GPU is unavailable, only expose software/CPU pipelines in the UI.
+        # If GPU is unavailable, keep only software/CPU pipelines.
         if not gpu_available:
             results = [r for r in results if r["device"] in {"cpu", "any"}]
-
-        # Filter out proxy pipelines (hidden from UI, used internally for default resolution)
-        results = [
-            r for r in results if not r["pipeline_name"].endswith("_Default_Resolution")
-        ]
 
         preferred_defaults = _default_pipeline_names(gpu_available)
         for row in results:
@@ -294,7 +284,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
             return [
                 {
                     "pipeline_name": fallback_name,
-                    "pipeline_display_name": get_pipeline_display_name(fallback_name),
+                    "pipeline_display_name": fallback_name,
                     "pipeline_type": "non-detection",
                     "pipeline_default": True,
                     "device": _infer_pipeline_device(fallback_name),
@@ -312,7 +302,7 @@ def discover_pipelines_remote() -> List[Dict[str, str]]:
         return [
             {
                 "pipeline_name": fallback_name,
-                "pipeline_display_name": get_pipeline_display_name(fallback_name),
+                "pipeline_display_name": fallback_name,
                 "pipeline_type": "non-detection",
                 "pipeline_default": True,
                 "device": _infer_pipeline_device(fallback_name),

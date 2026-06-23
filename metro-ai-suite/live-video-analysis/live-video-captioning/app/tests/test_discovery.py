@@ -318,8 +318,8 @@ class TestDiscoverPipelinesRemote:
             == "Video_Captioning_Camera_Detection_Hardware"
         )
 
-    def test_proxy_pipelines_are_hidden_from_results(self):
-        """Proxy pipelines for default resolution are not exposed to the UI."""
+    def test_proxy_pipelines_are_included_in_results(self):
+        """Proxy pipelines for default resolution are returned in discovery results."""
         payload = [
             {
                 "version": "captioner_Default_Resolution",
@@ -329,7 +329,10 @@ class TestDiscoverPipelinesRemote:
         ]
         with self._mock_http(payload):
             result = discover_pipelines_remote()
-        assert [item["pipeline_name"] for item in result] == ["captioner_Custom"]
+        assert [item["pipeline_name"] for item in result] == [
+            "captioner_Default_Resolution",
+            "captioner_Custom",
+        ]
 
     def test_gpu_available_prefers_generic_hardware_pipeline_name(self):
         """When GPU is available, generic hardware alias is preferred as default."""

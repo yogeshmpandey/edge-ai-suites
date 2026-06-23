@@ -76,16 +76,12 @@
                     <div class="field-row">
                         <label class="field">
                             <span class="label"
-                                title="Select the video processing pipeline. Software pipelines use CPU decoding, while Hardware pipelines use GPU-accelerated decoding. This selection also updates the Decoder field automatically.">Select
-                                Pipeline</span>
-                            <select id="pipelineSelect" class="input"
-                                title="Select the video processing pipeline. Software pipelines use CPU decoding, while Hardware pipelines use GPU-accelerated decoding. This selection also updates the Decoder field automatically."></select>
-                        </label>
-                        <label class="field">
-                            <span class="label"
-                                title="Read-only value derived from the selected pipeline: Software = CPU, Hardware = GPU.">Decoder</span>
-                            <input id="decoderInput" class="input decoder-display" type="text" value="CPU" readonly
-                                tabindex="-1" aria-readonly="true" />
+                                title="Select the decoder type. CPU uses software decoding, while GPU uses hardware-accelerated decoding.">Decoder</span>
+                            <select id="decoderSelect" class="input"
+                                title="Select the decoder type. CPU uses software decoding, while GPU uses hardware-accelerated decoding.">
+                                <option value="cpu" selected>CPU</option>
+                                <option value="gpu">GPU</option>
+                            </select>
                         </label>
                         <label class="field">
                             <span class="label"

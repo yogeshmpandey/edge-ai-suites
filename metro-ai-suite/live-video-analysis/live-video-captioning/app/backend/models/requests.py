@@ -22,6 +22,8 @@ class StartRunRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "rtspUrl": "rtsp://example.com/stream",
+                "streamSourceType": "rtsp",
+                "decoder": "cpu",
                 "prompt": "Describe what you see in one sentence.",
                 "modelName": "InternVL2-1B",
                 "vlmDevice": "CPU",
@@ -34,6 +36,14 @@ class StartRunRequest(BaseModel):
         ...,
         min_length=1,
         description="Valid RTSP URL or Linux video device path (for example /dev/video0)",
+    )
+    streamSourceType: Optional[str] = Field(
+        default=None,
+        description="Optional stream source type selector from UI (rtsp or camera).",
+    )
+    decoder: Optional[str] = Field(
+        default=None,
+        description="Optional decoder selector from UI (cpu or gpu).",
     )
     modelName: str = Field(default="InternVL2-1B", description="Vision-language model name to use for caption generation.")
     vlmDevice: str = Field(default="CPU", description="Device target for the VLM inference backend (for example CPU, GPU, or NPU).")
@@ -118,3 +128,23 @@ class StartRunRequest(BaseModel):
             raise
         except Exception as e:
             raise ValueError(f"Invalid RTSP URL format: {str(e)}")
+
+    @field_validator("streamSourceType")
+    @classmethod
+    def validate_stream_source_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        value = v.strip().lower()
+        if value not in {"rtsp", "camera"}:
+            raise ValueError("streamSourceType must be either 'rtsp' or 'camera'")
+        return value
+
+    @field_validator("decoder")
+    @classmethod
+    def validate_decoder(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        value = v.strip().lower()
+        if value not in {"cpu", "gpu"}:
+            raise ValueError("decoder must be either 'cpu' or 'gpu'")
+        return value

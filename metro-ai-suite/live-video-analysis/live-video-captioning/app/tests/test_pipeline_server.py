@@ -48,30 +48,39 @@ class TestPipelineServerHelpers:
         assert server._is_camera_pipeline_name("Video_Captioning_Camera_Software") is True
         assert server._is_camera_pipeline_name("Video_Captioning_RTSP_Software") is False
 
-    def test_resolve_pipeline_name_empty_returns_default(self, server):
-        with patch("backend.services.pipeline_server.PIPELINE_NAME", "video_captioning_pipeline"):
-            assert server._resolve_pipeline_name("  ") == "video_captioning_pipeline"
+    def test_resolve_pipeline_name_from_ui_prefers_default_resolution_alias(self, server):
+        req = StartRunRequest(rtspUrl="rtsp://example/stream", streamSourceType="rtsp", decoder="cpu")
+        with patch(
+            "backend.services.pipeline_server.discover_pipelines_remote",
+            return_value=[
+                {"pipeline_name": "Video_Captioning_RTSP_Software_Default_Resolution"},
+                {"pipeline_name": "Video_Captioning_RTSP_Software"},
+            ],
+        ) as mock_discover:
+            name = server._resolve_pipeline_name_from_ui(req, req.rtspUrl)
+        mock_discover.assert_called_once_with()
+        assert name == "Video_Captioning_RTSP_Software_Default_Resolution"
 
-    def test_resolve_pipeline_name_accepts_discovered_default_resolution_alias(self, server):
+    def test_resolve_pipeline_name_from_ui_returns_base_when_alias_missing(self, server):
+        req = StartRunRequest(rtspUrl="rtsp://example/stream", streamSourceType="rtsp", decoder="cpu")
         with patch(
             "backend.services.pipeline_server.discover_pipelines_remote",
             return_value=[{"pipeline_name": "Video_Captioning_RTSP_Software"}],
         ):
-            name = server._resolve_pipeline_name(
-                "Video_Captioning_RTSP_Software_Default_Resolution"
-            )
-        assert name == "Video_Captioning_RTSP_Software_Default_Resolution"
+            name = server._resolve_pipeline_name_from_ui(req, req.rtspUrl)
+        assert name == "Video_Captioning_RTSP_Software"
 
-    def test_resolve_pipeline_name_unknown_raises_400(self, server):
+    def test_resolve_pipeline_name_from_ui_unknown_raises_400(self, server):
+        req = StartRunRequest(rtspUrl="rtsp://example/stream", streamSourceType="rtsp", decoder="cpu")
         with patch(
             "backend.services.pipeline_server.discover_pipelines_remote",
             return_value=[{"pipeline_name": "known"}],
         ):
             with pytest.raises(HTTPException) as exc_info:
-                server._resolve_pipeline_name("unknown")
+                server._resolve_pipeline_name_from_ui(req, req.rtspUrl)
 
         assert exc_info.value.status_code == 400
-        assert "Unknown pipelineName" in exc_info.value.detail["message"]
+        assert "No matching backend pipeline found" in exc_info.value.detail["message"]
 
     def test_normalize_pipeline_name_for_npu_strips_default_resolution_suffix(self, server):
         assert (
@@ -205,7 +214,7 @@ class TestPipelineParameterBuilding:
         assert params["captioner-properties"]["scheduler-config"] == server.GPU_SCHEDULER_CONFIG
         assert params["captioner-properties"]["model-cache-path"] == "/tmp/ov_cache"
 
-    def test_build_pipeline_parameters_npu_forces_resolution(self, server):
+    def test_build_pipeline_parameters_npu_forces_resolution_and_uses_npu_captioner_config(self, server):
         req = StartRunRequest(
             rtspUrl="rtsp://host/stream",
             vlmDevice="npu",
@@ -223,7 +232,10 @@ class TestPipelineParameterBuilding:
 
         assert params["frame_width"] == 640
         assert params["frame_height"] == 640
-        assert params["captioner-properties"] == {"foo": "bar"}
+        assert params["captioner-properties"]["device"] == "NPU"
+        assert "generation-config" in params["captioner-properties"]
+        assert "scheduler-config" not in params["captioner-properties"]
+        assert "foo" not in params["captioner-properties"]
 
     def test_build_pipeline_parameters_npu_vlm_override_excludes_scheduler(self, server):
         req = StartRunRequest(
@@ -297,7 +309,7 @@ class TestRunLifecycle:
 
         with patch.object(
             server,
-            "_resolve_pipeline_name",
+            "_resolve_pipeline_name_from_ui",
             return_value="Video_Captioning_RTSP_Software",
         ), patch.object(
             server,
@@ -324,14 +336,14 @@ class TestRunLifecycle:
 
         with patch.object(
             server,
-            "_resolve_pipeline_name",
+            "_resolve_pipeline_name_from_ui",
             return_value="Video_Captioning_RTSP_Software",
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await server.start_run(req)
 
         assert exc_info.value.status_code == 400
-        assert "not camera-compatible" in exc_info.value.detail["message"]
+        assert "camera-compatible pipeline" in exc_info.value.detail["message"]
 
     @pytest.mark.asyncio
     async def test_start_run_rejects_camera_source_with_default_non_camera_pipeline(self, server):
@@ -342,14 +354,14 @@ class TestRunLifecycle:
 
         with patch.object(
             server,
-            "_resolve_pipeline_name",
+            "_resolve_pipeline_name_from_ui",
             return_value="Video_Captioning_RTSP_Software",
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await server.start_run(req)
 
         assert exc_info.value.status_code == 400
-        assert "default PIPELINE_NAME is not camera-compatible" in exc_info.value.detail["message"]
+        assert "camera-compatible pipeline" in exc_info.value.detail["message"]
 
     @pytest.mark.asyncio
     async def test_start_run_rejects_camera_source_when_already_in_use(self, server):
@@ -364,7 +376,7 @@ class TestRunLifecycle:
 
         with patch.object(
             server,
-            "_resolve_pipeline_name",
+            "_resolve_pipeline_name_from_ui",
             return_value="Video_Captioning_Camera_Software",
         ):
             with pytest.raises(HTTPException) as exc_info:
@@ -383,7 +395,7 @@ class TestRunLifecycle:
 
         with patch.object(
             server,
-            "_resolve_pipeline_name",
+            "_resolve_pipeline_name_from_ui",
             return_value="Video_Captioning_RTSP_Software",
         ), patch.object(
             server,

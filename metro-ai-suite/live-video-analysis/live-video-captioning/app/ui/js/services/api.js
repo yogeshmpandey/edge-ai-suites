@@ -3,8 +3,6 @@
  */
 const ApiService = (function () {
     const DEFAULT_MODEL = 'InternVL2-1B';
-    const DEFAULT_PIPELINE = 'Video_Captioning_RTSP_Software';
-    let pipelineCache = [];
     // Full ModelInfo list cached for filtering: [{name, device}, ...]
     let allModels = [];
     // Sentinel value stored in allModels when the API call itself failed
@@ -83,61 +81,6 @@ const ApiService = (function () {
             };
         } catch (_err) {
             return { has_gpu: null, has_npu: null };
-        }
-    }
-
-    async function fetchPipelines() {
-        try {
-            const resp = await fetch('/api/pipelines', { method: 'GET' });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-            const data = await resp.json();
-            const list = Array.isArray(data?.pipelines) ? data.pipelines : [];
-
-            // Accept either correct shape objects or fallback strings (future-proof)
-            const normalized = list
-                .map((it) => {
-                    if (it && typeof it === 'object' && typeof it.pipeline_name === 'string') {
-                        const t = it.pipeline_type;
-                        const type = (t === 'detection' || t === 'non-detection') ? t : 'non-detection';
-                        const display = typeof it.pipeline_display_name === 'string' && it.pipeline_display_name.trim()
-                            ? it.pipeline_display_name
-                            : it.pipeline_name;
-                        const isDefault = it.pipeline_default === true;
-                        const d = it.device;
-                        const device = (['cpu', 'gpu', 'npu', 'any'].includes(d)) ? d : 'any';
-                        return {
-                            pipeline_name: it.pipeline_name,
-                            pipeline_display_name: display,
-                            pipeline_type: type,
-                            pipeline_default: isDefault,
-                            device: device,
-                        };
-                    }
-                    if (typeof it === 'string') {
-                        return { pipeline_name: it, pipeline_display_name: it, pipeline_type: 'non-detection', pipeline_default: false, device: 'any' };
-                    }
-                    return null;
-                })
-                .filter(Boolean);
-
-            // De-duplicate by name (last wins), then sort (non-detection first, then name)
-            const map = new Map();
-            for (const p of normalized) map.set(p.pipeline_name, p);
-            const pipelines = Array.from(map.values()).sort((a, b) => {
-                if (a.pipeline_type !== b.pipeline_type) {
-                    return a.pipeline_type === 'non-detection' ? -1 : 1;
-                }
-                return a.pipeline_name.localeCompare(b.pipeline_name);
-            });
-
-            pipelineCache = pipelines.length
-                ? pipelines
-                : [{ pipeline_name: DEFAULT_PIPELINE, pipeline_display_name: DEFAULT_PIPELINE, pipeline_type: 'non-detection', device: 'cpu' }];
-
-            return pipelineCache;
-        } catch (err) {
-            throw err;
         }
     }
 
@@ -220,12 +163,10 @@ const ApiService = (function () {
         fetchDetectionModels,
         fetchCameras,
         fetchSystemCapabilities,
-        fetchPipelines,
         fetchRuns,
         startRun,
         stopRun,
         checkStreamReady,
-        DEFAULT_MODEL,
-        DEFAULT_PIPELINE
+        DEFAULT_MODEL
     };
 })();
