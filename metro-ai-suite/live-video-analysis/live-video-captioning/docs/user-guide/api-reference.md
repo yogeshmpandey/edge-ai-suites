@@ -43,26 +43,6 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
 }
 ```
 
-### Pipelines
-
-- `GET /api/pipelines` - List available pipeline configurations
-
-#### Pipelines Response Schema
-
-```json
-{
-  "pipelines": [
-    {
-      "pipeline_name": "Video_Captioning_RTSP_Software",
-      "pipeline_display_name": "RTSP (Software)",
-      "pipeline_type": "non-detection",
-      "pipeline_default": false,
-      "device": "cpu"
-    }
-  ]
-}
-```
-
 ### Cameras
 
 - `GET /api/cameras` - List local capture-capable camera devices (`/dev/videoX`) and supported formats
@@ -96,6 +76,9 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
 ```json
 {
   "rtspUrl": "rtsp://example.com/stream",
+  "streamSourceType": "rtsp",
+  "pipelineType": "non-detection",
+  "decoder": "cpu",
   "prompt": "Describe what you see in one sentence.",
   "detectionModelName": "yolov8s",
   "detectionThreshold": 0.5,
@@ -121,7 +104,11 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
 
 Notes:
 - `rtspUrl` accepts either an RTSP URL (`rtsp://`/`rtsps://`) or a Linux camera device path such as `/dev/video0`.
+- `streamSourceType` accepts `rtsp` or `camera`.
+- `pipelineType` accepts `detection` or `non-detection`.
+- `decoder` accepts `cpu` or `gpu`.
 - `maxNewTokens` is the request field; the run response uses `maxTokens`.
+- `pipelineName` is accepted for compatibility but current backend behavior resolves the actual pipeline from source type, pipeline type, VLM device, and resolution.
 - `captioner-properties` and `detection-properties` are optional alias fields accepted by the API. Current backend behavior applies `captioner-properties`; `detection-properties` is reserved for future backend wiring.
 
 #### Run Response Schema
@@ -159,6 +146,10 @@ Notes:
   "error": false
 }
 ```
+
+Notes:
+- `state` can be `queued`, `running`, another backend pipeline state string, or `null` when pipeline status is temporarily unreachable.
+- `error` is `true` when the run is no longer in a healthy state and the stream will not become ready.
 
 #### Stop Run Response Schema (`DELETE /api/generate_captions_alerts/{run_id}`)
 
