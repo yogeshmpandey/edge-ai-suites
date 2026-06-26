@@ -32,8 +32,8 @@ global:
     # This VLM model is used in DLSPS pipeline to generate captions text for input video stream.
     # Parameters:
     # modelId: HuggingFace repo ID passed to optimum-cli for downloading the model, e.g. "OpenGVLab/InternVL2-1B"
-    # outputName: model directory created under /ov_models/<device>/ in the PVC
-    #            to show under the model selection dropdown in the UI. e.g. "InternVL2-1B".
+    #          output directory is derived from the final segment of modelId
+    #          and created under /ov_models/<device>/ in the PVC.
     # modelType: "vlm"
     # weightFormat: "int8", or "int4" or "fp16"
     # device: target conversion device(s): "CPU", "GPU", "NPU", or CSV/list (for multiple).
@@ -41,15 +41,12 @@ global:
     #         If NPU is selected, weightFormat is automatically forced to "int4".
   models:
   - modelId: "OpenGVLab/InternVL2-1B"
-    outputName: "InternVL2-1B"
     modelType: "vlm"
     weightFormat: "int8"
     device: "CPU"
-
   # OPTIONAL: downloaded only when detection pipeline is enabled.
   detectionModels:
   - "yolov8s"
-
   # OPTIONAL: required only for gated Hugging Face models.
   huggingface:
     apiToken: ""

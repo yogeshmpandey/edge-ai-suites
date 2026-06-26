@@ -74,8 +74,8 @@ global:
   #
   # Fields per entry:
   #   modelId     — HuggingFace repo ID passed to optimum-cli
-  #   outputName  — model directory name created under /ov_models/<device>/ in the PVC;
-  #                 must match the captioner_model_name expected by the caption service
+  #               — output directory name is derived from the final segment of modelId
+  #                 and created under /ov_models/<device>/ in the PVC.
   #   weightFormat — "" (fp16 default), "int8", or "int4"
   #   device      — target device(s) for conversion and per-device output folders.
   #                 Accepts either a CSV string (e.g. "CPU,GPU") or a list
@@ -85,11 +85,9 @@ global:
   # Type: list of objects
   models:
   - modelId: "OpenGVLab/InternVL2-1B"
-    outputName: "InternVL2-1B"
     modelType: "vlm"
     weightFormat: ""
     device: "CPU"
-
   # Detection models to download when the object-detection pipeline is enabled.
   # Each entry matches the model argument accepted by DL Streamer's
   # download_public_models.sh helper and is stored under:
@@ -98,7 +96,6 @@ global:
   # Type: list of strings
   detectionModels:
   - "yolov8s"
-
   # HuggingFace API token for gated models (e.g. google/gemma-3-4b-it); not needed for public models
   huggingface:
     apiToken: ""

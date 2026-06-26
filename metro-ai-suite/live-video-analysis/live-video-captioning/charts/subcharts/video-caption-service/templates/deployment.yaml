@@ -78,7 +78,9 @@ spec:
                 fi
 
                 device_lower="$(echo "$device" | tr '[:upper:]' '[:lower:]')"
-                model_output_name="${device_lower}/{{ $model.outputName }}"
+                model_dir_name="{{ $model.modelId }}"
+                model_dir_name="${model_dir_name##*/}"
+                model_output_name="${device_lower}/${model_dir_name}"
                 MODEL_TARGET_DIR="/opt/data/ov_models/${model_output_name}"
                 if [ -d "$MODEL_TARGET_DIR" ] && [ -n "$(ls -A "$MODEL_TARGET_DIR" 2>/dev/null)" ]; then
                   echo "Model output already exists at $MODEL_TARGET_DIR. Skipping download for {{ $model.modelId }} on device $device"

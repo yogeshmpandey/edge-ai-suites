@@ -59,6 +59,8 @@ bash scripts/setup_env.sh
 
 ## Step 3 — Download the AI Model (one-time, ~5 min)
 
+This downloads the AI model that powers the captions. It only needs to run once. The model parameter is configurable and the user is requested to confirm the license agreement before the download.
+
 ```bash
 ./model_download_scripts/download_models.sh \
   --model OpenGVLab/InternVL2-1B \
@@ -66,7 +68,19 @@ bash scripts/setup_env.sh
   --weight-format int8
 ```
 
-This downloads the AI model that powers the captions. It only needs to run once. The model parameter is configurable and the user is requested to confirm the license agreement before the download.
+### Specifying the conversion device
+
+By default, the model is converted to run on CPU. To explicitly run on other device:
+
+```bash
+# Specify your desired target device in the --device flag
+./model_download_scripts/download_models.sh \
+  --model OpenGVLab/InternVL2-1B \
+  --type vlm \
+  --weight-format int8 \
+  --device <CPU|GPU|NPU>
+```
+> Note: NPU currently requires `int4` quantization for VLM/LLM conversion. If you pass `--device NPU` with `int8` or `fp16`, the script automatically overrides it to `int4`.
 
 ---
 
