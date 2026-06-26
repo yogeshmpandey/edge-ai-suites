@@ -181,3 +181,88 @@ class TestStartRunRequestBoundaries:
         """Valid thresholds within [0.0, 1.0] are accepted."""
         req = StartRunRequest(rtspUrl="rtsp://10.0.0.1/s", detectionThreshold=threshold)
         assert req.detectionThreshold == threshold
+
+
+# ---------------------------------------------------------------------------
+# Selector validators
+# ---------------------------------------------------------------------------
+class TestStartRunRequestSelectors:
+    """Validation and normalization for stream/pipeline/decoder selectors."""
+
+    def test_stream_source_type_valid_values_are_normalized(self):
+        req_rtsp = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            streamSourceType=" RTSP ",
+        )
+        req_camera = StartRunRequest(
+            rtspUrl="/dev/video0",
+            streamSourceType=" Camera ",
+        )
+        assert req_rtsp.streamSourceType == "rtsp"
+        assert req_camera.streamSourceType == "camera"
+
+    def test_stream_source_type_none_is_accepted(self):
+        req = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            streamSourceType=None,
+        )
+        assert req.streamSourceType is None
+
+    def test_stream_source_type_invalid_rejected(self):
+        with pytest.raises(ValidationError, match="streamSourceType must be either 'rtsp' or 'camera'"):
+            StartRunRequest(
+                rtspUrl="rtsp://10.0.0.1/stream",
+                streamSourceType="usb",
+            )
+
+    def test_pipeline_type_valid_values_are_normalized(self):
+        req_detection = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            pipelineType=" Detection ",
+        )
+        req_non_detection = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            pipelineType=" NON-DETECTION ",
+        )
+        assert req_detection.pipelineType == "detection"
+        assert req_non_detection.pipelineType == "non-detection"
+
+    def test_pipeline_type_none_is_accepted(self):
+        req = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            pipelineType=None,
+        )
+        assert req.pipelineType is None
+
+    def test_pipeline_type_invalid_rejected(self):
+        with pytest.raises(ValidationError, match="pipelineType must be either 'detection' or 'non-detection'"):
+            StartRunRequest(
+                rtspUrl="rtsp://10.0.0.1/stream",
+                pipelineType="smart",
+            )
+
+    def test_decoder_valid_values_are_normalized(self):
+        req_cpu = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            decoder=" CPU ",
+        )
+        req_gpu = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            decoder="gpu",
+        )
+        assert req_cpu.decoder == "cpu"
+        assert req_gpu.decoder == "gpu"
+
+    def test_decoder_none_is_accepted(self):
+        req = StartRunRequest(
+            rtspUrl="rtsp://10.0.0.1/stream",
+            decoder=None,
+        )
+        assert req.decoder is None
+
+    def test_decoder_invalid_rejected(self):
+        with pytest.raises(ValidationError, match="decoder must be either 'cpu' or 'gpu'"):
+            StartRunRequest(
+                rtspUrl="rtsp://10.0.0.1/stream",
+                decoder="npu",
+            )

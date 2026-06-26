@@ -12,7 +12,7 @@ const SettingsManager = (function () {
                 cameraDevicePath: els.cameraDeviceSelect?.value || '',
                 prompt: els.promptInput?.value || '',
                 modelName: els.modelNameSelect?.value || '',
-                decoder: els.decoderSelect?.value || 'cpu',
+                pipelineType: els.pipelineTypeSelect?.value || 'non-detection',
                 vlmDevice: els.vlmDeviceSelect?.value || 'cpu',
                 detectionDevice: els.detectionDeviceSelect?.value || 'cpu',
                 includeRoiBoundingBox: Boolean(els.includeRoiBoundingBoxCheckbox?.checked),
@@ -105,10 +105,10 @@ const SettingsManager = (function () {
         if (els.includeRoiBoundingBoxCheckbox) {
             els.includeRoiBoundingBoxCheckbox.checked = settings.includeRoiBoundingBox === true;
         }
-        if (settings.decoder && els.decoderSelect) {
-            const options = Array.from(els.decoderSelect.options).map(o => o.value);
-            if (options.includes(settings.decoder)) {
-                els.decoderSelect.value = settings.decoder;
+        if (settings.pipelineType && els.pipelineTypeSelect) {
+            const options = Array.from(els.pipelineTypeSelect.options).map(o => o.value);
+            if (options.includes(settings.pipelineType)) {
+                els.pipelineTypeSelect.value = settings.pipelineType;
             }
         }
         // Model will be restored after options are loaded
@@ -135,7 +135,7 @@ const SettingsManager = (function () {
     function setupSettingsPersistence(els) {
         // Save settings on input changes
         const inputs = [els.rtspInput, els.streamSourceTypeSelect, els.cameraDeviceSelect,
-        els.promptInput, els.maxTokensInput, els.modelNameSelect, els.decoderSelect, els.vlmDeviceSelect, els.detectionDeviceSelect, els.runNameInput,
+        els.promptInput, els.maxTokensInput, els.modelNameSelect, els.pipelineTypeSelect, els.vlmDeviceSelect, els.detectionDeviceSelect, els.runNameInput,
         els.frameRateInput, els.chunkSizeInput, els.frameQualitySelect, els.customWidthInput, els.customHeightInput,
         els.includeRoiBoundingBoxCheckbox,
         els.captionHistoryInput];

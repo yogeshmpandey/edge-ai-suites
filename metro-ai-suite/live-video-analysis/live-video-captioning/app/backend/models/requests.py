@@ -23,6 +23,7 @@ class StartRunRequest(BaseModel):
             "example": {
                 "rtspUrl": "rtsp://example.com/stream",
                 "streamSourceType": "rtsp",
+                "pipelineType": "non-detection",
                 "decoder": "cpu",
                 "prompt": "Describe what you see in one sentence.",
                 "modelName": "InternVL2-1B",
@@ -40,6 +41,10 @@ class StartRunRequest(BaseModel):
     streamSourceType: Optional[str] = Field(
         default=None,
         description="Optional stream source type selector from UI (rtsp or camera).",
+    )
+    pipelineType: Optional[str] = Field(
+        default=None,
+        description="Optional pipeline family selector from UI (detection or non-detection).",
     )
     decoder: Optional[str] = Field(
         default=None,
@@ -137,6 +142,16 @@ class StartRunRequest(BaseModel):
         value = v.strip().lower()
         if value not in {"rtsp", "camera"}:
             raise ValueError("streamSourceType must be either 'rtsp' or 'camera'")
+        return value
+
+    @field_validator("pipelineType")
+    @classmethod
+    def validate_pipeline_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        value = v.strip().lower()
+        if value not in {"detection", "non-detection"}:
+            raise ValueError("pipelineType must be either 'detection' or 'non-detection'")
         return value
 
     @field_validator("decoder")

@@ -48,8 +48,37 @@ class PipelineServer:
         """Best-effort check for camera-capable pipeline identifiers."""
         return "camera" in (pipeline_name or "").strip().lower()
 
+    @staticmethod
+    def _normalize_selected_pipeline_type(req: StartRunRequest) -> str:
+        selected = (req.pipelineType or "").strip().lower()
+        if selected in {"detection", "non-detection"}:
+            return selected
+
+        detection_requested = (
+            (req.detectionDevice or "").strip().lower() in {"cpu", "gpu", "npu"}
+            or bool(req.includeRoiBoundingBox)
+        )
+        return "detection" if detection_requested else "non-detection"
+
+    def _build_expected_pipeline_candidates(
+        self,
+        source_type: str,
+        pipeline_type: str,
+        vlm_device: str,
+        is_default_resolution: bool,
+    ) -> list[str]:
+        source_segment = "Camera" if source_type == "camera" else "RTSP"
+        compute_segment = "Software" if vlm_device == "cpu" else "Hardware"
+        detection_segment = "Detection_" if pipeline_type == "detection" else ""
+
+        base_name = f"Video_Captioning_{source_segment}_{detection_segment}{compute_segment}"
+        candidates = [base_name]
+        if is_default_resolution:
+            candidates.insert(0, f"{base_name}{self.DEFAULT_RESOLUTION_SUFFIX}")
+        return candidates
+
     def _resolve_pipeline_name_from_ui(self, req: StartRunRequest, source_uri: str) -> str:
-        """Resolve pipeline from request controls (source type + decoder)."""
+        """Resolve pipeline by deterministic naming rules and discovered availability."""
         inferred_source_type = "camera" if self._is_linux_video_device(source_uri) else "rtsp"
         selected_source_type = (req.streamSourceType or "").strip().lower()
         source_type = (
@@ -58,46 +87,38 @@ class PipelineServer:
             else inferred_source_type
         )
 
-        selected_decoder = (req.decoder or "").strip().lower()
-        decoder = selected_decoder if selected_decoder in {"cpu", "gpu"} else "cpu"
-
-        detection_requested = (
-            (req.detectionDevice or "").strip().lower() in {"cpu", "gpu", "npu"}
-            or bool(req.includeRoiBoundingBox)
-        )
-
-        source_segment = "Camera" if source_type == "camera" else "RTSP"
-        decoder_segment = "Hardware" if decoder == "gpu" else "Software"
-        detection_segment = "Detection_" if detection_requested else ""
-        base_name = f"Video_Captioning_{source_segment}_{detection_segment}{decoder_segment}"
+        selected_pipeline_type = self._normalize_selected_pipeline_type(req)
+        selected_vlm_device = (req.vlmDevice or "").strip().lower()
+        vlm_device = selected_vlm_device if selected_vlm_device in {"cpu", "gpu", "npu"} else "cpu"
 
         is_default_resolution = (
             req.frameWidth is None
             and req.frameHeight is None
-            and (req.vlmDevice or "").strip().lower() != "npu"
-            and not detection_requested
         )
 
-        candidates = [base_name]
-        if is_default_resolution:
-            candidates.insert(0, f"{base_name}{self.DEFAULT_RESOLUTION_SUFFIX}")
-
         discovered = discover_pipelines_remote()
-        allowed_names = {
+        discovered_names = {
             (item.get("pipeline_name") or "").strip()
             for item in discovered
-            if isinstance(item, dict)
+            if isinstance(item, dict) and (item.get("pipeline_name") or "").strip()
         }
-        for candidate in candidates:
-            if candidate in allowed_names:
+
+        expected_candidates = self._build_expected_pipeline_candidates(
+            source_type=source_type,
+            pipeline_type=selected_pipeline_type,
+            vlm_device=vlm_device,
+            is_default_resolution=is_default_resolution,
+        )
+        for candidate in expected_candidates:
+            if candidate in discovered_names:
                 return candidate
 
         raise HTTPException(
             status_code=400,
             detail={
                 "message": (
-                    "No matching backend pipeline found for the selected stream source "
-                    f"('{source_type}') and decoder ('{decoder}')."
+                    "No matching backend pipeline found for the selected options. "
+                    "Check source type, pipeline type, VLM device, and frame resolution settings."
                 )
             },
         )
@@ -112,6 +133,12 @@ class PipelineServer:
         """
         if (vlm_device or "").strip().lower() != "npu":
             return pipeline_name
+        if not (pipeline_name or "").endswith(self.DEFAULT_RESOLUTION_SUFFIX):
+            return pipeline_name
+        return pipeline_name[: -len(self.DEFAULT_RESOLUTION_SUFFIX)]
+
+    def _public_pipeline_name(self, pipeline_name: str) -> str:
+        """Return a UI/API-safe pipeline name without internal alias suffixes."""
         if not (pipeline_name or "").endswith(self.DEFAULT_RESOLUTION_SUFFIX):
             return pipeline_name
         return pipeline_name[: -len(self.DEFAULT_RESOLUTION_SUFFIX)]
@@ -234,6 +261,25 @@ class PipelineServer:
                             ),
                         },
                     )
+
+            # Secondary guard: keep detection device family aligned with VLM device.
+            # This intentionally runs after pipeline-specific checks so users get
+            # the more actionable software/hardware compatibility messages first.
+            if selected_vlm_device == "cpu" and selected_detection_device != "cpu":
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": "Invalid detection device for selected VLM device.",
+                    },
+                )
+            if selected_vlm_device in {"gpu", "npu"} and selected_detection_device == "cpu":
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": "Invalid detection device for selected VLM device.",
+                    },
+                )
+
             pre_process_backend = {
                 "cpu": "opencv",
                 "gpu": "va-surface-sharing",
@@ -379,6 +425,8 @@ class PipelineServer:
         raw = http_json("POST", start_url, payload=payload)
         pipeline_id = self._extract_pipeline_id(raw)
 
+        display_pipeline_name = self._public_pipeline_name(pipeline_name)
+
         model_name = (req.modelName or "").strip() or "InternVL2-2B"
         # Use full run_id for custom names, truncated for UUID-based
         final_run_id = run_id if run_name else run_id[:10]
@@ -390,7 +438,7 @@ class PipelineServer:
             modelName=model_name,
             vlmDevice=((req.vlmDevice or "").strip().lower() or None),
             detectionDevice=((req.detectionDevice or "").strip().lower() or None),
-            pipelineName=pipeline_name,
+            pipelineName=display_pipeline_name,
             runName=run_name,
             prompt=(req.prompt or "").strip() or DEFAULT_PROMPT,
             maxTokens=req.maxNewTokens,

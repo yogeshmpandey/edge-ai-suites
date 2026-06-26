@@ -75,12 +75,10 @@
                     </label>
                     <div class="field-row">
                         <label class="field">
-                            <span class="label"
-                                title="Select the decoder type. CPU uses software decoding, while GPU uses hardware-accelerated decoding.">Decoder</span>
-                            <select id="decoderSelect" class="input"
-                                title="Select the decoder type. CPU uses software decoding, while GPU uses hardware-accelerated decoding.">
-                                <option value="cpu" selected>CPU</option>
-                                <option value="gpu">GPU</option>
+                            <span class="label" title="Choose the pipeline variant.">Select Pipeline</span>
+                            <select id="pipelineTypeSelect" class="input" title="Choose the pipeline variant.">
+                                <option value="non-detection" selected>Video Captioning Pipeline</option>
+                                <option value="detection">Video Captioning Pipeline with Detection</option>
                             </select>
                         </label>
                         <label class="field">

@@ -9,7 +9,7 @@
         form: document.getElementById('pipelineForm'),
         promptInput: document.getElementById('promptInput'),
         modelNameSelect: document.getElementById('modelNameSelect'),
-        decoderSelect: document.getElementById('decoderSelect'),
+        pipelineTypeSelect: document.getElementById('pipelineTypeSelect'),
         vlmDeviceSelect: document.getElementById('vlmDeviceSelect'),
         maxTokensInput: document.getElementById('maxTokensInput'),
         captionHistoryInput: document.getElementById('captionHistoryInput'),
@@ -49,18 +49,11 @@
         selectedRunId: null,
         runs: new Map(),
         isStarting: false,
-        hasSavedDecoderPreference: false,
         hasSavedVlmDevicePreference: false,
         hasGpuDevice: null,
         hasNpuDevice: null,
     };
     const CHAT_TAB_NAME = 'Live Caption RAG Dashboard';
-
-    (function initDetectionVisibility() {
-        const enabledByFlag = cfg.enableDetectionPipeline === true;
-        const detectionSection = document.getElementById('detectionSection');
-        setSectionVisible(detectionSection, enabledByFlag);
-    })();
 
     (function initChatToggleVisibility() {
         if (cfg.enableEmbedding !== true) {
@@ -79,6 +72,29 @@
     function setSectionVisible(el, show) {
         if (!el) return;
         el.style.display = show ? '' : 'none';
+    }
+
+    function syncPipelineTypeOptions() {
+        const select = els.pipelineTypeSelect;
+        if (!select) return;
+
+        const detectionEnabled = cfg.enableDetectionPipeline === true;
+        const detectionOption = select.querySelector('option[value="detection"]');
+
+        if (!detectionEnabled && detectionOption) {
+            detectionOption.remove();
+        }
+
+        if (!select.querySelector('option[value="detection"]') && detectionEnabled) {
+            const option = document.createElement('option');
+            option.value = 'detection';
+            option.textContent = 'Video Captioning Pipeline with Detection';
+            select.appendChild(option);
+        }
+
+        if (select.value !== 'detection' && select.value !== 'non-detection') {
+            select.value = 'non-detection';
+        }
     }
 
     function normalizeCaptionHistory(rawValue, fallback = 3) {
@@ -271,48 +287,49 @@
     }
 
     function toggleDetectionFieldsByText() {
-        showDetectionFields(cfg.enableDetectionPipeline === true);
-        updateDetectionDevicesByDecoder();
+        showDetectionFields(getSelectedPipelineType() === 'detection');
+        updateDetectionDeviceOptions();
+        updateStartButtonAvailability();
     }
 
-    // Decoder choice maps to internal pipeline family.
-    // CPU decoder -> software pipeline -> CPU-only detection path.
-    // GPU decoder -> hardware pipeline -> GPU/NPU detection paths.
-    function updateDetectionDevicesByDecoder() {
+    function updateDetectionDeviceOptions() {
         const deviceSelect = els.detectionDeviceSelect;
         if (!deviceSelect) return;
 
-        const selectedDecoder = (els.decoderSelect?.value || 'cpu').toLowerCase();
-        const isHardware = selectedDecoder === 'gpu';
-        const allowedByPipeline = (device) => {
-            if (isHardware) return device === 'gpu' || device === 'npu';
-            return device === 'cpu';
-        };
+        const selectedVlmDevice = getSelectedVlmDevice();
+        const selectedDetectionDevice = (deviceSelect.value || '').toLowerCase();
+        const allowCpuOnly = selectedVlmDevice === 'cpu';
 
-        let selectedStillVisible = false;
         for (const opt of Array.from(deviceSelect.options)) {
-            const allowed = allowedByPipeline(opt.value);
+            const value = (opt.value || '').toLowerCase();
+            const allowed = allowCpuOnly
+                ? value === 'cpu'
+                : value === 'gpu' || value === 'npu';
             opt.hidden = !allowed;
             opt.disabled = !allowed;
-            if (allowed && opt.value === deviceSelect.value) {
-                selectedStillVisible = true;
-            }
         }
 
-        // If the current selection was hidden, fall back to the first visible one.
-        if (!selectedStillVisible) {
+        const selectedStillAllowed = Array.from(deviceSelect.options).some((opt) => {
+            return !opt.hidden && opt.value.toLowerCase() === selectedDetectionDevice;
+        });
+
+        if (!selectedStillAllowed) {
             const firstVisible = Array.from(deviceSelect.options).find((o) => !o.hidden);
             if (firstVisible) deviceSelect.value = firstVisible.value;
         }
     }
 
     function getSelectedPipelineType() {
-        return cfg.enableDetectionPipeline === true ? 'detection' : 'non-detection';
+        const selected = (els.pipelineTypeSelect?.value || '').trim().toLowerCase();
+        if (cfg.enableDetectionPipeline === true && selected === 'detection') {
+            return 'detection';
+        }
+        return 'non-detection';
     }
 
     function getSelectedDecoder() {
-        const selected = (els.decoderSelect?.value || '').trim().toLowerCase();
-        return selected === 'gpu' ? 'gpu' : 'cpu';
+        const selectedVlmDevice = getSelectedVlmDevice();
+        return selectedVlmDevice === 'cpu' ? 'cpu' : 'gpu';
     }
 
     function resolveSignalingBase(url) {
@@ -452,44 +469,19 @@
         return state.hasGpuDevice === true ? 'gpu' : 'cpu';
     }
 
-    function setDecoderDefaultByCapabilities() {
-        const select = els.decoderSelect;
-        if (!select) return;
-
-        const settings = SettingsManager.loadSettings();
-        const saved = (settings?.decoder || '').trim().toLowerCase();
-        const availableValues = Array.from(select.options).map((o) => o.value);
-        const capabilityDefault = getCapabilityBasedDefaultDevice();
-
-        const selected = state.hasSavedDecoderPreference && availableValues.includes(saved)
-            ? saved
-            : (availableValues.includes(capabilityDefault) ? capabilityDefault : availableValues[0]);
-
-        if (selected) {
-            select.value = selected;
-            updateDetectionDevicesByDecoder();
-            SettingsManager.saveSettings(els);
-        }
-    }
-
     function setVlmDeviceOptionsByCapabilities() {
         const select = els.vlmDeviceSelect;
         if (!select) return;
 
         const previous = (select.value || '').trim().toLowerCase();
-        const selectedDecoder = getSelectedDecoder();
         const options = [];
 
-        // Keep VLM device choices aligned with selected decoder family.
-        if (selectedDecoder === 'gpu') {
-            if (state.hasGpuDevice === true) {
-                options.push({ value: 'gpu', label: 'GPU' });
-            }
-            if (state.hasNpuDevice === true) {
-                options.push({ value: 'npu', label: 'NPU' });
-            }
-        } else {
-            options.push({ value: 'cpu', label: 'CPU' });
+        options.push({ value: 'cpu', label: 'CPU' });
+        if (state.hasGpuDevice === true) {
+            options.push({ value: 'gpu', label: 'GPU' });
+        }
+        if (state.hasNpuDevice === true) {
+            options.push({ value: 'npu', label: 'NPU' });
         }
 
         // Fallback for partially reported capabilities to keep the UI usable.
@@ -514,6 +506,7 @@
             : (availableValues.includes(capabilityDefault) ? capabilityDefault : [previous, saved].find((value) => availableValues.includes(value)) || options[0].value);
         select.value = selected;
 
+        updateDetectionDeviceOptions();
         SettingsManager.saveSettings(els);
     }
 
@@ -530,7 +523,6 @@
             state.hasNpuDevice = null;
         }
 
-        setDecoderDefaultByCapabilities();
         setVlmDeviceOptionsByCapabilities();
         refreshModelsBySelectedVlmDevice();
     }
@@ -697,7 +689,7 @@
             loadCameraDevices();
         }
 
-        updateDetectionDevicesByDecoder();
+        updateDetectionDeviceOptions();
 
         updateCameraWarningVisibility();
         updateStartButtonAvailability();
@@ -1057,6 +1049,7 @@
                 modelName,
                 maxNewTokens: maxTokens,
                 streamSourceType,
+                pipelineType: selectedPipelineType,
                 decoder,
                 vlmDevice,
                 detectionDevice,
@@ -1113,11 +1106,6 @@
 
     function init() {
         const initialSettings = SettingsManager.loadSettings();
-        state.hasSavedDecoderPreference = Boolean(
-            initialSettings
-            && typeof initialSettings.decoder === 'string'
-            && ['cpu', 'gpu'].includes(initialSettings.decoder.trim().toLowerCase())
-        );
         state.hasSavedVlmDevicePreference = Boolean(
             initialSettings
             && typeof initialSettings.vlmDevice === 'string'
@@ -1162,6 +1150,8 @@
             });
         }
 
+        syncPipelineTypeOptions();
+
         // Restore settings from localStorage before loading options
         SettingsManager.restoreSettings(els, cfg);
         SettingsManager.setupSettingsPersistence(els);
@@ -1174,10 +1164,8 @@
             els.captionHistoryInput.addEventListener('blur', applyCaptionHistorySetting);
         }
 
-        if (els.decoderSelect) {
-            els.decoderSelect.addEventListener('change', () => {
-                setVlmDeviceOptionsByCapabilities();
-                refreshModelsBySelectedVlmDevice();
+        if (els.pipelineTypeSelect) {
+            els.pipelineTypeSelect.addEventListener('change', () => {
                 SettingsManager.saveSettings(els);
                 toggleDetectionFieldsByText();
             });
@@ -1186,6 +1174,8 @@
         if (els.vlmDeviceSelect) {
             els.vlmDeviceSelect.addEventListener('change', () => {
                 refreshModelsBySelectedVlmDevice();
+                updateDetectionDeviceOptions();
+                updateStartButtonAvailability();
             });
         }
 
