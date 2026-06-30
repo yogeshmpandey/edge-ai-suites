@@ -84,10 +84,10 @@ global:
   #
   # Type: list of objects
   models:
-  - modelId: "OpenGVLab/InternVL2-1B"
-    modelType: "vlm"
-    weightFormat: ""
-    device: "CPU"
+    - modelId: "OpenGVLab/InternVL2-1B"
+      modelType: "vlm"
+      weightFormat: ""
+      device: "CPU"
   # Detection models to download when the object-detection pipeline is enabled.
   # Each entry matches the model argument accepted by DL Streamer's
   # download_public_models.sh helper and is stored under:
@@ -95,7 +95,7 @@ global:
   #
   # Type: list of strings
   detectionModels:
-  - "yolov8s"
+    - "yolov8s"
   # HuggingFace API token for gated models (e.g. google/gemma-3-4b-it); not needed for public models
   huggingface:
     apiToken: ""

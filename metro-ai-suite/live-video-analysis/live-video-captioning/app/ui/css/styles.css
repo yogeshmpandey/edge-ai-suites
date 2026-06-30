@@ -737,20 +737,6 @@ iframe {
     height: 1.8em;
 }
 
-/* Decoder is informational only; render it like plain text to avoid edit affordance. */
-.decoder-display {
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    padding-left: 0;
-    pointer-events: none;
-    caret-color: transparent;
-}
-
-.decoder-display:focus {
-    outline: none;
-}
-
 .btn {
     padding: 8px 13px;
     border: none;

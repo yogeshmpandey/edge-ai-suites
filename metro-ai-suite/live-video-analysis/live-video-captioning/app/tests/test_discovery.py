@@ -282,6 +282,8 @@ class TestDiscoverPipelinesRemote:
         payload = [{"name": "Video_Captioning_Camera_Detection_Hardware", "parameters": {"properties": {}}}]
         with self._mock_http(payload), patch(
             "backend.services.discovery.ENABLE_DETECTION_PIPELINE", True
+        ), patch(
+            "backend.services.discovery._gpu_device_exists", return_value=True
         ):
             result = discover_pipelines_remote()
 
@@ -303,6 +305,8 @@ class TestDiscoverPipelinesRemote:
 
         with self._mock_http(payload), patch(
             "backend.services.discovery.ENABLE_DETECTION_PIPELINE", True
+        ), patch(
+            "backend.services.discovery._gpu_device_exists", return_value=True
         ):
             result = discover_pipelines_remote()
 

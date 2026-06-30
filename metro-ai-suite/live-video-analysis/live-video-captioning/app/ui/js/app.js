@@ -299,12 +299,25 @@
         const selectedVlmDevice = getSelectedVlmDevice();
         const selectedDetectionDevice = (deviceSelect.value || '').toLowerCase();
         const allowCpuOnly = selectedVlmDevice === 'cpu';
+        const hasGpu = state.hasGpuDevice === true;
+        const hasNpu = state.hasNpuDevice === true;
 
         for (const opt of Array.from(deviceSelect.options)) {
             const value = (opt.value || '').toLowerCase();
-            const allowed = allowCpuOnly
-                ? value === 'cpu'
-                : value === 'gpu' || value === 'npu';
+            let allowed = false;
+            if (allowCpuOnly) {
+                allowed = value === 'cpu';
+            } else if (value === 'gpu') {
+                allowed = hasGpu;
+            } else if (value === 'npu') {
+                allowed = hasNpu;
+            }
+
+            // Keep the UI usable if capabilities are unknown or no accelerator exists.
+            if (!allowCpuOnly && !hasGpu && !hasNpu) {
+                allowed = value === 'cpu';
+            }
+
             opt.hidden = !allowed;
             opt.disabled = !allowed;
         }
@@ -325,11 +338,6 @@
             return 'detection';
         }
         return 'non-detection';
-    }
-
-    function getSelectedDecoder() {
-        const selectedVlmDevice = getSelectedVlmDevice();
-        return selectedVlmDevice === 'cpu' ? 'cpu' : 'gpu';
     }
 
     function resolveSignalingBase(url) {
@@ -972,7 +980,6 @@
         const defaultPrompt = cfg.defaultPrompt || 'Describe what you see in one sentence.';
         const prompt = (els.promptInput.value || '').trim() || defaultPrompt;
         const modelName = (els.modelNameSelect?.value || '').trim();
-        const decoder = getSelectedDecoder();
         const vlmDevice = (els.vlmDeviceSelect?.value || 'cpu').trim().toLowerCase();
         const maxTokensRaw = (els.maxTokensInput?.value || '').toString().trim();
         const maxTokensParsed = Number.parseInt(maxTokensRaw, 10);
@@ -1050,7 +1057,6 @@
                 maxNewTokens: maxTokens,
                 streamSourceType,
                 pipelineType: selectedPipelineType,
-                decoder,
                 vlmDevice,
                 detectionDevice,
                 includeRoiBoundingBox,
@@ -1073,7 +1079,7 @@
                 detectionModelName: detectionModelName,
                 detectionThreshold: detectionThreshold,
                 modelName: modelName,
-                pipelineName: data.pipelineName || `Decoder: ${decoder.toUpperCase()}`,
+                pipelineName: data.pipelineName || `Device: ${vlmDevice.toUpperCase()}`,
                 vlmDevice: vlmDevice,
                 detectionDevice: detectionDevice,
                 prompt: prompt,

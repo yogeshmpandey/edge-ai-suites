@@ -8,7 +8,7 @@ Symptoms:
 
 Details:
 
-- This is a current limitation of the DLStreamer `gvagenai` element on Intel NPU: for VLM workloads, hardcoded prompt-token limits and the lack of exposed NPU-specific configuration in `gvagenai` element cause pipeline failures when higher frame resoulution generate input embeddings exceed the default 1024-token limit;for now, 160×160 is the only validated input size for the supported VLMs running on NPU as a workaround until the fixes is available.
+- This is a current limitation of the DLStreamer `gvagenai` element on Intel NPU. For VLM workloads, hardcoded prompt-token limits and the lack of exposed NPU-specific configuration in the `gvagenai` element can cause pipeline failures when higher frame resolutions generate input embeddings that exceed the default 1024-token limit. For now, 160×160 is the only validated input size for the supported VLMs running on NPU as a workaround until a fix is available.
 
 Impact:
 
@@ -61,7 +61,7 @@ Tip:
 
 ## Proxy and no_proxy configuration (mandatory)
 
-Behind a corporte network, incorrect proxy settings are the most common cause of model-download failures and DL Streamer Pipeline Server crashes. Make sure both the Docker daemon proxy and `no_proxy` are set correctly and kept consistent.
+Behind a corporate network, incorrect proxy settings are the most common cause of model-download failures and DL Streamer Pipeline Server crashes. Make sure both the Docker daemon proxy and `no_proxy` are set correctly and kept consistent.
 
 Docker daemon proxy (required for internet access during model download):
 

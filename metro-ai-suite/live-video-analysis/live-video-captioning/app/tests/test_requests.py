@@ -51,34 +51,14 @@ class TestStartRunRequestValid:
             maxNewTokens=200,
             detectionModelName="yolov5",
             detectionThreshold=0.8,
-            pipelineName="my_pipe",
             runName="demo_run",
-            captionerProperties={"device": "CPU", "max-context-len": 4096},
         )
         assert req.prompt == "What is happening?"
         assert req.modelName == "custom-model"
         assert req.maxNewTokens == 200
         assert req.detectionModelName == "yolov5"
         assert req.detectionThreshold == 0.8
-        assert req.pipelineName == "my_pipe"
         assert req.runName == "demo_run"
-        assert req.captionerProperties == {"device": "CPU", "max-context-len": 4096}
-
-    def test_captioner_properties_alias_accepted(self):
-        """Hyphenated captioner-properties key is accepted in request payloads."""
-        req = StartRunRequest(
-            rtspUrl="rtsp://10.0.0.1/stream",
-            **{"captioner-properties": {"device": "CPU"}},
-        )
-        assert req.captionerProperties == {"device": "CPU"}
-
-    def test_detection_properties_alias_accepted(self):
-        """Hyphenated detection-properties key is accepted in request payloads."""
-        req = StartRunRequest(
-            rtspUrl="rtsp://10.0.0.1/stream",
-            **{"detection-properties": {"device": "GPU"}},
-        )
-        assert req.detectionProperties == {"device": "GPU"}
 
     def test_detection_device_field_accepted(self):
         """Detection device value is parsed and stored."""
@@ -187,7 +167,7 @@ class TestStartRunRequestBoundaries:
 # Selector validators
 # ---------------------------------------------------------------------------
 class TestStartRunRequestSelectors:
-    """Validation and normalization for stream/pipeline/decoder selectors."""
+    """Validation and normalization for stream/pipeline selectors."""
 
     def test_stream_source_type_valid_values_are_normalized(self):
         req_rtsp = StartRunRequest(
@@ -239,30 +219,4 @@ class TestStartRunRequestSelectors:
             StartRunRequest(
                 rtspUrl="rtsp://10.0.0.1/stream",
                 pipelineType="smart",
-            )
-
-    def test_decoder_valid_values_are_normalized(self):
-        req_cpu = StartRunRequest(
-            rtspUrl="rtsp://10.0.0.1/stream",
-            decoder=" CPU ",
-        )
-        req_gpu = StartRunRequest(
-            rtspUrl="rtsp://10.0.0.1/stream",
-            decoder="gpu",
-        )
-        assert req_cpu.decoder == "cpu"
-        assert req_gpu.decoder == "gpu"
-
-    def test_decoder_none_is_accepted(self):
-        req = StartRunRequest(
-            rtspUrl="rtsp://10.0.0.1/stream",
-            decoder=None,
-        )
-        assert req.decoder is None
-
-    def test_decoder_invalid_rejected(self):
-        with pytest.raises(ValidationError, match="decoder must be either 'cpu' or 'gpu'"):
-            StartRunRequest(
-                rtspUrl="rtsp://10.0.0.1/stream",
-                decoder="npu",
             )

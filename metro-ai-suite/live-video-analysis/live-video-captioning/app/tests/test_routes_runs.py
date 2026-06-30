@@ -59,20 +59,17 @@ class TestStartRunRoute:
             AsyncMock(
                 side_effect=HTTPException(
                     status_code=400,
-                    detail={"message": "Unknown pipelineName"},
+                    detail={"message": "No matching backend pipeline found"},
                 )
             ),
         ):
             resp = client.post(
                 "/api/generate_captions_alerts",
-                json={
-                    "rtspUrl": "rtsp://10.0.0.1/stream",
-                    "pipelineName": "does-not-exist",
-                },
+                json={"rtspUrl": "rtsp://10.0.0.1/stream"},
             )
 
         assert resp.status_code == 400
-        assert "Unknown pipelineName" in resp.json()["detail"]["message"]
+        assert "No matching backend pipeline found" in resp.json()["detail"]["message"]
 
     def test_start_run_invalid_rtsp_url_returns_422(self, client):
         """Schema validation still rejects non-RTSP/non-device source values."""

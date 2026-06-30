@@ -40,13 +40,13 @@ global:
     #         Example CSV: "CPU,GPU". Example list: ["CPU", "NPU"].
     #         If NPU is selected, weightFormat is automatically forced to "int4".
   models:
-  - modelId: "OpenGVLab/InternVL2-1B"
-    modelType: "vlm"
-    weightFormat: "int8"
-    device: "CPU"
+    - modelId: "OpenGVLab/InternVL2-1B"
+      modelType: "vlm"
+      weightFormat: "int8"
+      device: "CPU"
   # OPTIONAL: downloaded only when detection pipeline is enabled.
   detectionModels:
-  - "yolov8s"
+    - "yolov8s"
   # OPTIONAL: required only for gated Hugging Face models.
   huggingface:
     apiToken: ""

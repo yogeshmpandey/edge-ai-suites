@@ -1,9 +1,9 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Optional
+from typing import Optional
 from urllib.parse import urlparse
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 from ..config import ALERT_MODE
 import re
 import ipaddress
@@ -17,22 +17,6 @@ DEFAULT_PROMPT = (
 
 
 class StartRunRequest(BaseModel):
-    model_config = ConfigDict(
-        populate_by_name=True,
-        json_schema_extra={
-            "example": {
-                "rtspUrl": "rtsp://example.com/stream",
-                "streamSourceType": "rtsp",
-                "pipelineType": "non-detection",
-                "decoder": "cpu",
-                "prompt": "Describe what you see in one sentence.",
-                "modelName": "InternVL2-1B",
-                "vlmDevice": "CPU",
-                "maxNewTokens": 70,
-            }
-        }
-    )
-
     rtspUrl: str = Field(
         ...,
         min_length=1,
@@ -46,17 +30,12 @@ class StartRunRequest(BaseModel):
         default=None,
         description="Optional pipeline family selector from UI (detection or non-detection).",
     )
-    decoder: Optional[str] = Field(
-        default=None,
-        description="Optional decoder selector from UI (cpu or gpu).",
-    )
     modelName: str = Field(default="InternVL2-1B", description="Vision-language model name to use for caption generation.")
     vlmDevice: str = Field(default="CPU", description="Device target for the VLM inference backend (for example CPU, GPU, or NPU).")
     maxNewTokens: int = Field(default=70, ge=1, le=4096, description="Maximum number of tokens generated per caption response.")
     prompt: str = Field(default=DEFAULT_PROMPT, description="Prompt sent to the captioning model for each processed frame/chunk.")
     detectionModelName: Optional[str] = Field(default="yolov8s", description="Object detection model name used in the pipeline.")
     detectionThreshold: Optional[float] = Field(default=0.5, ge=0.0, le=1.0, description="Confidence threshold for filtering detection results.")
-    pipelineName: Optional[str] = Field(default=None, description="Optional pipeline identifier to run a specific processing pipeline variant.")
     runName: Optional[str] = Field(default=None, description="Optional human-readable name for the run/session.")
     frameRate: Optional[int] = Field(default=None, ge=0, description="Optional output frame rate limit in frames per second; 0 disables frame processing.")
     chunkSize: Optional[int] = Field(default=None, ge=1, description="Optional number of frames grouped together for a single captioning request.")
@@ -72,18 +51,6 @@ class StartRunRequest(BaseModel):
     )
     detectionDevice: Optional[str] = Field(default=None, description="Optional device target for object detection inference (for example CPU, GPU, or NPU).")
     includeRoiBoundingBox: Optional[bool] = Field(default=False, description="Whether to include ROI bounding-box metadata in pipeline outputs.")
-    captionerProperties: Optional[dict[str, Any]] = Field(
-        default=None,
-        alias="captioner-properties",
-        description="Optional gvagenai (captioner) element-properties override map",
-    )
-    detectionProperties: Optional[dict[str, Any]] = Field(
-        default=None,
-        alias="detection-properties",
-        description="Optional gvadetect element-properties override map",
-    )
-
-
     @field_validator("rtspUrl")
     @classmethod
     def validate_rtsp_url(cls, v: str) -> str:
@@ -152,14 +119,4 @@ class StartRunRequest(BaseModel):
         value = v.strip().lower()
         if value not in {"detection", "non-detection"}:
             raise ValueError("pipelineType must be either 'detection' or 'non-detection'")
-        return value
-
-    @field_validator("decoder")
-    @classmethod
-    def validate_decoder(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return None
-        value = v.strip().lower()
-        if value not in {"cpu", "gpu"}:
-            raise ValueError("decoder must be either 'cpu' or 'gpu'")
         return value

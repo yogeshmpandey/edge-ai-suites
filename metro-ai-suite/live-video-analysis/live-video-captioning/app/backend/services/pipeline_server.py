@@ -220,15 +220,6 @@ class PipelineServer:
         if req.chunkSize is not None:
             parameters["queue_size"] = max(1, req.chunkSize)
 
-        if req.captionerProperties:
-            # Forward gvagenai element-properties as a dedicated pipeline parameter.
-            captioner_properties = dict(req.captionerProperties)
-            # NPU captioner initialization fails when scheduler-config is injected.
-            if is_npu_pipeline:
-                captioner_properties.pop("scheduler-config", None)
-            if captioner_properties:
-                parameters["captioner-properties"] = captioner_properties
-
         # Detection device / pre-process-backend are substituted directly into the
         # gvadetect element in the pipeline string (caps-affecting properties must be
         # set before gst_parse_launch links the pipeline, otherwise hardware pipelines

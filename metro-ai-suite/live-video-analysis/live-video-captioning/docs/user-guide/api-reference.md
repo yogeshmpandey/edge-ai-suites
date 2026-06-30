@@ -78,13 +78,11 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
   "rtspUrl": "rtsp://example.com/stream",
   "streamSourceType": "rtsp",
   "pipelineType": "non-detection",
-  "decoder": "cpu",
   "prompt": "Describe what you see in one sentence.",
   "detectionModelName": "yolov8s",
   "detectionThreshold": 0.5,
   "modelName": "InternVL2-1B",
   "maxNewTokens": 70,
-  "pipelineName": "Video_Captioning_RTSP_Software",
   "runName": "Lobby Camera",
   "frameRate": 5,
   "chunkSize": 1,
@@ -92,13 +90,7 @@ When the stack is running, FastAPI provides OpenAPI/Swagger UI at:
   "frameHeight": 720,
   "vlmDevice": "cpu",
   "detectionDevice": "cpu",
-  "includeRoiBoundingBox": false,
-  "captioner-properties": {
-    "scheduler-config": "max_num_batched_tokens=256"
-  },
-  "detection-properties": {
-    "inference-interval": 2
-  }
+  "includeRoiBoundingBox": false
 }
 ```
 
@@ -106,10 +98,7 @@ Notes:
 - `rtspUrl` accepts either an RTSP URL (`rtsp://`/`rtsps://`) or a Linux camera device path such as `/dev/video0`.
 - `streamSourceType` accepts `rtsp` or `camera`.
 - `pipelineType` accepts `detection` or `non-detection`.
-- `decoder` accepts `cpu` or `gpu`.
 - `maxNewTokens` is the request field; the run response uses `maxTokens`.
-- `pipelineName` is accepted for compatibility but current backend behavior resolves the actual pipeline from source type, pipeline type, VLM device, and resolution.
-- `captioner-properties` and `detection-properties` are optional alias fields accepted by the API. Current backend behavior applies `captioner-properties`; `detection-properties` is reserved for future backend wiring.
 
 #### Run Response Schema
 

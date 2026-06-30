@@ -220,7 +220,6 @@ class TestPipelineParameterBuilding:
             vlmDevice="npu",
             frameWidth=1920,
             frameHeight=1080,
-            captionerProperties={"scheduler-config": "bad", "foo": "bar"},
         )
 
         with patch("backend.services.pipeline_server.NPU_FORCED_RESOLUTION", 640):
@@ -235,7 +234,6 @@ class TestPipelineParameterBuilding:
         assert params["captioner-properties"]["device"] == "NPU"
         assert "generation-config" in params["captioner-properties"]
         assert "scheduler-config" not in params["captioner-properties"]
-        assert "foo" not in params["captioner-properties"]
 
     def test_build_pipeline_parameters_npu_vlm_override_excludes_scheduler(self, server):
         req = StartRunRequest(
@@ -302,7 +300,6 @@ class TestRunLifecycle:
         req = StartRunRequest(
             rtspUrl="rtsp://host/stream",
             runName="My Run",
-            pipelineName="Video_Captioning_RTSP_Software",
             vlmDevice="cpu",
             modelName="InternVL2-1B",
         )
@@ -331,7 +328,6 @@ class TestRunLifecycle:
     async def test_start_run_rejects_camera_source_for_non_camera_pipeline(self, server):
         req = StartRunRequest(
             rtspUrl="/dev/video0",
-            pipelineName="Video_Captioning_RTSP_Software",
         )
 
         with patch.object(
@@ -349,7 +345,6 @@ class TestRunLifecycle:
     async def test_start_run_rejects_camera_source_with_default_non_camera_pipeline(self, server):
         req = StartRunRequest(
             rtspUrl="/dev/video0",
-            pipelineName=None,
         )
 
         with patch.object(
@@ -371,7 +366,6 @@ class TestRunLifecycle:
         )
         req = StartRunRequest(
             rtspUrl="/dev/video0",
-            pipelineName="Video_Captioning_Camera_Software",
         )
 
         with patch.object(
@@ -390,7 +384,6 @@ class TestRunLifecycle:
         req = StartRunRequest(
             rtspUrl="rtsp://host/stream",
             runName=None,
-            pipelineName="Video_Captioning_RTSP_Software",
         )
 
         with patch.object(
