@@ -421,6 +421,7 @@
             placeholder.disabled = true;
             placeholder.selected = true;
             select.appendChild(placeholder);
+            select.disabled = true;
 
             // Determine the right warning message
             let msg;
@@ -444,6 +445,8 @@
             if (els.startBtn) els.startBtn.disabled = true;
             return;
         }
+
+        select.disabled = false;
 
         // Re-enable start button now that we have models
         if (els.startBtn) els.startBtn.disabled = false;
@@ -642,6 +645,10 @@
             return;
         }
 
+        const noVlmModel = !els.modelNameSelect
+            || els.modelNameSelect.disabled
+            || !(els.modelNameSelect.value || '').trim();
+
         const isCameraMode = getSelectedSourceType() === 'camera';
         const noUsableCamera = !els.cameraDeviceSelect
             || els.cameraDeviceSelect.disabled
@@ -653,7 +660,7 @@
             || !(els.detectionModelNameSelect.value || '').trim()
         );
 
-        els.startBtn.disabled = (isCameraMode && noUsableCamera) || noDetectionModel;
+        els.startBtn.disabled = noVlmModel || (isCameraMode && noUsableCamera) || noDetectionModel;
     }
 
     async function loadCameraDevices() {
