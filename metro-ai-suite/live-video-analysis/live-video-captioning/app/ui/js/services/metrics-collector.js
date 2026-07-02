@@ -9,7 +9,9 @@
  *   { "timestamp": <ms>, "metrics": [ { "name", "labels", "value", "timestamp" }, ... ] }
  * where metric names are flattened (measurement + "_" + field). Only the
  * usage-percentage series are consumed: "cpu_usage_user", "mem_used_percent",
- * "gpu_engine_usage_usage" and "npu_utilization".
+ * "gpu_engine_usage_usage" and "npu_utilization". On multi-GPU hosts, GPU
+ * samples are grouped by labels.gpu_id first to avoid cross-device overwrites.
+ * Each detected GPU is rendered as its own chart line and header value.
  */
 const MetricsCollectorService = (function () {
     let metricsSource = null;
@@ -34,11 +36,28 @@ const MetricsCollectorService = (function () {
     }
 
     function processCollectorMetrics(metrics, elements) {
-        const { cpuVal, ramVal, gpuVal, gpuStat, gpuError, npuVal, npuStat } = elements;
+        const { cpuVal, ramVal, gpuValues, gpuError, npuVal, npuStat } = elements;
 
         // Per-batch accumulators
-        const gpuEngineData = new Map();
+        const gpuEngineDataByDevice = new Map();
+        let cpuUtilization = null;
+        let ramUtilization = null;
         let npuUtilization = null;
+
+        function getGpuDeviceId(labels) {
+            // Prefer Telegraf qmassa_reader gpu_id for multi-GPU correctness.
+            if (labels.gpu_id !== undefined && labels.gpu_id !== null) {
+                return String(labels.gpu_id);
+            }
+            // Backward-compatible fallbacks for alternate exporters.
+            if (labels.device !== undefined && labels.device !== null) {
+                return String(labels.device);
+            }
+            if (labels.card !== undefined && labels.card !== null) {
+                return String(labels.card);
+            }
+            return '0';
+        }
 
         metrics.forEach(metric => {
             const { name, value } = metric;
@@ -48,19 +67,23 @@ const MetricsCollectorService = (function () {
                 case 'cpu_usage_user':
                     // Prefer the aggregate "cpu-total" series when present.
                     if (labels.cpu === undefined || labels.cpu === 'cpu-total') {
-                        ChartManager.pushStatSample('cpu', value);
+                        cpuUtilization = value;
                         if (cpuVal) cpuVal.textContent = `${value.toFixed(1)}%`;
                     }
                     break;
 
                 case 'mem_used_percent':
-                    ChartManager.pushStatSample('ram', value);
+                    ramUtilization = value;
                     if (ramVal) ramVal.textContent = `${value.toFixed(1)}%`;
                     break;
 
                 case 'gpu_engine_usage_usage':
                     if (labels.engine) {
-                        gpuEngineData.set(labels.engine.toUpperCase(), value);
+                        const deviceId = getGpuDeviceId(labels);
+                        if (!gpuEngineDataByDevice.has(deviceId)) {
+                            gpuEngineDataByDevice.set(deviceId, new Map());
+                        }
+                        gpuEngineDataByDevice.get(deviceId).set(labels.engine.toUpperCase(), value);
                     }
                     break;
 
@@ -70,26 +93,66 @@ const MetricsCollectorService = (function () {
             }
         });
 
-        // GPU usage (max across engines)
-        if (gpuEngineData.size > 0) {
-            const maxGpuUsage = Math.max(...Array.from(gpuEngineData.values()));
-            ChartManager.pushStatSample('gpu', maxGpuUsage);
-            if (gpuVal) gpuVal.textContent = `${maxGpuUsage.toFixed(1)}%`;
+        const frameSamples = {};
+        if (cpuUtilization !== null) {
+            frameSamples.cpu = cpuUtilization;
+        }
+        if (ramUtilization !== null) {
+            frameSamples.ram = ramUtilization;
+        }
 
-            // Reveal the GPU stat only once data is present
-            if (gpuStat) gpuStat.style.display = '';
+        // GPU usage: compute max across engines for each GPU device.
+        if (gpuEngineDataByDevice.size > 0) {
+            const perGpuUsage = Array.from(gpuEngineDataByDevice.entries())
+                .map(([deviceId, engineMap]) => ({
+                    deviceId,
+                    usage: Math.max(...Array.from(engineMap.values())),
+                }))
+                .sort((a, b) => {
+                    const aNum = Number(a.deviceId);
+                    const bNum = Number(b.deviceId);
+                    if (Number.isNaN(aNum) || Number.isNaN(bNum)) {
+                        return a.deviceId.localeCompare(b.deviceId);
+                    }
+                    return aNum - bNum;
+                });
+
+            perGpuUsage.forEach((entry) => {
+                frameSamples[`gpu:${entry.deviceId}`] = entry.usage;
+            });
+
+            if (gpuValues) {
+                gpuValues.innerHTML = '';
+                perGpuUsage.forEach((entry) => {
+                    const chip = document.createElement('span');
+                    chip.className = 'gpu-value-chip';
+                    const key = `gpu:${entry.deviceId}`;
+                    chip.style.color = ChartManager.getSeriesColor(key);
+                    chip.textContent = `GPU ${entry.deviceId} ${entry.usage.toFixed(1)}%`;
+                    gpuValues.appendChild(chip);
+                });
+                gpuValues.style.display = '';
+            }
+
             if (gpuError) gpuError.style.display = 'none';
+        } else if (gpuValues) {
+            gpuValues.innerHTML = '';
+            gpuValues.style.display = 'none';
         }
 
         // NPU usage (only when NPU metrics arrive)
         if (npuUtilization !== null) {
-            ChartManager.pushStatSample('npu', npuUtilization);
+            frameSamples.npu = npuUtilization;
 
             if (npuVal) {
                 npuVal.textContent = `${npuUtilization.toFixed(1)}%`;
             }
             // Reveal the NPU stat only once data is present
             if (npuStat) npuStat.style.display = '';
+        }
+
+        if (Object.keys(frameSamples).length > 0) {
+            ChartManager.pushStatFrame(frameSamples);
         }
     }
 
@@ -108,10 +171,9 @@ const MetricsCollectorService = (function () {
     function init(elements) {
         // Initialize consolidated chart
         ChartManager.createConsolidatedChart('statsChart', [
-            { label: 'CPU %', color: '#1ad0ff' },
-            { label: 'RAM %', color: '#8ca0c2' },
-            { label: 'GPU %', color: '#ffb347' },
-            { label: 'NPU %', color: '#b388ff' },
+            { key: 'cpu', label: 'CPU %', color: '#1ad0ff' },
+            { key: 'ram', label: 'RAM %', color: '#8ca0c2' },
+            { key: 'npu', label: 'NPU %', color: '#b388ff' },
         ]);
 
         const streamUrl = getMetricsServiceUrl();

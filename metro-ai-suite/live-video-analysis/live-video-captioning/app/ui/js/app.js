@@ -961,8 +961,7 @@
         const elements = {
             cpuVal: document.getElementById('cpuVal'),
             ramVal: document.getElementById('ramVal'),
-            gpuVal: document.getElementById('gpuVal'),
-            gpuStat: document.getElementById('gpuStat'),
+            gpuValues: document.getElementById('gpuValues'),
             gpuError: document.getElementById('gpuError'),
             npuVal: document.getElementById('npuVal'),
             npuStat: document.getElementById('npuStat'),

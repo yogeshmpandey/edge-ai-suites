@@ -814,6 +814,18 @@ iframe {
     white-space: nowrap;
 }
 
+.gpu-values {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gpu-value-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
 /* Reserve a stable width for the numeric value so labels don't jump
    as readings change (e.g. "—" -> "100.0%"). */
 .chart-value>span {
