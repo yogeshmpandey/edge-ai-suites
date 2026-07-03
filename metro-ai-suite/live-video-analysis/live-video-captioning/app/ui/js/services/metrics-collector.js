@@ -128,7 +128,7 @@ const MetricsCollectorService = (function () {
                     chip.className = 'gpu-value-chip';
                     const key = `gpu:${entry.deviceId}`;
                     chip.style.color = ChartManager.getSeriesColor(key);
-                    chip.textContent = `GPU ${entry.deviceId} ${entry.usage.toFixed(1)}%`;
+                    chip.textContent = `GPU-${entry.deviceId} ${entry.usage.toFixed(1)}%`;
                     gpuValues.appendChild(chip);
                 });
                 gpuValues.style.display = '';
