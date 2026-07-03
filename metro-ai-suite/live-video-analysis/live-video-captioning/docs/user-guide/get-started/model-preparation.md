@@ -140,4 +140,4 @@ RAG is optional and not required for the base Live Video Captioning application.
 
 - If Docker cannot pull `intel/model-download:<tag>`, check the `MODEL_DOWNLOAD_IMAGE_TAG` value in `.env` (defaults to `latest`; this is independent of the application image `TAG`).
 - If a gated model fails with an authentication error, set `HUGGINGFACEHUB_API_TOKEN` and rerun the command.
-- If a download is interrupted, rerun the same command. The ephemeral container is removed automatically when the helper exits.
+- If a download process is interrupted or fails due to network issues, remove the `ovms_model` folder and the model-specific folder from the failed run (typically named after the model you specified in command depends on the model type: `ov_models/` for VLMs, `ov_detection_models/` for vision models, or `llm_models/` for LLM models). Then rerun the command. The ephemeral model-download container is automatically cleaned up when the helper exits.

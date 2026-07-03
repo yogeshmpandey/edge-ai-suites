@@ -132,6 +132,9 @@ docker compose down
 | "permission denied" with Docker | Run `sudo usermod -aG docker $USER`, then log out and back in |
 | "failed to resolve reference docker.io" with Docker | Docker daemon cannot reach Docker Hub over the network to download the microservices. This could be due to missing organization proxy configuration in docker setup. Follow [this](https://docs.docker.com/engine/daemon/proxy/) instruction to set it up. |
 | Hardware-encoded camera not supported | This application does not supported hardware-encoded format webcam (for example, H.264). Use a compatible webcam that provides raw video output(for example, YUYV/MJPEG). |
+| Model download fails with authentication error | Set the `HUGGINGFACEHUB_API_TOKEN` environment variable and rerun the command. |
+| Model download interrupted or fails due to network | Remove the `ovms_model` folder and the model-specific folder (`ov_models/` for VLMs), then rerun the command. The download container is automatically cleaned up when the helper exits. |
+
 
 ---
 
