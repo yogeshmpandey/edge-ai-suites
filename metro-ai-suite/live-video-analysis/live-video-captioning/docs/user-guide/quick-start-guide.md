@@ -107,8 +107,9 @@ Replace `<YOUR_IP>` with the IP address shown at the end of Step 2, or find it b
 ### Using the Dashboard
 
 1. **Enter your video source** — paste an RTSP camera URL (for example `rtsp://192.168.1.10/stream`) or select the USB/webcam device in case it is available.
-2. **Select a model** — choose from the available AI models in the drop-down list.
-3. **Click Start** — captions appear alongside the live video preview.
+2. **Select the VLM Device** - choose the hardware device on which the VLM model will run (e.g., "CPU", "GPU", "NPU"). The available options will vary depending on the devices present on your host system.
+3. **Select a model** — choose from the available AI models in the drop-down list.
+4. **Click Start** — captions appear alongside the live video preview.
 
 ---
 

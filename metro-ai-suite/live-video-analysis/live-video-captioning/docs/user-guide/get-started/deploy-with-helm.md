@@ -305,11 +305,12 @@ If you changed the service ports in your override values, use those instead.
 To start captioning after deployment:
 
 1. Open the dashboard URL in your browser.
-2. Enter an RTSP stream URL, unless you preconfigured `defaultRtspUrl`.
-3. Select the model you downloaded into the models PVC.
-4. Adjust the prompt and generation parameters if needed.
-5. Start the stream.
-6. To submit a query via the RAG chatbot, click on the `chat icon` button located at the top right of the dashboard. The button is only visible when RAG is enabled.
+2. Enter an RTSP stream URL (unless you preconfigured `defaultRtspUrl`) or select the available USB/webcam camera that connected to the node system.
+3. Select the device on which the VLM model will run (e.g., "CPU", "GPU", "NPU"), based on the hardware available on your host system.
+4. Select the model you downloaded into the models PVC.
+5. Adjust the prompt and generation parameters if needed.
+6. Start the stream.
+7. To submit a query via the RAG chatbot, click on the `chat icon` button located at the top right of the dashboard. The button is only visible when RAG is enabled.
 
 ## Upgrade the Release
 
