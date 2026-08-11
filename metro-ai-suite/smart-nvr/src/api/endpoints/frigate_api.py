@@ -44,24 +44,6 @@ class FrigateService:
                 status_code=400, detail="Clip duration cannot exceed 300 seconds"
             )
 
-    async def get_camera_events(self, camera_name: str) -> dict:
-        """Get list of events for a specific camera"""
-        url = f"{self.base_url}/api/events?camera={camera_name}"
-
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as e:
-            raise HTTPException(
-                status_code=e.response.status_code,
-                detail=f"Frigate events API error: {e.response.text}",
-            )
-        except requests.exceptions.RequestException as e:
-            raise HTTPException(
-                status_code=502, detail=f"Failed to contact Frigate: {str(e)}"
-            )
-
     MEDIA_BASE_PATH = "/media/exports"
 
     def get_clip_from_timestamps(

@@ -48,10 +48,6 @@ async def get_cameras():
     return await asyncio.to_thread(frigate_service.get_camera_names)
 
 
-@router.get("/events", summary="Get list of events for a specific camera")
-async def get_camera_events(camera: str):
-    return await frigate_service.get_camera_events(camera)
-
 @router.get("/summary/{camera_name}", summary="Stream video using clip.mp4 API")
 async def summarize_video(
     camera_name: str, start_time: float, end_time: float, download: bool = False

@@ -6,12 +6,11 @@ Interactive Swagger UI: `http://<HOST_IP>:8000/docs`
 
 ## Endpoints
 
-### Cameras & Events
+### Cameras
 
 | Method | Path | Parameters | Description |
 |--------|------|-----------|-------------|
 | `GET` | `/cameras` | — | List all configured cameras and their tracked object types |
-| `GET` | `/events` | query: `camera`\* | List events for a specific camera from Frigate |
 
 ### Summary & Search
 

@@ -7,7 +7,7 @@ Main entry point for NVR Event Router UI.
 
 import logging
 from interface.interface import create_ui
-from interface.interface import initialize_app, stop_event_updates
+from interface.interface import initialize_app
 
 # Configure logging
 logging.basicConfig(
@@ -33,5 +33,4 @@ if __name__ == "__main__":
 
     finally:
         logger.info("Application shutdown initiated")
-        stop_event_updates()
         logger.info("=== Application shutdown complete ===")

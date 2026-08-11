@@ -7,11 +7,6 @@ mqtt:
   user: '{FRIGATE_MQTT_USER}'
   password: '{FRIGATE_MQTT_PASSWORD}'
 
-genai:
-  enabled: false
-  provider: openai
-  model: Qwen/Qwen2.5-VL-3B-Instruct
-
 logger:
   default: info
 
@@ -52,12 +47,6 @@ cameras:
       enabled: true
       retain:
         default: 1
-    genai:
-      enabled: true
-      use_snapshot: true
-      objects:
-        - person
-        - car
 
   livingroom:
     ffmpeg:
@@ -83,11 +72,6 @@ cameras:
       enabled: true
       retain:
         default: 1
-    genai:
-      enabled: true
-      use_snapshot: true
-      objects:
-        - person
 
   # office:
   #   ffmpeg:
@@ -109,11 +93,6 @@ cameras:
   #     enabled: true
   #     retain:
   #       default: 1
-  #   genai:
-  #     enabled: True
-  #     use_snapshot: True
-  #     objects:
-  #       - person
 
   garage:
     ffmpeg:
@@ -139,9 +118,4 @@ cameras:
       enabled: true
       retain:
         default: 1
-    genai:
-      enabled: true
-      use_snapshot: true
-      objects:
-        - person
 version: 0.15-1

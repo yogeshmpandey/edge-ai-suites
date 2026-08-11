@@ -15,10 +15,7 @@ global:
     FRIGATE_MQTT_USER: ""
     FRIGATE_MQTT_PASSWORD: ""
  
-frigate:
-  env:
-    OPENAI_BASE_URL: ""
-    OPENAI_API_KEY: ""
+frigate: {}
  
 nvr-event-router:
   env:
@@ -26,10 +23,6 @@ nvr-event-router:
     VSS_SEARCH_PORT: 
     VSS_SUMMARY_IP: ""
     VSS_SUMMARY_PORT: 
-
-nvr-event-router-ui:
-  env:
-    NVR_GENAI: ""
 
 ingress:
   service:

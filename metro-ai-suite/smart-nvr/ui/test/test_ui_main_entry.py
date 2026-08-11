@@ -51,7 +51,6 @@ def test_ui_main_dunder_main(monkeypatch):
     _ensure_interface_top_level()
     monkeypatch.setattr("ui.interface.interface.initialize_app", lambda: calls.setdefault("initialized", True))
     monkeypatch.setattr("ui.interface.interface.create_ui", lambda: fake_ui)
-    monkeypatch.setattr("ui.interface.interface.stop_event_updates", lambda: calls.setdefault("stopped", True))
     # Also neutralize any sleeps inside interface (e.g., time.sleep(5) in create_ui)
     monkeypatch.setattr("ui.interface.interface.time.sleep", lambda *a, **k: None, raising=False)
 
@@ -59,5 +58,4 @@ def test_ui_main_dunder_main(monkeypatch):
 
     assert calls.get("initialized")
     assert calls.get("launched")
-    assert calls.get("stopped")
     fake_ui.launch.assert_called_once()

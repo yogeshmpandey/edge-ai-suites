@@ -27,29 +27,6 @@ paths:
           content:
             application/json:
               schema: {}
-  /events:
-    get:
-      summary: Get list of events for a specific camera
-      operationId: get_camera_events_events_get
-      parameters:
-      - name: camera
-        in: query
-        required: true
-        schema:
-          type: string
-          title: Camera
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /summary/{camera_name}:
     get:
       summary: Stream video using clip.mp4 API

@@ -19,12 +19,3 @@ def test_get_cameras_non_empty(client):
         resp = client.get("/cameras")
         assert resp.status_code == 200
         assert resp.json() == cams
-
-
-def test_get_events_calls_service(client):
-    with patch("api.router.frigate_service.get_camera_events") as mock_events:
-        mock_events.return_value = [{"id": 1}]
-        resp = client.get("/events", params={"camera": "garage"})
-        assert resp.status_code == 200
-        assert resp.json() == [{"id": 1}]
-        mock_events.assert_awaited()
