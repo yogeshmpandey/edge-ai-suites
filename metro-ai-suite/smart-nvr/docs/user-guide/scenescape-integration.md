@@ -30,10 +30,29 @@ Smart NVR with SceneScape supports two deployment modes:
 In single-node mode, all services run on one machine. The setup script performs the following steps automatically:
 
 1. Validates required environment variables
-2. Configures DL Streamer and Frigate for SceneScape mode
-3. Downloads demo videos and starts the MediaMTX RTSP streamer
-4. Starts the Smart Intersection stack (runs `install.sh` on first launch)
-5. Starts the NVR stack and connects it to the SceneScape network
+2. Reads `resources/broker-config/intersections.yaml` — creating a default `si1`
+   entry for this host when the file is empty — and asks for confirmation
+3. Configures DL Streamer and Frigate for SceneScape mode from that file
+4. Downloads demo videos and starts the MediaMTX RTSP streamer
+5. Starts the Smart Intersection stack (runs `install.sh` on first launch)
+6. Starts the NVR stack and connects it to the SceneScape network
+
+### Intersections configuration
+
+`resources/broker-config/intersections.yaml` is the single source of configuration
+for RTSP and MQTT endpoints. Each entry holds the intersection name, its IP and its
+four cameras (`si1-camera1` .. `si1-camera4`). On startup the script reports what it
+found:
+
+```
+Info: Found 1 preconfigured intersection(s) in ./resources/broker-config/intersections.yaml:
+  1. si1 - Smart Intersection 1 @ 10.0.0.11 (4 cameras)
+Would you like to use them? (Y/N) [Y]:
+```
+
+Answer `N` to stop, edit the file and re-run. See
+[Multiple SceneScape Deployment](./multi-broker-scenescape.md#intersectionsyaml) for
+the full field reference.
 
 ### Set Environment Variables
 
@@ -44,6 +63,7 @@ export VSS_PORT=<vss_port>                        # optional, default 12345
 # export RTSP_STREAM_PORT=<rtsp port>      # optional, default 8554
 # export MQTT_USER=<mqtt-username>         # optional, auto-generated if omitted
 # export MQTT_PASSWORD=<mqtt-password>     # optional, auto-generated if omitted
+# export INTERSECTIONS_AUTO_CONFIRM=true   # optional, skip the intersections prompt
 ```
 
 ### Start

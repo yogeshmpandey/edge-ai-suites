@@ -1,12 +1,14 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import asyncio
+import re
 import requests
 import os
 import tempfile
 import subprocess
 import aiofiles
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 from fastapi import HTTPException
@@ -35,6 +37,22 @@ class VmsService:
         self.vss_search_url: str = VSS_SEARCH_URL
         logger.info("VmsService initialized.")
 
+    @staticmethod
+    def _clip_filename_prefix(camera_name: str, start_time: float) -> str:
+        """Build a traceable temp-file prefix for a clip.
+
+        VSS stores the uploaded file name verbatim, so an anonymous ``tmpXXXX.mp4``
+        leaves no way to trace a stored clip back to its camera and capture time.
+        """
+        safe_camera = re.sub(r"[^A-Za-z0-9._-]", "_", str(camera_name)).strip("_")
+        try:
+            stamp = datetime.fromtimestamp(
+                float(start_time), tz=timezone.utc
+            ).strftime("%Y%m%dT%H%M%SZ")
+        except (TypeError, ValueError, OSError, OverflowError):
+            stamp = "unknown"
+        return f"{safe_camera or 'camera'}_{stamp}_"
+
     async def upload_video_to_summarizer(
         self, camera_name: str, start_time: float, end_time: float, is_search: bool
     ) -> dict:
@@ -57,7 +75,11 @@ class VmsService:
 
         # Write stream to temp file while checking size
         temp_file_size = 0
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            prefix=self._clip_filename_prefix(camera_name, start_time),
+            suffix=".mp4",
+            delete=False,
+        ) as tmp_file:
             tmp_path = tmp_file.name
         logger.info(f"Temporary file created at: {tmp_path}")
 

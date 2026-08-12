@@ -30,7 +30,11 @@ SCENESCAPE_MQTT_TOPIC = os.getenv("SCENESCAPE_MQTT_TOPIC", "scenescape/data/came
 SCENESCAPE_THROTTLE_INTERVAL = float(os.getenv("SCENESCAPE_THROTTLE_INTERVAL", 2.0))
 
 # Multi-broker (scenescape mode) configuration
-BROKERS_CONFIG_PATH = os.getenv("BROKERS_CONFIG_PATH", "resources/broker-config/brokers.yaml")
+# intersections.yaml is the single source of configuration: it holds each
+# intersection (name + IP) and its 4 cameras.
+INTERSECTIONS_CONFIG_PATH = os.getenv(
+    "INTERSECTIONS_CONFIG_PATH", "resources/broker-config/intersections.yaml"
+)
 MAX_CONCURRENT_EVENTS = int(os.getenv("MAX_CONCURRENT_EVENTS", 50))
 BROKER_RECONNECT_DELAY = float(os.getenv("BROKER_RECONNECT_DELAY", 5.0))
 

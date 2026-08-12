@@ -39,7 +39,11 @@ if [ "$ADD_COPYLEFT_SOURCES" = "true" ]; then
 BUILD_ARGS="$BUILD_ARGS --build-arg COPYLEFT_SOURCES=true"
 fi
 
-docker build ${BUILD_ARGS} -t "${tag}" -f docker/Dockerfile .
+if ! docker build ${BUILD_ARGS} -t "${tag}" -f docker/Dockerfile .; then
+  echo "ERROR: Failed to build image ${tag}." >&2
+  exit 1
+fi
+
 if docker image inspect "${tag}" >/dev/null 2>&1; then
   echo "Image ${tag} built successfully."
 else

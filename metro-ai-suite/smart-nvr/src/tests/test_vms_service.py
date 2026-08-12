@@ -78,3 +78,40 @@ async def test_search_embeddings_failure(monkeypatch):
     with patch('service.vms_service.requests.post', side_effect=Exception('fail')):
         with pytest.raises(Exception):
             await v.search_embeddings('cam',1,2)
+
+
+@pytest.mark.parametrize(
+    "camera,start,expected",
+    [
+        ("si1-camera1", 1762869310, "si1-camera1_20251111T135510Z_"),
+        ("cam 1/front", 0, "cam_1_front_19700101T000000Z_"),
+        ("", 0, "camera_19700101T000000Z_"),
+        ("si1-camera1", None, "si1-camera1_unknown_"),
+        ("si1-camera1", "not-a-time", "si1-camera1_unknown_"),
+    ],
+)
+def test_clip_filename_prefix(camera, start, expected):
+    """Uploaded clips must carry camera + capture time so they are traceable in VSS."""
+    assert VmsService._clip_filename_prefix(camera, start) == expected
+
+
+@pytest.mark.asyncio
+async def test_upload_uses_traceable_filename(monkeypatch):
+    """The file name sent to VSS identifies the camera instead of being tmpXXXX.mp4."""
+    fs = FrigateService(base_url='x')
+    ss = SummarizationService()
+    v = VmsService(fs, ss)
+    monkeypatch.setattr(
+        fs, 'get_clip_from_timestamps', lambda *a, **k: DummyStream([b'x' * 500])
+    )
+    captured = {}
+
+    def fake_upload(path, base_url, camera_name):
+        captured['name'] = __import__('pathlib').Path(path).name
+        return {"videoId": "vid-1"}
+
+    monkeypatch.setattr(ss, 'video_upload', fake_upload)
+    resp = await v.upload_video_to_summarizer('si1-camera1', 1762869310, 1762869320, True)
+    assert resp['status'] == 200
+    assert captured['name'].startswith('si1-camera1_20251111T135510Z_')
+    assert captured['name'].endswith('.mp4')

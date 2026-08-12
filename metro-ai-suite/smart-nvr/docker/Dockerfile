@@ -6,9 +6,13 @@ FROM python:3.12-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.8.12 /uv /uvx /usr/local/bin/
 
 # Set environment variables for build stage
+# UV_CONCURRENT_INSTALLS caps the bytecode-compile workers. uv otherwise spawns one
+# per CPU, and each worker holds its own runtime and file handles, which exhausts the
+# default 1024 file-descriptor limit of a container on high-core-count build hosts.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
+    UV_CONCURRENT_INSTALLS=8 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/opt/venv
 

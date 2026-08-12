@@ -1,0 +1,31 @@
+# Smart NVR intersections - single source of configuration.
+# Each entry holds the intersection name, its IP (MQTT broker + RTSP source)
+# and its 4 cameras (<id>-camera1 .. <id>-camera4).
+# Managed by setup.sh and the /brokers/ API; safe to edit while stopped.
+intersections:
+- id: si1
+  name: Main Street and 1st Ave
+  ip: 10.223.22.70
+  enabled: true
+  cameras:
+  - name: si1-camera1
+    url: rtsp://10.223.23.199:8554/camera1
+  - name: si1-camera2
+    url: rtsp://10.223.23.199:8554/camera2
+  - name: si1-camera3
+    url: rtsp://10.223.23.199:8554/camera3
+  - name: si1-camera4
+    url: rtsp://10.223.23.199:8554/camera4
+- id: si2
+  name: Main Street and 2nd Ave
+  ip: 10.223.22.70
+  mqtt_port: 1883
+  cameras:
+  - name: si2-camera1
+    url: rtsp://10.223.24.22:8554/camera1
+  - name: si2-camera2
+    url: rtsp://10.223.24.22:8554/camera2
+  - name: si2-camera3
+    url: rtsp://10.223.24.22:8554/camera3
+  - name: si2-camera4
+    url: rtsp://10.223.24.22:8554/camera4

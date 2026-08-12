@@ -34,7 +34,7 @@ async def startup_event():
     )
     if NVR_SCENESCAPE_ENABLED:
         logger.info("Scenescape mode: starting multi-broker manager")
-        await broker_manager.load_yaml_brokers()
+        await broker_manager.load_intersections_config()
         await broker_manager.start_all_from_redis()
     else:
         logger.info("Frigate mode: starting Frigate MQTT client")

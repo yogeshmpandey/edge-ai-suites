@@ -3,14 +3,12 @@
 import asyncio
 import json
 import logging
-import os
 import ssl
 
 import aiomqtt
-import yaml
 
 from config import (
-    BROKERS_CONFIG_PATH,
+    INTERSECTIONS_CONFIG_PATH,
     MAX_CONCURRENT_EVENTS,
     BROKER_RECONNECT_DELAY,
     NVR_SCENESCAPE_ENABLED,
@@ -19,7 +17,7 @@ from config import (
     SCENESCAPE_MQTT_TOPIC,
 )
 from model.broker import Broker
-from service import redis_store
+from service import intersection_config, redis_store
 from service.mqtt_listener import handle_frigate_message, handle_scenescape_message
 
 logger = logging.getLogger("broker-manager")
@@ -110,20 +108,23 @@ async def _has_scenescape(request=None) -> bool:
     return any(b.get("type") == "scenescape" for b in await redis_store.get_brokers(request))
 
 
-async def load_yaml_brokers(path: str = BROKERS_CONFIG_PATH, request=None):
-    if os.path.exists(path):
-        with open(path) as f:
-            data = yaml.safe_load(f) or {}
-        yaml_entries = data.get("brokers") or []
-        yaml_ids = {e["id"] for e in yaml_entries}
-        if yaml_ids:
-            for b in await redis_store.get_brokers(request):
-                if b["id"] not in yaml_ids:
-                    await stop_broker(b["id"])
-                    await redis_store.delete_broker(b["id"], request)
-        for entry in yaml_entries:
-            broker = Broker(**entry)
+async def load_intersections_config(path: str = INTERSECTIONS_CONFIG_PATH, request=None):
+    """Seed Redis from intersections.yaml — the single source of configuration.
+
+    Intersections listed in the file win: brokers in Redis that are no longer in
+    the file are stopped and removed. When the file has no entries, the legacy
+    ``SCENESCAPE_MQTT_BROKER`` environment variable still seeds a default si1.
+    """
+    intersections = intersection_config.load_intersections(path)
+    if intersections:
+        config_ids = {i.id for i in intersections}
+        for b in await redis_store.get_brokers(request):
+            if b["id"] not in config_ids:
+                await stop_broker(b["id"])
+                await redis_store.delete_broker(b["id"], request)
+        for broker in intersection_config.to_brokers(intersections):
             await redis_store.save_broker(broker.id, broker.model_dump(), request)
+        logger.info(f"Loaded {len(intersections)} intersection(s) from {path}")
 
     if NVR_SCENESCAPE_ENABLED and not await _has_scenescape(request):
         legacy = Broker(
@@ -141,21 +142,17 @@ async def load_yaml_brokers(path: str = BROKERS_CONFIG_PATH, request=None):
     await sync_yaml_from_redis(request=request, path=path)
 
 
-_YAML_HEADER = (
-    "# Scenescape-mode MQTT brokers. Active when NVR_SCENESCAPE=true.\n"
-    "# host = MQTT broker IP only. RTSP is configured separately in the Frigate config.\n"
-    "# Broker id must match the SI node prefix in Frigate camera names (e.g. si1 -> si1-camera1).\n"
-)
+async def sync_yaml_from_redis(request=None, path: str = INTERSECTIONS_CONFIG_PATH):
+    """Persist current Redis brokers to intersections.yaml.
 
-
-async def sync_yaml_from_redis(request=None, path: str = BROKERS_CONFIG_PATH):
-    """Persist current Redis brokers to YAML. Best-effort — errors are logged, not raised."""
+    Camera definitions are not stored in Redis, so they are merged back in from
+    the file on disk. Best-effort — errors are logged, not raised.
+    """
     try:
         brokers = await redis_store.get_brokers(request)
-        with open(path, "w") as f:
-            f.write(_YAML_HEADER)
-            yaml.safe_dump({"brokers": brokers}, f, default_flow_style=False, sort_keys=False)
-        logger.info(f"Synced {len(brokers)} broker(s) to {path}")
-    except OSError as e:
-        logger.warning(f"Could not write brokers YAML at {path}: {e}")
+    except Exception as e:  # noqa: BLE001 - never let a sync failure break a request
+        logger.warning(f"Could not read brokers from Redis for YAML sync: {e}")
+        return
+    existing = intersection_config.load_intersections(path)
+    intersection_config.save_intersections(path, intersection_config.merge_brokers(brokers, existing))
 

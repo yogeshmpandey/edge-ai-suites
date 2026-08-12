@@ -9,13 +9,15 @@ System 1, NVR stack on System 2. For single-node deployment, see
 Smart NVR maintains a persistent, independent MQTT connection to each SI node.
 Events are tagged with the broker `id` to route them to the correct Frigate camera.
 
-- **RTSP and MQTT are decoupled.** `brokers.yaml` holds only MQTT broker IPs. RTSP
-  streams are configured separately via prompts or env vars at startup.
-- **Camera naming.** Frigate cameras must be named `{broker_id}-camera{n}`
-  (e.g. `si1-camera1`). The broker `id` must match this prefix exactly.
-- **Brokers persist.** On startup, the broker manager reads `brokers.yaml`, seeds
-  Redis, and starts one connection per enabled broker. The API persists changes back
-  to this file.
+- **One file configures everything.** `intersections.yaml` is the single source of
+  configuration: each entry holds the intersection name, its IP and its 4 cameras.
+  The same file drives both the MQTT broker connections and the Frigate RTSP inputs,
+  so `setup.sh` never prompts for IP addresses.
+- **Camera naming.** Frigate cameras must be named `{id}-camera{n}`
+  (e.g. `si1-camera1`). The intersection `id` must match this prefix exactly.
+- **Config persists.** On startup, the broker manager reads `intersections.yaml`,
+  seeds Redis, and starts one connection per enabled intersection. The `/brokers/`
+  API persists changes back to this file.
 
 ## Prerequisites
 
@@ -24,48 +26,65 @@ Events are tagged with the broker `id` to route them to the correct Frigate came
 
 ## Configuration
 
-### brokers.yaml
+### intersections.yaml
 
-Edit `resources/broker-config/brokers.yaml` before starting, or manage brokers at
-runtime via the API.
+Edit `resources/broker-config/intersections.yaml` before starting. This is the only
+place RTSP and MQTT endpoints are configured — the setup script reads it instead of
+prompting. Brokers can still be managed at runtime via the API, and the file is
+updated automatically when they change.
 
 ```yaml
-# resources/broker-config/brokers.yaml
-brokers:
-  - id: si1                          # Must match Frigate camera prefix: si1-camera*
-    name: Smart Intersection 1
-    host: <si1_ip>                    # MQTT broker IP — NOT the RTSP source
-    port: 1883
-    topic: scenescape/data/camera/#
-    type: scenescape
-    throttle_interval: 2.0
-    enabled: true
+# resources/broker-config/intersections.yaml
+intersections:
+  - id: si1                          # must match the Frigate camera prefix: si1-camera*
+    name: Main Street and 1st Ave    # human-readable intersection name
+    ip: 10.0.0.11                    # MQTT broker for this intersection
+    cameras:
+      - name: si1-camera1
+        url: rtsp://10.0.0.21:8554/camera1   # each camera is a self-contained RTSP URL
+      - name: si1-camera2
+        url: rtsp://10.0.0.22:8554/camera1
+      - name: si1-camera3
+        url: rtsp://10.0.0.23:8554/camera1
+      - name: si1-camera4
+        url: rtsp://10.0.0.24:8554/camera1
 
   - id: si2
-    name: Smart Intersection 2
-    host: <si2_ip>
-    port: 1883
-    topic: scenescape/data/camera/#
-    type: scenescape
-    throttle_interval: 2.0
-    enabled: true
+    name: Broadway and 5th
+    ip: 10.0.0.12
+    cameras:
+      - name: si2-camera1
+        url: rtsp://10.0.0.31:8554/camera1
+      - name: si2-camera2
+        url: rtsp://10.0.0.32:8554/camera1
+      - name: si2-camera3
+        url: rtsp://10.0.0.33:8554/camera1
+      - name: si2-camera4
+        url: rtsp://10.0.0.34:8554/camera1
 ```
 
 > TLS is enabled by default. Broker connections do not use username or password authentication.
 
-### Broker fields
+### Intersection fields
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `id` | ✅ | — | Unique identifier. Must match the Frigate camera name prefix (e.g. `si1` → `si1-camera*`). |
-| `name` | ✅ | — | Human-readable label. |
-| `host` | ✅ | — | MQTT broker IP address. |
-| `topic` | ✅ | — | MQTT topic to subscribe to. |
-| `port` | — | `1883` | MQTT broker port. |
-| `type` | — | `scenescape` | Event type. Always `scenescape` for SI nodes. |
+| `ip` | ✅ | — | Intersection IP. Used as the MQTT broker host. |
+| `id` | — | camera prefix | Unique identifier, e.g. `si1` → cameras `si1-camera*`. Derived from the camera names when omitted. |
+| `name` | — | `id` | Human-readable intersection name. |
+| `cameras` | — | 4 generated | The cameras of the intersection. Defaults to `<id>-camera1` .. `<id>-camera4`. |
+| `mqtt_port` | — | `1883` | MQTT broker port. |
+| `topic` | — | `scenescape/data/camera/#` | MQTT topic to subscribe to. |
 | `use_tls` | — | `true` | Enable TLS. Set to `false` for plain MQTT brokers. |
 | `throttle_interval` | — | `2.0` | Minimum seconds between processed events. |
-| `enabled` | — | `true` | Set to `false` to disable on startup without removing. |
+| `enabled` | — | `true` | Set to `false` to skip the intersection (no MQTT connection, no Frigate cameras). |
+
+### Camera fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `name` | ✅ | — | Frigate camera name. Must start with the intersection id, e.g. `si1-camera1`. |
+| `url` | — | `rtsp://<intersection ip>:<RTSP_STREAM_PORT>/<camera-name suffix>` | Full RTSP source URL for this camera, e.g. `rtsp://10.0.0.21:8554/camera1`. Each camera is self-contained — cameras commonly live on different hosts, so there is no shared ip/port to inherit beyond this same-host convenience default. |
 
 ### Environment variables
 
@@ -76,11 +95,11 @@ brokers:
 | `VSS_PORT` | — | `12345` | VSS service port. |
 | `MQTT_USER` | — | auto-generated | Local Mosquitto username (Frigate ↔ NVR). |
 | `MQTT_PASSWORD` | — | auto-generated | Local Mosquitto password. |
-| `SI_RTSP_HOST` | — | prompt | RTSP IP for si1. Prompts interactively (`start-nvr`) or auto-detected (`start`) if unset. |
-| `SI{N}_RTSP_HOST` | — | prompt | RTSP IP for siN (N ≥ 2). Prompts interactively if unset. |
+| `SI_RTSP_HOST` | — | host IP | RTSP source used by the SI node itself (System 1 only). |
+| `INTERSECTIONS_AUTO_CONFIRM` | — | — | Set to `true` to skip the "use these intersections?" prompt. |
 | `RTSP_STREAM_PORT` | — | `8554` | RTSP port for all SI streams. |
-| `SCENESCAPE_MQTT_BROKER` | — | — | Legacy: seeds si1 MQTT broker into Redis on startup. Prefer `brokers.yaml` or the API. |
-| `BROKERS_CONFIG_PATH` | — | `resources/broker-config/brokers.yaml` | Path to broker config file. |
+| `SCENESCAPE_MQTT_BROKER` | — | — | Legacy: seeds si1 MQTT broker into Redis when `intersections.yaml` is empty. |
+| `INTERSECTIONS_CONFIG_PATH` | — | `resources/broker-config/intersections.yaml` | Path to the intersections config file. |
 | `MAX_CONCURRENT_EVENTS` | — | `50` | Maximum simultaneous in-flight event tasks. |
 | `BROKER_RECONNECT_DELAY` | — | `5.0` | Seconds before reconnecting after a broker disconnect. |
 
@@ -98,29 +117,41 @@ source setup.sh start-si
 Downloads demo videos and starts a local MediaMTX RTSP streamer by default.
 Setting `SI_RTSP_HOST` to a remote IP skips the local streamer.
 
-On exit, the script prints System 1's IP and MQTT port — use these when adding the
-broker on System 2.
+On exit, the script prints System 1's IP and a ready-to-paste `intersections.yaml`
+entry — copy it to System 2.
 
 ### System 2 — NVR node
+
+1. Add one entry per intersection to `resources/broker-config/intersections.yaml`
+   (see [intersections.yaml](#intersectionsyaml)).
+2. Start the stack:
 
 ```bash
 export NVR_SCENESCAPE=true
 export VSS_IP=<ip>
 export VSS_PORT=<port>              # optional, default 12345
 
-# Optional: pre-set RTSP IP to skip interactive prompts
-# export SI_RTSP_HOST=<si1_ip>
-
 source setup.sh start-nvr
 ```
 
-`start-nvr` prompts for the number of SI nodes and their RTSP IPs. Add MQTT brokers
-after startup via `POST /brokers/`, or pre-populate `brokers.yaml` before running
-`start-nvr` to load them automatically.
+`start-nvr` reads the file and asks for confirmation:
 
-> **Note:** If `brokers.yaml` is absent and `SCENESCAPE_MQTT_BROKER` is not set,
-> no MQTT connections are established on startup. Add brokers via `POST /brokers/`
-> after the stack is running.
+```
+Info: Found 3 preconfigured intersection(s) in ./resources/broker-config/intersections.yaml:
+  1. si1 - Main Street and 1st Ave @ 10.0.0.11 (4 cameras)
+  2. si2 - Broadway and 5th @ 10.0.0.12 (4 cameras)
+  3. si3 - Park Ave and 9th @ 10.0.0.13 (4 cameras)
+Would you like to use them? (Y/N) [Y]:
+```
+
+Answer `Y` to continue, or `N` to stop, update `intersections.yaml` and re-run the
+command. Export `INTERSECTIONS_AUTO_CONFIRM=true` to skip the prompt in automated
+runs.
+
+> **Note:** `start-nvr` fails fast when `intersections.yaml` has no entries — the
+> file must be populated before the NVR node can record or subscribe. In single-node
+> mode (`setup.sh start`), a default `si1` entry pointing at the local host is
+> created automatically.
 
 ## Stop
 
@@ -151,7 +182,9 @@ source setup.sh stop-streamer
 ## Managing brokers at runtime
 
 The `/brokers/` API modifies live broker connections without restarting the stack.
-Changes persist to `brokers.yaml` automatically.
+Changes persist to `intersections.yaml` automatically; existing camera definitions
+are preserved, and brokers added through the API get four default cameras pointing
+at the broker host.
 
 ```bash
 BASE=http://localhost:8000
@@ -185,20 +218,24 @@ curl -X DELETE $BASE/brokers/si3
 ```
 
 > Adding a broker via the API updates MQTT routing only. To record video from a new
-> SI node, re-run `setup.sh start-nvr` to regenerate Frigate camera blocks.
+> SI node, re-run `setup.sh start-nvr` to regenerate Frigate camera blocks from
+> `intersections.yaml`.
 
 ## Frigate camera configuration
 
-`setup.sh` generates `resources/frigate-config/config.yml` at startup. It prompts
-for the number of SI nodes, then appends 4 camera blocks per node
-(`{broker_id}-camera1` through `camera4`):
+`setup.sh` generates `resources/frigate-config/config.yml` at startup from
+`intersections.yaml` — one camera block per camera, named after the camera `name`:
 
-| SI node | RTSP IP source |
-|---------|----------------|
-| si1 | `SI_RTSP_HOST` if set; else interactive prompt (`start-nvr`) or auto-detected (`start`) |
-| si2..siN | `SI{N}_RTSP_HOST` → interactive prompt |
+```yaml
+si1-camera1:
+  ffmpeg:
+    inputs:
+      - path: rtsp://10.0.0.21:8554/camera1   # the camera's "url" field, verbatim
+```
 
-All cameras use `RTSP_STREAM_PORT` (default `8554`).
+Each camera's `path` is exactly its `url` field. When a camera omits `url`, one is
+derived as `rtsp://<intersection ip>:<RTSP_STREAM_PORT>/<camera-name suffix>` as a
+same-host convenience default. Intersections marked `enabled: false` are skipped.
 
 ## Verify integration
 
@@ -233,8 +270,13 @@ nc -zv <siN_host> 1883
 
 **Frigate cameras show no recordings**
 
-RTSP IPs are written into `config.yml` at startup. If they changed, re-run
-`setup.sh start-nvr` to regenerate the config.
+RTSP IPs are written into `config.yml` at startup from `intersections.yaml`. If they
+changed, update the file and re-run `setup.sh start-nvr` to regenerate the config.
+
+**`Error: No intersections configured`**
+
+`intersections.yaml` is empty or missing. Add at least one intersection (name, ip and
+its cameras) and re-run the command.
 
 **UI shows no SceneScape source**
 

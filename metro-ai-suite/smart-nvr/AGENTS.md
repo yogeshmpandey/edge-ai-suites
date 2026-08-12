@@ -19,8 +19,11 @@ into the runtime image.
     - `src/api/endpoints/vss_api.py`: `GET /vss-features` — detects active VSS deployment mode.
   - `src/service/`: Redis, MQTT, Frigate, watcher, dispatcher, and rule logic.
     - `src/service/broker_manager.py`: async multi-broker MQTT connection lifecycle (connect/reconnect/stop).
+    - `src/service/intersection_config.py`: read/write `intersections.yaml`, the single
+      source of intersection (name, IP, cameras) configuration.
   - `src/model/`: Pydantic/domain models.
     - `src/model/broker.py`: Broker configuration model.
+    - `src/model/intersection.py`: Intersection and Camera configuration models.
   - `src/tests/`: backend tests.
 - `ui/`: Python UI code.
   - `ui/main.py`: Gradio UI entry point.
@@ -68,7 +71,9 @@ source setup.sh start-streamer  # RTSP streamer only
 source setup.sh stop-streamer
 ```
 
-`setup.sh start` validates required environment variables and starts Docker Compose.
+`setup.sh start` validates required environment variables, resolves the intersections
+from `resources/broker-config/intersections.yaml` (the single source of RTSP/MQTT
+configuration, parsed by `scripts/parse-intersections.sh`) and starts Docker Compose.
 It may also generate MQTT secrets, alter `resources/frigate-config/config.yml`, and
 start RTSP/SceneScape components depending on environment flags. Treat changes under
 `resources/` as potentially user-visible deployment configuration.
@@ -82,7 +87,8 @@ Important environment variables used by the stack include:
 - `SCENESCAPE_MQTT_BROKER`
 - `MAX_CONCURRENT_EVENTS`
 - `BROKER_RECONNECT_DELAY`
-- `BROKERS_CONFIG_PATH`
+- `INTERSECTIONS_CONFIG_PATH`
+- `INTERSECTIONS_AUTO_CONFIRM`
 - `MQTT_USER`
 - `MQTT_PASSWORD`
 - `REGISTRY_URL`
